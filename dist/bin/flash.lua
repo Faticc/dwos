@@ -3,62 +3,62 @@ local shell = require("shell")
 local fs = require("filesystem")
 local args, options = shell.parse(...)
 if #args < 1 and not options.l then
-  io.write("Usage: flash [-qlr] [<bios.lua>] [label]\n")
-  io.write(" q: quiet mode, don't ask questions.\n")
-  io.write(" l: print current contents of installed EEPROM.\n")
-  io.write(" r: save the current contents of installed EEPROM to file.\n")
-  return
+io.write("Usage: flash [-qlr] [<bios.lua>] [label]\n")
+io.write(" q: quiet mode, don't ask questions.\n")
+io.write(" l: print current contents of installed EEPROM.\n")
+io.write(" r: save the current contents of installed EEPROM to file.\n")
+return
 end
 local function confirm()
-  repeat
-    local response = io.read()
-  until response and response:lower():sub(1, 1) == "y"
+repeat
+local response = io.read()
+until response and response:lower():sub(1, 1) == "y"
 end
 local eeprom = component.eeprom
 if options.l then
-  io.write(eeprom.get())
+io.write(eeprom.get())
 elseif options.r then
-  local fileName = shell.resolve(args[1])
-  if not options.q then
-    if fs.exists(fileName) then
-      io.write("Are you sure you want to overwrite " .. fileName .. "?\nType `y` to confirm.\n")
-      confirm()
-    end
-    io.write("Reading EEPROM " .. eeprom.address .. ".\n")
-  end
-  local file = assert(io.open(fileName, "wb"))
-  file:write(eeprom.get())
-  file:close()
-  if not options.q then
-    io.write("All done!\nThe label is '" .. eeprom.getLabel() .. "'.\n")
-  end
+local fileName = shell.resolve(args[1])
+if not options.q then
+if fs.exists(fileName) then
+io.write("Are you sure you want to overwrite " .. fileName .. "?\nType `y` to confirm.\n")
+confirm()
+end
+io.write("Reading EEPROM " .. eeprom.address .. ".\n")
+end
+local file = assert(io.open(fileName, "wb"))
+file:write(eeprom.get())
+file:close()
+if not options.q then
+io.write("All done!\nThe label is '" .. eeprom.getLabel() .. "'.\n")
+end
 else
-  local file = assert(io.open(args[1], "rb"))
-  local bios = file:read("*a")
-  file:close()
-  if not options.q then
-    io.write("Insert the EEPROM you would like to flash.\nWhen ready to write, type `y` to confirm.\n")
-    confirm()
-    io.write("Beginning to flash EEPROM.\n")
-  end
-  eeprom = component.eeprom
-  if not options.q then
-    io.write("Flashing EEPROM " .. eeprom.address .. ".\n")
-    io.write("Please do NOT power down or restart your computer during this operation!\n")
-  end
-  eeprom.set(bios)
-  local label = args[2]
-  if not options.q and not label then
-    io.write("Enter new label for this EEPROM. Leave input blank to leave the label unchanged.\n")
-    label = io.read()
-  end
-  if label and #label > 0 then
-    eeprom.setLabel(label)
-    if not options.q then
-      io.write("Set label to '" .. eeprom.getLabel() .. "'.\n")
-    end
-  end
-  if not options.q then
-    io.write("All done! You can remove the EEPROM and re-insert the previous one now.\n")
-  end
+local file = assert(io.open(args[1], "rb"))
+local bios = file:read("*a")
+file:close()
+if not options.q then
+io.write("Insert the EEPROM you would like to flash.\nWhen ready to write, type `y` to confirm.\n")
+confirm()
+io.write("Beginning to flash EEPROM.\n")
+end
+eeprom = component.eeprom
+if not options.q then
+io.write("Flashing EEPROM " .. eeprom.address .. ".\n")
+io.write("Please do NOT power down or restart your computer during this operation!\n")
+end
+eeprom.set(bios)
+local label = args[2]
+if not options.q and not label then
+io.write("Enter new label for this EEPROM. Leave input blank to leave the label unchanged.\n")
+label = io.read()
+end
+if label and #label > 0 then
+eeprom.setLabel(label)
+if not options.q then
+io.write("Set label to '" .. eeprom.getLabel() .. "'.\n")
+end
+end
+if not options.q then
+io.write("All done! You can remove the EEPROM and re-insert the previous one now.\n")
+end
 end

@@ -18,15 +18,15 @@ numpadsub=4A numpadadd=4E numpaddecimal=53 numpadcomma=B3 numpadenter=9C
 numpadequals=8D
 ]]
 for name, code in LIST:gmatch("(%S+)=(%x%x)") do
-  keys[name] = tonumber(code, 16)
+keys[name] = tonumber(code, 16)
 end
 setmetatable(keys, {
-  __index = function(tbl, k)
-    if type(k) ~= "number" then return end
-    for name, value in pairs(tbl) do
-      if value == k then
-        return name
-      end
-    end
-  end,
+__index = function(tbl, k)
+if type(k) ~= "number" then return end
+for name, value in pairs(tbl) do
+if value == k then
+return name
+end
+end
+end,
 })

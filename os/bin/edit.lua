@@ -126,6 +126,7 @@ local BAR_BG, BAR_FG, BAR_NAME = 0x1B2A3A, 0x7A8A98, 0xE1E1E1
 local BAR_POS, BAR_MARK, BAR_MSG = 0x66CCFF, 0xFFAA00, 0x88DD88
 local GUT, GUT_CUR, CUR = 0x4E5D6B, 0x9AA8B4, 0xFFFFFF
 local SEL, FIND, PAIR = 0x2D4A66, 0xFFAA00, 0x4E7A2D
+local ERR = 0xFF6666
 local POP_BG, POP_FG, POP_SEL = 0x22323F, 0xC8D2DA, 0x2D4A66
 
 ------------------------------------------------------------------ подсветка
@@ -245,6 +246,8 @@ local status, dirty = nil, {}
 local fullRedraw, modified = true, false
 local match, pair = nil, nil      -- найденное и парная скобка
 local GW = 2                      -- ширина колонки с номерами строк
+local sigHelp = nil               -- сигнатура вызова под курсором: куски { текст, цвет }
+local lineProblem                 -- (i) -> что не заполнено в вызовах строки; ниже
 
 local function curLine() return buffer[cy] or "" end
 local function textW() return W - GW end
@@ -436,7 +439,7 @@ local function drawRow(i)
   end
 
   local n = tostring(i)
-  put(1, y, (" "):rep(GW - 1 - #n) .. n .. " ", i == cy and GUT_CUR or GUT, BG)
+  put(1, y, (" "):rep(GW - 1 - #n) .. n .. " ", lineProblem(i) and ERR or i == cy and GUT_CUR or GUT, BG)
 
   -- где у строки меняется оформление: выделение, найденное, пара, курсор
   local cuts = {}
@@ -581,22 +584,34 @@ local function drawStatus()
 
   local name = fit(fs.name(filename), math.max(1, W - rw - 4))
   local mark = readonly and " [чтение]" or modified and " *" or ""
-  local mid, colour = HELP, BAR_FG
+  local mid
   if status then
-    mid, colour = status, BAR_MSG
+    mid = { { status, BAR_MSG } }
+  elseif sigHelp then
+    mid = sigHelp
   elseif ghost then
-    mid = "Tab → " .. ghost.word .. (ghost.more > 0 and ("   ещё " .. ghost.more) or "")
-    colour = BAR_POS
+    mid = { { "Tab → " .. ghost.word .. (ghost.more > 0 and ("   ещё " .. ghost.more) or ""), BAR_POS } }
+  else
+    local miss = lineProblem(cy)
+    mid = miss and { { "не заполнено: " .. table.concat(miss, "; "), ERR } } or { { HELP, BAR_FG } }
   end
   local at = 1 + unicode.wlen(name) + unicode.wlen(mark)
   local room = W - rw - at - 2
-  mid = room > 0 and fit(mid, room) or ""
-  local gap = W - rw - at - unicode.wlen(mid)
-  bar({
-    { " ", BAR_FG }, { name, BAR_NAME }, { mark, BAR_MARK },
-    { gap >= 2 and ("  " .. mid .. (" "):rep(gap - 2)) or (" "):rep(math.max(0, gap)), colour },
-    { right, BAR_POS },
-  })
+  local parts = { { " ", BAR_FG }, { name, BAR_NAME }, { mark, BAR_MARK } }
+  if room > 0 then
+    parts[#parts + 1] = { "  ", BAR_FG }
+    for _, m in ipairs(mid) do
+      if room <= 0 then break end
+      local piece = fit(m[1], room)
+      parts[#parts + 1] = { piece, m[2] }
+      room = room - unicode.wlen(piece)
+    end
+    parts[#parts + 1] = { (" "):rep(math.max(0, room)), BAR_FG }
+  else
+    parts[#parts + 1] = { (" "):rep(math.max(0, W - rw - at)), BAR_FG }
+  end
+  parts[#parts + 1] = { right, BAR_POS }
+  bar(parts)
 end
 
 local lastCursorRow
@@ -863,13 +878,69 @@ local function chainBefore()
   return upto:match("[%a_][%w_%.:]*$")
 end
 
+--- Локальные имена файла, за которыми стоит что-то живое:
+---   local gpu = component.gpu            -> { "component", "gpu" }
+---   local c = require("component")       -> { "component" }
+---   local g = component.proxy(component.list("gpu")())  -> { "component", "gpu" }
+--- Без этого подсказки и справка работали бы только с полным путём.
+local aliasCache, aliasRev, aliasAt, aliasSig = nil, -1, -2, ""
+
+-- Разбор вызовов в строке дорогой (подсветка, поиск по таблицам), а
+-- рисуется строка часто, поэтому ответ помним по её тексту. Забываем, когда
+-- в файле поменялись свои имена: gpu.set могло начать что-то значить.
+local problemCache = {}
+
+local function aliases()
+  if aliasCache and (aliasRev == rev or computer.uptime() - aliasAt < 1) then
+    return aliasCache
+  end
+  local map = {}
+  for _, line in ipairs(buffer) do
+    if line:find("local", 1, true) then
+      line = line:gsub("%-%-.*$", "")
+      local name, mod = line:match("local%s+([%a_][%w_]*)%s*=%s*require%s*%(?%s*[\"']([%w_%.]+)[\"']")
+      if name then
+        map[name] = { mod }
+      else
+        name, mod = line:match("local%s+([%a_][%w_]*)%s*=%s*component%.proxy%s*%(%s*component%.list%s*%(%s*[\"']([%w_]+)[\"']")
+        if name then
+          map[name] = { "component", mod }
+        else
+          local chain
+          name, chain = line:match("local%s+([%a_][%w_]*)%s*=%s*([%a_][%w_%.]*)%s*;?%s*$")
+          if name and chain ~= name then
+            local p = {}
+            for part in chain:gmatch("[^%.]+") do p[#p + 1] = part end
+            map[name] = p
+          end
+        end
+      end
+    end
+  end
+  local names = {}
+  for k, v in pairs(map) do names[#names + 1] = k .. "=" .. table.concat(v, ".") end
+  table.sort(names)
+  local sig = table.concat(names, " ")
+  if sig ~= aliasSig then
+    aliasSig = sig
+    problemCache = {}
+  end
+  aliasCache, aliasRev, aliasAt = map, rev, computer.uptime()
+  return map
+end
+
 --- Пройти по цепочке имён от глобального окружения. Библиотеку из /lib
 --- подгружаем, если её ещё не требовали, - иначе дополнять нечем.
-local function resolve(path)
+local function resolve(path, depth)
   local cur
   for i, name in ipairs(path) do
     if i == 1 then
       cur = rawget(_G, name) or package.loaded[name]
+      -- своё имя файла: local gpu = component.gpu и подобное
+      if cur == nil and (depth or 0) < 3 then
+        local a = aliases()[name]
+        if a then cur = resolve(a, (depth or 0) + 1) end
+      end
       if cur == nil and fs.exists("/lib/" .. name .. ".lua") then
         local ok, libtab = pcall(require, name)
         cur = ok and libtab or nil
@@ -940,7 +1011,7 @@ local function dictionary(path)
   local key = table.concat(path, ".")
   local live = path[1] == "component"
   local cached = memberCache[key]
-  if cached ~= nil and not (live and computer.uptime() - cached.at >= 1) then
+  if cached ~= nil and computer.uptime() - cached.at < (live and 1 or 3) then
     return cached.list or nil
   end
   local t = resolve(path)
@@ -1110,6 +1181,175 @@ local function pad(s, width)
   return s .. (" "):rep(width - unicode.wlen(s))
 end
 
+------------------------------------------------------------------ сигнатуры
+
+-- У методов устройств справка начинается с сигнатуры:
+--   function(x:number, y:number, value:string[, vertical:boolean]):boolean
+-- По ней видно, сколько аргументов обязательно. Пока вызов не заполнен,
+-- номер строки красный, а в служебной строке - что ещё не хватает.
+
+local sigCache = {}
+
+--- Разобрать сигнатуру: { params = { {text, name, optional} }, ret = ":тип" }.
+local function sigOf(doc)
+  if sigCache[doc] ~= nil then return sigCache[doc] or nil end
+  local inner, rest = doc:match("^function%((.-)%)(.*)$")
+  local sig = false
+  if inner then
+    local ret = (rest:match("^(.-)%s*%-%-") or rest):gsub("%s+$", "")
+    sig = { params = {}, ret = ret }
+    local depth, cur, optional = 0, "", false
+    local function push()
+      local t = cur:gsub("^%s+", ""):gsub("%s+$", "")
+      if t ~= "" then
+        sig.params[#sig.params + 1] = {
+          text = t, name = t:match("^[^:]+"),
+          optional = optional or t:sub(1, 3) == "...",
+        }
+      end
+      cur, optional = "", false
+    end
+    for ch in inner:gmatch(".") do
+      if ch == "[" then depth = depth + 1
+      elseif ch == "]" then depth = depth - 1
+      elseif ch == "," then push()
+      else
+        if cur:find("^%s*$") and ch:find("%S") then optional = depth > 0 end
+        cur = cur .. ch
+      end
+    end
+    push()
+  end
+  sigCache[doc] = sig
+  return sig or nil
+end
+
+--- Строка как код: строки заменены нулями, комментарии пробелами, чтобы
+--- скобки и запятые внутри них не мешали считать. Длина в байтах та же.
+local function codeOf(i)
+  local out = {}
+  for _, t in ipairs(tokensFor(i)) do
+    if t[2] == C_STR then out[#out + 1] = ("0"):rep(#t[1])
+    elseif t[2] == C_CMT then out[#out + 1] = (" "):rep(#t[1])
+    else out[#out + 1] = t[1] end
+  end
+  return table.concat(out)
+end
+
+--- Вызов, открытый скобкой на байте open: чей он и какие аргументы.
+local function callAt(code, open)
+  local chain = code:sub(1, open - 1):match("([%a_][%w_%.]*)%s*$")
+  if not chain or chain:sub(-1) == "." then return nil end
+  local path = {}
+  for part in chain:gmatch("[^%.]+") do path[#path + 1] = part end
+  if #path < 2 then return nil end
+  local name = table.remove(path)
+  local owner = resolve(path)
+  if type(owner) ~= "table" then return nil end
+  local doc = docFor(owner, path, name)
+  local sig = doc and sigOf(doc)
+  if not sig then return nil end
+  local args, depth, start, close = {}, 0, open + 1, nil
+  for j = open + 1, #code do
+    local c = code:sub(j, j)
+    if c == "(" or c == "[" or c == "{" then
+      depth = depth + 1
+    elseif c == ")" or c == "]" or c == "}" then
+      if depth == 0 then close = j break end
+      depth = depth - 1
+    elseif c == "," and depth == 0 then
+      args[#args + 1] = { start, j - 1 }
+      start = j + 1
+    end
+  end
+  args[#args + 1] = { start, (close or #code + 1) - 1 }
+  return { name = name, sig = sig, args = args, close = close, code = code }
+end
+
+local function filled(call, k)
+  local a = call.args[k]
+  return a and call.code:sub(a[1], a[2]):find("%S") ~= nil
+end
+
+--- Обязательные параметры, для которых аргумента нет.
+local function missingOf(call)
+  local out = {}
+  for k, p in ipairs(call.sig.params) do
+    if not p.optional and not filled(call, k) then out[#out + 1] = p.name end
+  end
+  return out
+end
+
+lineProblem = function(i)
+  local line = buffer[i]
+  if not lua or not line or not line:find("(", 1, true) then return nil end
+  local known = problemCache[line]
+  if known ~= nil then return known or nil end
+  local code = codeOf(i)
+  local miss
+  for open in code:gmatch("()%(") do
+    local call = callAt(code, open)
+    -- незакрытый вызов может продолжаться на следующих строках
+    if call and call.close then
+      local m = missingOf(call)
+      if #m > 0 then
+        miss = miss or {}
+        miss[#miss + 1] = call.name .. ": " .. table.concat(m, ", ")
+      end
+    end
+  end
+  problemCache[line] = miss or false
+  return miss
+end
+
+--- Ближайший вызов с сигнатурой, внутри которого стоит курсор.
+local function callAround()
+  if not lua then return nil end
+  local code = codeOf(cy)
+  local pos = #unicode.sub(curLine(), 1, cx - 1)
+  local depth = 0
+  for j = pos, 1, -1 do
+    local c = code:sub(j, j)
+    if c == ")" or c == "]" or c == "}" then
+      depth = depth + 1
+    elseif c == "(" or c == "[" or c == "{" then
+      if depth > 0 then
+        depth = depth - 1
+      elseif c == "(" then
+        -- tostring( внутри gpu.set( - смотрим дальше наружу
+        local call = callAt(code, j)
+        if call then return call, pos + 1 end
+      end
+    end
+  end
+end
+
+--- Собрать подсказку к вызову под курсором: текущий параметр выделен,
+--- незаполненные обязательные - красным, и отдельно что не хватает.
+local function updateSig()
+  sigHelp = nil
+  local call, at = callAround()
+  if not call then return end
+  local k = #call.args
+  for i, a in ipairs(call.args) do
+    if at <= a[2] + 1 then k = i break end
+  end
+  local out = { { call.name .. "(", BAR_NAME } }
+  for i, p in ipairs(call.sig.params) do
+    if i > 1 then out[#out + 1] = { ", ", BAR_FG } end
+    local colour = BAR_FG
+    if i == k then colour = BAR_MARK
+    elseif not p.optional and not filled(call, i) then colour = ERR end
+    out[#out + 1] = { p.optional and ("[" .. p.text .. "]") or p.text, colour }
+  end
+  out[#out + 1] = { ")" .. call.sig.ret, BAR_NAME }
+  local miss = missingOf(call)
+  if #miss > 0 then
+    out[#out + 1] = { "   не хватает: " .. table.concat(miss, ", "), ERR }
+  end
+  sigHelp = out
+end
+
 --- Список вариантов у курсора: поля таблицы после точки или слова.
 --- Буквы идут прямо в текст и сужают список, стрелки выбирают, Enter и
 --- Tab подставляют. Любая другая клавиша закрывает список и срабатывает
@@ -1218,6 +1458,13 @@ local function popup(path)
       elseif code == keys.enter or code == keys.numpadenter or code == keys.tab then
         close()
         replaceFrag(unicode.len(frag), shown[sel])
+        -- метод устройства: сразу скобки, курсор внутри - и видна сигнатура
+        local sig = doc and doc:find("^function%(") and sigOf(doc)
+        if sig and unicode.sub(curLine(), cx, cx) ~= "(" then
+          insert("()")
+          if #sig.params > 0 then setCursor(cx - 1, cy) end
+          commit()
+        end
         return true
       elseif code == keys.back and frag ~= "" then
         local line = curLine()
@@ -1403,6 +1650,7 @@ local function inPanel(fn)
   -- видеопамять: холст редактора создаём заново
   relayout()
   memberCache = {}          -- устройства могли подключить или снять
+  problemCache = {}
 end
 
 --- F5: сохранить и запустить файл; вывод - в панели внизу.
@@ -1462,6 +1710,14 @@ local handlers = {
   backspace = function()
     if readonly then return end
     if deleteSelection() then return end
+    -- пустая пара: стёр открывающую - уходит и закрывающая, что поставилась сама
+    local line = curLine()
+    local before, after = unicode.sub(line, cx - 1, cx - 1), unicode.sub(line, cx, cx)
+    if cx > 1 and after ~= "" and (OPEN[before] == after or ((before == '"' or before == "'") and after == before)) then
+      splice(cy, 1, { unicode.sub(line, 1, cx - 2) .. unicode.sub(line, cx + 1) }, "erase")
+      setCursor(cx - 1, cy)
+      return
+    end
     if left() then delete() end
   end,
   delete = function() if not readonly then delete() end end,
@@ -1732,11 +1988,13 @@ local function dispatch(e, addr, a, b, c)
     onKeyDown(a, b)
     updateGhost()
     findPair()
+    updateSig()
     redraw()
   elseif e == "clipboard" then
     onClipboard(a)
     updateGhost()
     findPair()
+    updateSig()
     redraw()
   elseif e == "touch" or e == "drag" then
     local gx, gy = term.getGlobalArea()
@@ -1750,6 +2008,7 @@ local function dispatch(e, addr, a, b, c)
       setCursor(charAt(buffer[row + scrollY] or "", math.max(1, col - GW + scrollX)), row + scrollY)
       commit()
       updateGhost()
+      updateSig()
       if anchor then fullRedraw = true end
       redraw()
     end

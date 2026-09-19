@@ -2,8 +2,8 @@ local shell = require("shell")
 local tty = require("tty")
 local fs = require("filesystem")
 if tty.isAvailable() and io.stdout.tty then
-  io.write("\27[40m\27[37m")
-  tty.clear()
+io.write("\27[40m\27[37m")
+tty.clear()
 end
 dofile("/etc/motd")
 shell.setAlias("dir", "ls")
@@ -33,5 +33,5 @@ os.setenv("LS_COLORS", "di=0;36:fi=0:ln=0;33:*.lua=0;32")
 shell.setWorkingDirectory(os.getenv("HOME"))
 local home_shrc = shell.resolve(".shrc")
 if fs.exists(home_shrc) then
-  loadfile(shell.resolve("source", "lua"))(home_shrc)
+loadfile(shell.resolve("source", "lua"))(home_shrc)
 end

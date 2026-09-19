@@ -3,8 +3,8 @@ local sh = require("sh")
 local real_before, cpu_before = computer.uptime(), os.clock()
 local cmd_result = 0
 if ... then
-  sh.execute(nil, ...)
-  cmd_result = sh.getLastExitCode()
+sh.execute(nil, ...)
+cmd_result = sh.getLastExitCode()
 end
 local real_diff = computer.uptime() - real_before
 local cpu_diff = os.clock() - cpu_before

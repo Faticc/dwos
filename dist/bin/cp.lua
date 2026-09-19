@@ -3,7 +3,7 @@ local transfer = require("tools/transfer")
 local args, options = shell.parse(...)
 options.h = options.h or options.help
 if #args < 2 or options.h then
-  io.write([[Usage: cp [OPTIONS] <from...> <to>
+io.write([[Usage: cp [OPTIONS] <from...> <to>
  -i: prompt before overwrite (overrides -n option).
  -n: do not overwrite an existing file.
  -r: copy directories recursively.
@@ -14,11 +14,11 @@ if #args < 2 or options.h then
  -x: stay on original source file system.
  --skip=P: skip files matching lua regex P
 ]])
-  return not not options.h
+return not not options.h
 end
 return transfer.batch(args, {
-  cmd = "cp",
-  i = options.i, f = options.f, n = options.n, r = options.r,
-  u = options.u, P = options.P, v = options.v, x = options.x,
-  skip = { options.skip },
+cmd = "cp",
+i = options.i, f = options.f, n = options.n, r = options.r,
+u = options.u, P = options.P, v = options.v, x = options.x,
+skip = { options.skip },
 })
