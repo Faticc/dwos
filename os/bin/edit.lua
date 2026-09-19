@@ -17,6 +17,7 @@ local term = require("term")
 local text = require("text")
 local unicode = require("unicode")
 local event = require("event")
+local computer = require("computer")
 local gfx = require("gfx")
 local tty = require("tty")
 
@@ -77,6 +78,7 @@ local DEFAULTS = {
   undo = { { "control", "z" } },
   redo = { { "control", "y" } },
   complete = { { "tab" } },
+  completeList = { { "control", "space" } },
   unindent = { { "shift", "tab" } },
 }
 
@@ -229,6 +231,8 @@ local running = true
 local anchor = nil                -- начало выделения: { символ, строка }
 local clip = {}                   -- свой буфер обмена, строками
 local cutting = false             -- Ctrl+K подряд складывает строки в один кусок
+local rev = 0                     -- счётчик правок: по нему стареет словарь
+local ghost = nil                 -- подсказка при наборе: { text, more }
 local status, dirty = nil, {}
 local fullRedraw, modified = true, false
 local match, pair = nil, nil      -- найденное и парная скобка
@@ -360,6 +364,7 @@ local function splice(at, count, new, kind)
     redoStack = {}
   end
   apply(at, count, new)
+  rev = rev + 1
   modified = true
   status = nil
   if match then markDirty(match.line) match = nil end
@@ -454,6 +459,14 @@ local function drawRow(i)
     end
   end
 
+  -- серая подсказка справа от курсора: что подставит Tab
+  if ghost and i == cy then
+    local x = dispCol(buffer[i], cx) - scrollX
+    if x >= 1 and x <= TW then
+      S:set(GW + x, y, fit(ghost.text, TW - x + 1), GUT, BG)
+    end
+  end
+
   if pair then
     for _, p in ipairs(pair) do
       if p[2] == i then
@@ -515,11 +528,17 @@ local function drawStatus()
     at = at + unicode.wlen(mark)
   end
 
-  local mid = status or HELP
+  local mid, colour = HELP, BAR_FG
+  if status then
+    mid, colour = status, BAR_MSG
+  elseif ghost then
+    mid = "Tab → " .. ghost.word .. (ghost.more > 0 and ("   ещё " .. ghost.more) or "")
+    colour = BAR_POS
+  end
   local room = W - #right - at - 2
   if room > 0 then
     mid = fit(mid, room)
-    if mid ~= "" then S:set(at + 2, H, mid, status and BAR_MSG or BAR_FG, BAR_BG) end
+    if mid ~= "" then S:set(at + 2, H, mid, colour, BAR_BG) end
   end
 end
 
@@ -528,6 +547,8 @@ local function drawCursor()
   local col = dispCol(curLine(), cx) - scrollX
   if y < 1 or y > rows or col < 1 or col > textW() then return end
   local ch = unicode.sub(curLine(), cx, cx)
+  -- в конце строки курсор садится на первую букву подсказки
+  if ch == "" and ghost then ch = unicode.sub(ghost.text, 1, 1) end
   if ch == "" or ch == "\t" then ch = " " end
   S:set(GW + col, y, ch, BG, readonly and 0x88AAFF or CUR)
 end
@@ -827,42 +848,117 @@ local function keysOf(t, out, seen)
   end)
 end
 
---- Что можно подставить вместо набранного куска.
-local function candidates(chain)
+-- Словарь слов файла собирается не на каждую букву: перебрать тысячу строк
+-- в песочнице мода быстрее, чем кажется, но не двадцать раз в секунду.
+-- Список держим отсортированным - тогда подходящие под приставку лежат
+-- подряд, и найти их можно двоичным поиском, не читая весь словарь.
+local wordCache, wordCacheRev, wordCacheAt = nil, -1, -2
+local memberCache = {}
+
+local function wordList()
+  if wordCache and (wordCacheRev == rev or computer.uptime() - wordCacheAt < 1) then
+    return wordCache
+  end
+  local all, seen = {}, {}
+  for _, line in ipairs(buffer) do
+    for word in line:gmatch("[%a_][%w_]*") do
+      if not seen[word] then seen[word] = true all[#all + 1] = word end
+    end
+  end
+  for w in pairs(KEYWORD) do if not seen[w] then seen[w] = true all[#all + 1] = w end end
+  for w in pairs(BUILTIN) do if not seen[w] then seen[w] = true all[#all + 1] = w end end
+  keysOf(_G, all, seen)
+  keysOf(package.loaded, all, seen)
+  table.sort(all, function(a, b) return a:lower() < b:lower() end)
+  wordCache, wordCacheRev, wordCacheAt = all, rev, computer.uptime()
+  return all
+end
+
+--- Разобрать набранное на путь по таблицам и последний кусок.
+local function splitChain(chain)
   local path, frag = {}, chain
   local dot = chain:match("^(.*)[%.:][%w_]*$")
   if dot then
     frag = chain:match("[%.:]([%w_]*)$") or ""
     for name in dot:gmatch("[^%.:]+") do path[#path + 1] = name end
   end
+  return path, frag
+end
 
-  local all, seen = {}, {}
-  if #path > 0 then
-    local t = resolve(path)
-    if type(t) ~= "table" then return nil end
-    keysOf(t, all, seen)
-  else
-    -- слова из самого файла: имена переменных и функций всегда под рукой
-    for _, line in ipairs(buffer) do
-      for word in line:gmatch("[%a_][%w_]*") do
-        if not seen[word] then seen[word] = true all[#all + 1] = word end
-      end
-    end
-    for w in pairs(KEYWORD) do if not seen[w] then seen[w] = true all[#all + 1] = w end end
-    for w in pairs(BUILTIN) do if not seen[w] then seen[w] = true all[#all + 1] = w end end
-    keysOf(_G, all, seen)
-    keysOf(package.loaded, all, seen)
+--- Отсортированный словарь, по которому ищем: поля таблицы или слова файла.
+local function dictionary(path)
+  if #path == 0 then return wordList() end
+  local key = table.concat(path, ".")
+  local cached = memberCache[key]
+  if cached ~= nil then return cached or nil end
+  local t = resolve(path)
+  if type(t) ~= "table" then
+    memberCache[key] = false
+    return nil
   end
+  local all, seen = {}, {}
+  keysOf(t, all, seen)
+  table.sort(all, function(a, b) return a:lower() < b:lower() end)
+  memberCache[key] = all
+  return all
+end
 
-  local out, low = {}, frag:lower()
-  for _, w in ipairs(all) do
-    if w ~= frag and w:lower():sub(1, #low) == low then out[#out + 1] = w end
+--- Первый индекс, с которого слова не меньше приставки.
+local function lowerBound(list, low)
+  local a, b = 1, #list + 1
+  while a < b do
+    local mid = math.floor((a + b) / 2)
+    if list[mid]:lower() < low then a = mid + 1 else b = mid end
+  end
+  return a
+end
+
+--- Что можно подставить вместо набранного куска.
+local function candidates(chain)
+  local path, frag = splitChain(chain)
+  local list = dictionary(path)
+  if not list then return nil end
+
+  local low = frag:lower()
+  local out = {}
+  for i = lowerBound(list, low), #list do
+    local w = list[i]
+    if w:lower():sub(1, #low) ~= low then break end
+    if w ~= frag then out[#out + 1] = w end
+    if #out > 300 then break end
   end
   table.sort(out, function(a, b)
     if #a ~= #b then return #a < #b end
     return a < b
   end)
   return out, frag
+end
+
+--- Подсказка при наборе: что подставит Tab. Показываем только в конце
+--- строки - иначе она закрыла бы настоящий текст - и не раньше двух букв:
+--- на одну их сотни, подсказывать нечего. Стоит это одного вызова gpu,
+--- поэтому кадр остаётся дешёвым и на каждую букву не уходит bitblt.
+local function updateGhost()
+  local was = ghost
+  ghost = nil
+  repeat
+    if readonly or anchor then break end
+    if cx <= unicode.len(curLine()) then break end
+    local chain = chainBefore()
+    if not chain then break end
+    local path, frag = splitChain(chain)
+    if #path == 0 and unicode.len(frag) < 2 then break end
+    local list = candidates(chain)
+    if not list or #list == 0 then break end
+    local pick = list[1]
+    if unicode.len(pick) <= unicode.len(frag) then break end
+    ghost = {
+      word = pick,
+      text = unicode.sub(pick, unicode.len(frag) + 1),
+      more = #list - 1,
+    }
+  until true
+  if was or ghost then markDirty(cy) end
 end
 
 --- Список вариантов рядом с курсором. Буквы сужают список, Enter или Tab
@@ -1122,9 +1218,17 @@ local handlers = {
     if readonly then return end
     if selection() then
       indentSelection(false)
+    elseif ghost then
+      -- подсказка уже на экране: Tab её просто принимает
+      insert(ghost.text)
+      commit()
+      ghost = nil
     elseif not complete() then
       insert("  ")
     end
+  end,
+  completeList = function()
+    if not readonly then complete() end
   end,
   unindent = function() if not readonly then indentSelection(true) end end,
 
@@ -1267,10 +1371,12 @@ local function loop()
     if e ~= "interrupted" and (addr == term.keyboard() or addr == term.screen()) then
       if e == "key_down" then
         onKeyDown(a, b)
+        updateGhost()
         findPair()
         redraw()
       elseif e == "clipboard" then
         onClipboard(a)
+        updateGhost()
         findPair()
         redraw()
       elseif e == "touch" or e == "drag" then
@@ -1284,11 +1390,13 @@ local function loop()
           end
           setCursor(charAt(buffer[row + scrollY] or "", math.max(1, col - GW + scrollX)), row + scrollY)
           commit()
+          updateGhost()
           if anchor then fullRedraw = true end
           redraw()
         end
       elseif e == "scroll" then
         move(cx, cy - (c or 0) * 12)
+        updateGhost()
         fullRedraw = true
         redraw()
       end
