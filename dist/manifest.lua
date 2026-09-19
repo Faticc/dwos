@@ -106,7 +106,7 @@
 		{ "lib/devfs.lua",                  size = 7482, crc = "8394705a" },
 		{ "lib/event.lua",                  size = 4322, crc = "0d5daed3" },
 		{ "lib/filesystem.lua",             size = 7587, crc = "4a9f90bb" },
-		{ "lib/gfx.lua",                    size = 14570, crc = "fa1425a6" },
+		{ "lib/gfx.lua",                    size = 15000, crc = "148bdb38" },
 		{ "lib/internet.lua",               size = 2715, crc = "d4e94485" },
 		{ "lib/io.lua",                     size = 2401, crc = "dae0b666" },
 		{ "lib/keyboard.lua",               size = 1294, crc = "0837e875" },

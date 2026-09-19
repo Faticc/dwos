@@ -30,9 +30,18 @@ end
 local COST = {
   set = { 1/64, 1/128, 1/256 }, copy = { 1/16, 1/32, 1/64 },
   fill = { 1/32, 1/64, 1/128 }, color = { 1/32, 1/64, 1/128 },
+  -- bitblt грязного буфера на экран стоит пропорционально его размеру:
+  -- цена целого экрана, умноженная на долю, которую занимает буфер
+  blit = { 0.5, 1, 2 },
 }
--- сколько бюджета тика не жалко на прямой вывод вместо bitblt
-gfx.budget = 0.4
+-- Потолок на прямой вывод вместо bitblt. Считается от размера буфера
+-- (см. logInit), но не больше gfx.budget. Порог важнее, чем кажется:
+-- bitblt, который не влез в кредит тика, стоит машине ровно один тик и
+-- больше ничего, а повтор журнала тратит бюджет, и если он подобрался к
+-- кредиту вплотную, то и тик потерян, и на остальную работу кадра ничего
+-- не осталось. По замерам (test/gamevm.lua) выигрыш держится, пока повтор
+-- дешевле примерно двух третей кредита, - отсюда 0.9 при кредите 1.5.
+gfx.budget = 0.9
 
 local function tierOf(gpu)
   local w = gpu.maxResolution()
@@ -86,6 +95,11 @@ local function logInit(s, gpu, x, y, w, h, pal)
   s.lfg, s.lbg = nil, nil       -- цвета последней записи в журнале
   local t = tierOf(gpu)
   s.cset, s.ccopy, s.cfill, s.ccolor = COST.set[t], COST.copy[t], COST.fill[t], COST.color[t]
+  -- во что обойдётся положить этот буфер на экран одним куском: маленький
+  -- холст дешевле повторить журналом только совсем уж маленькой правкой
+  local mw, mh = gpu.maxResolution()
+  s.cblit = COST.blit[t] * (w * h) / (mw * mh)
+  s.limit = min(s.cblit, gfx.budget)
   s.buf = allocate(gpu, w, h)
   s.calls, s.screenCalls = 0, 0
   -- цвета карты - состояние общее, не своё у каждого буфера: запоминаем,
@@ -125,7 +139,7 @@ function Log.present(s, force)
   if not s.buf then return end
   if s.ln == 0 and not s.stale then g.setActiveBuffer(0) return end
   g.setActiveBuffer(0)
-  if force ~= "blit" and not s.stale and (force == "replay" or s.cost <= gfx.budget) then
+  if force ~= "blit" and not s.stale and (force == "replay" or s.cost <= s.limit) then
     -- мало изменений: повторить их прямо на экране
     local fg, bg, ox, oy = nil, nil, s.ox - 1, s.oy - 1
     local log = s.log
@@ -269,7 +283,13 @@ function gfx.new(gpu, w, h, o)
   local mw, mh = gpu.maxResolution()
   w = min(w or mw, mw)
   h = min(h or mh, mh)
-  if not o.keepResolution then gpu.setResolution(w, h) end
+  -- setResolution - вызов не direct, то есть целый тик машины. Если
+  -- разрешение уже нужное (обычный случай: экран и так 160x50), тик
+  -- тратить не на что.
+  if not o.keepResolution then
+    local cw, ch = gpu.getResolution()
+    if cw ~= w or ch ~= h then gpu.setResolution(w, h) end
+  end
   local s = setmetatable({
     w = w, h = h, pw = w, ph = h * 2,
     fb = {}, shown = {}, saved = {}, top = 1,
@@ -287,9 +307,17 @@ function gfx.new(gpu, w, h, o)
 end
 
 --- Своя палитра на 16 цветов (у карты 1 уровня её нет - будут ближайшие).
+--- Записи, которые уже стоят, не переставляются: getPaletteColor ничего не
+--- стоит, а setPaletteColor - 1/16 бюджета, то есть шестнадцать цветов это
+--- целый тик. Игре, которая меняет тему уровня тремя цветами, он ни к чему.
 function S:palette(pal)
+  local g = self.gpu
   for i = 0, 15 do
-    if pal[i] then pcall(self.gpu.setPaletteColor, i, pal[i]) end
+    local c = pal[i]
+    if c then
+      local ok, cur = pcall(g.getPaletteColor, i)
+      if not ok or cur ~= c then pcall(g.setPaletteColor, i, c) end
+    end
   end
   self.fg, self.bg = nil, nil
 end
@@ -579,7 +607,10 @@ end
 
 function gfx.restorePalette(gpu, p)
   for i = 0, 15 do
-    if p[i] then pcall(gpu.setPaletteColor, i, p[i]) end
+    if p[i] then
+      local ok, cur = pcall(gpu.getPaletteColor, i)
+      if not ok or cur ~= p[i] then pcall(gpu.setPaletteColor, i, p[i]) end
+    end
   end
 end
 
