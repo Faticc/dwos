@@ -83,6 +83,7 @@ local DEFAULTS = {
   unindent = { { "shift", "tab" } },
   run = { { "f5" }, { "control", "r" } },
   shell = { { "control", "e" } },
+  panel = { { "control", "o" } },
 }
 
 local function loadConfig()
@@ -203,8 +204,10 @@ local function tokenize(s, state)
         if not a then a, b = i, i end
         push(s:sub(a, b), C_NUM)
         i = b + 1
-      elseif c:match("[%a_]") then
-        local a, b = s:find("^[%w_]+", i)
+      elseif c:match("[%a_\128-\255]") then
+        -- байты старше 127 - это UTF-8: русская буква в два байта, и по
+        -- одному их рисовать нельзя (на экране выйдут знаки вопроса)
+        local a, b = s:find("^[%w_\128-\255]+", i)
         local word = s:sub(a, b)
         push(word, KEYWORD[word] and C_KW or BUILTIN[word] and C_BLT or FG)
         i = b + 1
@@ -222,8 +225,10 @@ end
 local gpu = tty.gpu()
 term.clear()
 term.setCursorBlink(false)
-local S = gfx.surface(gpu)
-local W, H = S.w, S.h
+local SW, SH = gpu.getResolution()
+local panelH = 0                  -- панель оболочки внизу; 0 - закрыта
+local S = gfx.surface(gpu, { h = SH })
+local W, H = S.w, S.h             -- холст редактора, H - его служебная строка
 local rows = H - 1
 
 local buffer = {}
@@ -397,89 +402,126 @@ end
 
 ------------------------------------------------------------------ рисование
 
+-- Каждая клетка за кадр пишется один раз. Раньше строка сперва заливалась
+-- пустотой, а потом поверх ложился текст, подсказка и курсор; когда кадр
+-- уходит на экран повтором журнала, между заливкой и текстом бывает
+-- видна пустая строка - подсказка и список вариантов моргали. Теперь строка
+-- идёт слева направо кусками, а хвост добивается пробелами.
+
+-- Прямоугольники, которые занимает список вариантов и справка к нему:
+-- текст их обходит, чтобы не рисоваться под ними.
+local holes = {}
+
+--- Положить кусок на экран с колонки sx, обойдя дыры.
+local function put(sx, y, s, fg, bg)
+  if s == "" then return end
+  local w = unicode.wlen(s)
+  for _, r in ipairs(holes) do
+    if y >= r.y1 and y <= r.y2 and sx <= r.x2 and sx + w - 1 >= r.x1 then
+      if sx < r.x1 then put(sx, y, fit(s, r.x1 - sx), fg, bg) end
+      if sx + w - 1 > r.x2 then put(r.x2 + 1, y, removePrefix(s, r.x2 - sx + 1), fg, bg) end
+      return
+    end
+  end
+  S:set(sx, y, s, fg, bg)
+end
+
 local function drawRow(i)
   local y = i - scrollY
   if y < 1 or y > rows then return end
-  S:fill(1, y, W, 1, " ", FG, BG)
-  if not buffer[i] then return end
+  local line = buffer[i]
+  if not line then
+    put(1, y, (" "):rep(W), FG, BG)
+    return
+  end
 
   local n = tostring(i)
-  S:set(GW - #n, y, n, i == cy and GUT_CUR or GUT, BG)
+  put(1, y, (" "):rep(GW - 1 - #n) .. n .. " ", i == cy and GUT_CUR or GUT, BG)
 
-  -- куски строки режем по границам выделения, чтобы подсветка не пропадала
+  -- где у строки меняется оформление: выделение, найденное, пара, курсор
+  local cuts = {}
   local sl1, sc1, sl2, sc2 = selection()
   local from, to
   if sl1 and i >= sl1 and i <= sl2 then
     from = (i == sl1) and sc1 or 1
-    to = (i == sl2) and sc2 or (unicode.len(buffer[i]) + 2)
+    to = (i == sl2) and sc2 or math.huge
+    cuts[#cuts + 1], cuts[#cuts + 2] = from, to
   end
-
-  local TW, col, at = textW(), 1, 1
-  for _, t in ipairs(tokensFor(i)) do
-    local piece, color = t[1], t[2]
-    local len = unicode.len(piece)
-    local parts
-    if from then
-      parts = {}
-      local pos, rest = at, piece
-      local function cut(upto)
-        local k = upto - pos
-        if k > 0 and k < unicode.len(rest) then
-          parts[#parts + 1] = { unicode.sub(rest, 1, k), color,
-            (pos >= from and pos < to) and SEL or BG }
-          rest = unicode.sub(rest, k + 1)
-          pos = upto
-        end
-      end
-      cut(from)
-      cut(to)
-      parts[#parts + 1] = { rest, color, (pos >= from and pos < to) and SEL or BG }
-    else
-      parts = { { piece, color, BG } }
-    end
-    for _, part in ipairs(parts) do
-      local s, fg, bg = part[1], part[2], part[3]
-      local wl = unicode.wlen(s)
-      if col + wl - 1 > scrollX and col <= scrollX + TW then
-        local x = col - scrollX
-        if x < 1 then
-          s = removePrefix(s, scrollX - col + 1)
-          x = 1
-        end
-        s = fit(s, TW - x + 1)
-        if s ~= "" then S:set(GW + x, y, s, fg, bg) end
-      end
-      col = col + wl
-    end
-    at = at + len
-  end
-
+  local mf, mt
   if match and match.line == i then
-    local x = dispCol(buffer[i], match.from) - scrollX
-    local txt = unicode.sub(buffer[i], match.from, match.from + match.len - 1)
-    if x >= 1 and x <= TW and txt ~= "" then
-      S:set(GW + x, y, fit(txt, TW - x + 1), BG, FIND)
-    end
+    mf, mt = match.from, match.from + match.len
+    cuts[#cuts + 1], cuts[#cuts + 2] = mf, mt
   end
-
-  -- серая подсказка справа от курсора: что подставит Tab
-  if ghost and i == cy then
-    local x = dispCol(buffer[i], cx) - scrollX
-    if x >= 1 and x <= TW then
-      S:set(GW + x, y, fit(ghost.text, TW - x + 1), GUT, BG)
-    end
-  end
-
+  local pairAt = {}
   if pair then
     for _, p in ipairs(pair) do
       if p[2] == i then
-        local x = dispCol(buffer[i], p[1]) - scrollX
-        if x >= 1 and x <= TW then
-          S:set(GW + x, y, unicode.sub(buffer[i], p[1], p[1]), 0xFFFFFF, PAIR)
-        end
+        pairAt[p[1]] = true
+        cuts[#cuts + 1], cuts[#cuts + 2] = p[1], p[1] + 1
       end
     end
   end
+  local cur = (i == cy) and cx or nil
+  if cur then cuts[#cuts + 1], cuts[#cuts + 2] = cx, cx + 1 end
+  table.sort(cuts)
+
+  local function style(pos, fg)
+    if pos == cur then return BG, readonly and 0x88AAFF or CUR end
+    if pairAt[pos] then return 0xFFFFFF, PAIR end
+    if mf and pos >= mf and pos < mt then return BG, FIND end
+    if from and pos >= from and pos < to then return fg, SEL end
+    return fg, BG
+  end
+
+  local TW, col, drawnTo = textW(), 1, GW
+  local function emit(s, fg, bg)
+    local wl = unicode.wlen(s)
+    if col + wl - 1 > scrollX and col <= scrollX + TW then
+      local x = col - scrollX
+      if x < 1 then
+        s = removePrefix(s, scrollX - col + 1)
+        x = 1
+      end
+      s = fit(s, TW - x + 1)
+      if s ~= "" then
+        put(GW + x, y, s, fg, bg)
+        drawnTo = GW + x + unicode.wlen(s) - 1
+      end
+    end
+    col = col + wl
+  end
+
+  local at, ci = 1, 1
+  for _, t in ipairs(tokensFor(i)) do
+    local rest, color = t[1], t[2]
+    local pos = at
+    while rest ~= "" do
+      while cuts[ci] and cuts[ci] <= pos do ci = ci + 1 end
+      local k = cuts[ci] and (cuts[ci] - pos) or math.huge
+      local part = rest
+      if k < unicode.len(rest) then
+        part = unicode.sub(rest, 1, k)
+        rest = unicode.sub(rest, k + 1)
+      else
+        rest = ""
+      end
+      local fg, bg = style(pos, color)
+      if part == "\t" and pos == cur then part = " " end
+      emit(part, fg, bg)
+      pos = pos + unicode.len(part)
+    end
+    at = pos
+  end
+
+  -- в конце строки курсор садится на первую букву серой подсказки
+  if cur and cx > unicode.len(line) then
+    local g = ghost and ghost.text or ""
+    local first = unicode.sub(g, 1, 1)
+    emit(first ~= "" and first or " ", style(cx, FG))
+    if unicode.len(g) > 1 then emit(unicode.sub(g, 2), GUT, BG) end
+  end
+
+  if drawnTo < W then put(drawnTo + 1, y, (" "):rep(W - drawnTo), FG, BG) end
 end
 
 -- Подсказки короткие: "^S сохранить". Ctrl обозначаем крышкой, как принято
@@ -502,19 +544,31 @@ local function helpText()
   end
   pretty("сохранить", "save")
   pretty("выход", "close")
-  pretty("поиск", "find")
-  pretty("отмена", "undo")
   pretty("запуск", "run")
   pretty("оболочка", "shell")
+  pretty("поиск", "find")
+  pretty("отмена", "undo")
   out[#out + 1] = "Tab дополнить"
   return table.concat(out, "  ")
 end
 
 local HELP = helpText()
 
-local function drawStatus()
-  S:fill(1, H, W, 1, " ", BAR_FG, BAR_BG)
+--- Служебная строка кусками слева направо, без заливки под ними.
+local function bar(parts)
+  local x = 1
+  for _, p in ipairs(parts) do
+    local s = p[1]
+    if s ~= "" and x <= W then
+      s = fit(s, W - x + 1)
+      S:set(x, H, s, p[2], p[3] or BAR_BG)
+      x = x + unicode.wlen(s)
+    end
+  end
+  if x <= W then S:set(x, H, (" "):rep(W - x + 1), BAR_FG, BAR_BG) end
+end
 
+local function drawStatus()
   local right = string.format("%d,%d", cy, cx)
   local l1, _, l2 = selection()
   if l1 then
@@ -522,17 +576,11 @@ local function drawStatus()
   elseif #clip > 0 then
     right = string.format("#%d  %s", #clip, right)
   end
-  S:set(W - #right, H, right, BAR_POS, BAR_BG)
+  right = right .. " "
+  local rw = unicode.wlen(right)
 
-  local name = fs.name(filename)
-  S:set(2, H, name, BAR_NAME, BAR_BG)
-  local at = 2 + unicode.wlen(name)
+  local name = fit(fs.name(filename), math.max(1, W - rw - 4))
   local mark = readonly and " [чтение]" or modified and " *" or ""
-  if mark ~= "" then
-    S:set(at, H, mark, BAR_MARK, BAR_BG)
-    at = at + unicode.wlen(mark)
-  end
-
   local mid, colour = HELP, BAR_FG
   if status then
     mid, colour = status, BAR_MSG
@@ -540,22 +588,15 @@ local function drawStatus()
     mid = "Tab → " .. ghost.word .. (ghost.more > 0 and ("   ещё " .. ghost.more) or "")
     colour = BAR_POS
   end
-  local room = W - #right - at - 2
-  if room > 0 then
-    mid = fit(mid, room)
-    if mid ~= "" then S:set(at + 2, H, mid, colour, BAR_BG) end
-  end
-end
-
-local function drawCursor()
-  local y = cy - scrollY
-  local col = dispCol(curLine(), cx) - scrollX
-  if y < 1 or y > rows or col < 1 or col > textW() then return end
-  local ch = unicode.sub(curLine(), cx, cx)
-  -- в конце строки курсор садится на первую букву подсказки
-  if ch == "" and ghost then ch = unicode.sub(ghost.text, 1, 1) end
-  if ch == "" or ch == "\t" then ch = " " end
-  S:set(GW + col, y, ch, BG, readonly and 0x88AAFF or CUR)
+  local at = 1 + unicode.wlen(name) + unicode.wlen(mark)
+  local room = W - rw - at - 2
+  mid = room > 0 and fit(mid, room) or ""
+  local gap = W - rw - at - unicode.wlen(mid)
+  bar({
+    { " ", BAR_FG }, { name, BAR_NAME }, { mark, BAR_MARK },
+    { gap >= 2 and ("  " .. mid .. (" "):rep(gap - 2)) or (" "):rep(math.max(0, gap)), colour },
+    { right, BAR_POS },
+  })
 end
 
 local lastCursorRow
@@ -635,7 +676,6 @@ local function redraw()
   end
   lastCursorRow = cy
   drawStatus()
-  drawCursor()
   if popupDraw then popupDraw() end
   S:present()
 end
@@ -733,16 +773,10 @@ end
 local function readLine(label)
   local buf = ""
   while true do
-    S:fill(1, H, W, 1, " ", BAR_FG, BAR_BG)
-    S:set(2, H, label, BAR_MARK, BAR_BG)
-    local at = 2 + unicode.wlen(label)
-    local room = W - at - 1
-    if room > 0 then
-      local shown = buf
-      while unicode.wlen(shown) > room do shown = unicode.sub(shown, 2) end
-      if shown ~= "" then S:set(at, H, shown, BAR_NAME, BAR_BG) end
-      S:set(at + unicode.wlen(shown), H, "_", BAR_BG, BAR_POS)
-    end
+    local room = W - unicode.wlen(label) - 3
+    local shown = buf
+    while room > 0 and unicode.wlen(shown) > room do shown = unicode.sub(shown, 2) end
+    bar({ { " ", BAR_FG }, { label, BAR_MARK }, { shown, BAR_NAME }, { " ", BAR_BG, BAR_POS } })
     S:present()
     local e, addr, char, code = event.pull()
     if e == "key_down" and addr == term.keyboard() then
@@ -771,8 +805,7 @@ end
 --- Вопрос в служебной строке: да, нет или отмена. Esc до машины не доходит -
 --- Minecraft закрывает им окно экрана, - поэтому отмена на C и Backspace.
 local function ask(question)
-  S:fill(1, H, W, 1, " ", BAR_FG, BAR_BG)
-  S:set(2, H, fit(question, W - 4), BAR_MARK, BAR_BG)
+  bar({ { " ", BAR_FG }, { question, BAR_MARK } })
   S:present()
   while true do
     local e, addr, char, code = event.pull()
@@ -1009,18 +1042,89 @@ for _, k in ipairs({ "lshift", "rshift", "lcontrol", "rcontrol", "lmenu", "rmenu
   if keys[k] then MODS[keys[k]] = true end
 end
 
+--- Справка к полю под рамкой списка. У методов устройств она своя
+--- (component.doc: "function(x:number...):boolean -- что делает"), у
+--- остального показываем, что это за значение.
+local docCache = {}
+
+local function docFor(owner, path, name)
+  local key = table.concat(path, ".") .. "." .. name
+  if docCache[key] ~= nil then return docCache[key] or nil end
+  local doc
+  pcall(function()
+    local root = path[1] == "component" and #path == 1
+    if type(owner) == "table" and type(rawget(owner, "address")) == "string" then
+      doc = component.doc(owner.address, name)
+    end
+    if not doc and root then
+      local addr = component.list(name, true)()
+      if addr then doc = "устройство " .. name .. " -- адрес " .. addr end
+    end
+    if doc then return end
+    local v
+    if #path == 0 then
+      v = rawget(_G, name)
+      if v == nil then v = package.loaded[name] end
+    elseif type(owner) == "table" then
+      -- component.<тип> через __index сделал бы устройство основным
+      if root then v = rawget(owner, name) else v = owner[name] end
+    end
+    local t = type(v)
+    if t == "function" then
+      doc = "функция"
+    elseif t == "table" then
+      local n = 0
+      for _ in pairs(v) do n = n + 1 end
+      doc = "таблица, полей " .. n
+    elseif t == "string" then
+      doc = "строка " .. string.format("%q", v)
+    elseif t == "number" or t == "boolean" then
+      doc = (t == "number" and "число " or "") .. tostring(v)
+    end
+  end)
+  docCache[key] = doc or false
+  return doc
+end
+
+--- Разложить текст по строкам ширины width (слова длиннее - режем).
+local function wrapInto(out, s, width, colour)
+  local line = nil
+  for word in s:gmatch("%S+") do
+    while unicode.wlen(word) > width do
+      if line then out[#out + 1] = { line, colour } line = nil end
+      out[#out + 1] = { fit(word, width), colour }
+      word = removePrefix(word, width)
+    end
+    if line and unicode.wlen(line) + 1 + unicode.wlen(word) <= width then
+      line = line .. " " .. word
+    else
+      if line then out[#out + 1] = { line, colour } end
+      line = word
+    end
+  end
+  if line then out[#out + 1] = { line, colour } end
+end
+
+local function pad(s, width)
+  s = fit(s, width)
+  return s .. (" "):rep(width - unicode.wlen(s))
+end
+
 --- Список вариантов у курсора: поля таблицы после точки или слова.
 --- Буквы идут прямо в текст и сужают список, стрелки выбирают, Enter и
 --- Tab подставляют. Любая другая клавиша закрывает список и срабатывает
---- как обычно, так что печатать дальше он не мешает.
+--- как обычно, так что печатать дальше он не мешает. Рядом со списком -
+--- справка к выбранному.
 local function popup(path)
   local list = dictionary(path)
   if not list or #list == 0 then return false end
   local key = table.concat(path, ".")
+  local owner = #path > 0 and resolve(path) or nil
   local sel, top = 1, 1
   ghost = nil
   local function close()
     popupDraw = nil
+    holes = {}
     status = nil
     fullRedraw = true
   end
@@ -1042,25 +1146,62 @@ local function popup(path)
     if sel < top then top = sel end
     if sel > top + h - 1 then top = sel - h + 1 end
 
-    popupDraw = function()
-      local width = 0
-      for i = top, top + h - 1 do width = math.max(width, unicode.wlen(shown[i])) end
-      width = math.min(width + 3, W - 4)
-      local x = GW + dispCol(curLine(), cx - unicode.len(frag)) - scrollX
-      x = math.max(1, math.min(x, W - width))
-      local y = cy - scrollY + 1
-      if y + h - 1 > rows then y = math.max(1, cy - scrollY - h) end
-      for i = 0, h - 1 do
-        local bg = (top + i == sel) and POP_SEL or POP_BG
-        S:fill(x, y + i, width, 1, " ", POP_FG, bg)
-        S:set(x + 1, y + i, fit(shown[top + i], width - 2), POP_FG, bg)
+    -- рамка списка: под курсором, а если внизу тесно - над ним
+    local width = 0
+    for i = 1, #shown do width = math.max(width, unicode.wlen(shown[i])) end
+    width = math.min(width + 3, W - 4)
+    local x = GW + dispCol(curLine(), cx - unicode.len(frag)) - scrollX
+    x = math.max(1, math.min(x, W - width))
+    local below = cy - scrollY + h <= rows
+    local y = below and (cy - scrollY + 1) or math.max(1, cy - scrollY - h)
+
+    -- справка: справа от списка, если не влезает - слева, иначе внизу
+    local doc = docFor(owner, path, shown[sel])
+    local dlines, dx, dw = {}, nil, nil
+    if doc then
+      local space = W - (x + width)
+      if space >= 24 then
+        dx, dw = x + width, math.min(52, space)
+      elseif x - 1 >= 24 then
+        dw = math.min(52, x - 1)
+        dx = x - dw
       end
-      if top > 1 then S:set(x + width - 1, y, "^", BAR_POS, POP_BG) end
-      if top + h - 1 < #shown then S:set(x + width - 1, y + h - 1, "v", BAR_POS, POP_BG) end
+      if dx then
+        local sig, desc = doc:match("^(.-)%s*%-%-%s*(.*)$")
+        wrapInto(dlines, sig or doc, dw - 2, BAR_POS)
+        if desc and desc ~= "" then wrapInto(dlines, desc, dw - 2, POP_FG) end
+      end
+    end
+    local dh = math.min(#dlines, math.max(h, 6), rows - 1)
+    local dy = below and y or (y + h - dh)
+    if below and dy + dh - 1 > rows then dy = rows - dh + 1 end
+    if dy < 1 then dy = 1 end
+
+    -- куда список лёг в прошлый раз и куда ляжет сейчас: эти строки текста
+    -- рисуем заново, остальные не трогаем
+    for _, r in ipairs(holes) do
+      for row = r.y1, r.y2 do markDirty(row + scrollY) end
+    end
+    holes = { { x1 = x, y1 = y, x2 = x + width - 1, y2 = y + h - 1 } }
+    if dh > 0 then holes[2] = { x1 = dx, y1 = dy, x2 = dx + dw - 1, y2 = dy + dh - 1 } end
+    for _, r in ipairs(holes) do
+      for row = r.y1, r.y2 do markDirty(row + scrollY) end
+    end
+
+    popupDraw = function()
+      for i = 0, h - 1 do
+        local mark = (i == 0 and top > 1) and "^" or (i == h - 1 and top + h - 1 < #shown) and "v" or " "
+        S:set(x, y + i, " " .. pad(shown[top + i], width - 2) .. mark, POP_FG,
+          (top + i == sel) and POP_SEL or POP_BG)
+      end
+      for i = 1, dh do
+        local l = dlines[i]
+        S:set(dx, dy + i - 1, " " .. pad(l[1], dw - 1), l[2], BAR_BG)
+      end
     end
     status = string.format("%s%s: %d из %d   Enter - вставить", key, key ~= "" and "." or "",
       sel, #shown)
-    fullRedraw = true
+    if doc and not dx then status = doc end
     redraw()
 
     local ev = table.pack(event.pull())
@@ -1204,55 +1345,87 @@ local function save()
   return true
 end
 
------------------------------------------------------------------- запуск
+------------------------------------------------------------------ панель
 
---- Выйти из редактора на обычный терминал, сделать fn и вернуться. Холст
---- отдаём целиком: запущенная программа может рисовать, менять разрешение
---- и занимать видеопамять сама.
-local function outside(fn)
+-- Оболочка и вывод запущенного живут в панели внизу экрана, а редактор
+-- остаётся над ней: написал, запустил, посмотрел вывод, поправил. Панель
+-- рисует обычный терминал в своём окне (tty.setViewport), холст редактора
+-- её не касается.
+local panelX, panelY = 1, 1       -- курсор терминала в панели между заходами
+
+--- Пересоздать холст под текущее разрешение и высоту панели.
+local function relayout()
   S:close()
-  term.setCursorBlink(true)
-  term.clear()
-  local ok, err = xpcall(fn, debug.traceback)
-  if not ok then io.stderr:write(tostring(err), "\n") end
-  term.setCursorBlink(false)
   gpu = tty.gpu()
-  S = gfx.surface(gpu)
+  SW, SH = gpu.getResolution()
+  if panelH > 0 then panelH = math.max(6, math.floor(SH / 3)) end
+  S = gfx.surface(gpu, { h = SH - panelH })
   W, H = S.w, S.h
   rows = H - 1
-  memberCache = {}          -- устройства могли подключить или снять
+  holes = {}
   lastCursorRow = nil
   fullRedraw = true
 end
 
-local function waitKey()
-  io.write("\n\27[33m[любая клавиша - обратно в edit]\27[37m")
-  while true do
-    local e, addr = event.pull()
-    if e == "key_down" and addr == term.keyboard() then return end
-    if e == "touch" and addr == term.screen() then return end
+local function showPanel(on)
+  if on == (panelH > 0) then return end
+  panelH = on and 1 or 0
+  relayout()
+  if on then
+    if gpu.setActiveBuffer then gpu.setActiveBuffer(0) end
+    gpu.setBackground(0x000000)
+    gpu.setForeground(0xFFFFFF)
+    gpu.fill(1, SH - panelH + 1, SW, panelH, " ")
+    panelX, panelY = 1, 1
   end
 end
 
---- F5: сохранить и запустить файл, посмотреть вывод, вернуться.
+--- Отдать клавиатуру и панель терминалу на время fn.
+local function inPanel(fn)
+  showPanel(true)
+  redraw()
+  if gpu.setActiveBuffer then gpu.setActiveBuffer(0) end
+  local window = tty.window
+  local vw, vh, vdx, vdy, vx, vy = tty.getViewport()
+  local full = window.fullscreen
+  window.fullscreen = false
+  tty.setViewport(SW, panelH, 0, SH - panelH, panelX, panelY)
+  gpu.setBackground(0x000000)
+  gpu.setForeground(0xFFFFFF)
+  term.setCursorBlink(true)
+  local ok, err = xpcall(fn, debug.traceback)
+  if not ok then io.stderr:write(tostring(err), "\n") end
+  term.setCursorBlink(false)
+  panelX, panelY = tty.getCursor()
+  tty.setViewport(vw, vh, vdx, vdy, vx, vy)
+  window.fullscreen = full
+  -- программа могла рисовать где угодно, менять разрешение и освобождать
+  -- видеопамять: холст редактора создаём заново
+  relayout()
+  memberCache = {}          -- устройства могли подключить или снять
+end
+
+--- F5: сохранить и запустить файл; вывод - в панели внизу.
 local function runFile()
   if modified and not readonly and not save() then return end
-  outside(function()
+  status = "работает " .. fs.name(filename)
+  inPanel(function()
+    if tty.getCursor() > 1 then io.write("\n") end
+    io.write("\27[33m> " .. fs.name(filename) .. "\27[37m\n")
     local sh = require("sh")
     local ok, reason = sh.execute(_ENV, '"' .. filename .. '"')
     if not ok and reason then io.stderr:write(tostring(reason), "\n") end
-    waitKey()
   end)
-  status = "вернулись из " .. fs.name(filename)
+  status = "вывод внизу, ^O скрыть панель"
 end
 
---- Ctrl+E: оболочка поверх редактора. Своя, а не новый sh: тот прочитал бы
+--- Ctrl+E: оболочка в панели. Своя, а не новый sh: тот прочитал бы
 --- /etc/profile, очистил экран и увёл в /home.
 local function shellHere()
   if modified and not readonly then save() end
-  outside(function()
+  status = "оболочка внизу, exit - обратно в редактор"
+  inPanel(function()
     local sh = require("sh")
-    io.write("\27[33mОболочка поверх edit. exit - вернуться к " .. fs.name(filename) .. "\27[37m\n")
     local hint = { hint = sh.hintHandler }
     while true do
       if tty.getCursor() > 1 then io.write("\n") end
@@ -1271,6 +1444,7 @@ local function shellHere()
       end
     end
   end)
+  status = nil
 end
 
 ------------------------------------------------------------------ команды
@@ -1387,6 +1561,7 @@ local handlers = {
   unindent = function() if not readonly then indentSelection(true) end end,
   run = runFile,
   shell = shellHere,
+  panel = function() showPanel(panelH == 0) end,
 
   goto_line = function()
     local s = readLine("Строка: ")
