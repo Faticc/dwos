@@ -278,15 +278,18 @@ S.__index = S
 
 --- Пиксельный холст: w x h символов, то есть w x 2h точек.
 ---   o.rgb = true - цвета RGB, иначе индексы палитры 0..15
+---   o.x, o.y     - где на экране его левый верхний угол (1, 1); холст не
+---                  во весь экран разрешение не трогает
 function gfx.new(gpu, w, h, o)
   o = o or {}
   local mw, mh = gpu.maxResolution()
-  w = min(w or mw, mw)
-  h = min(h or mh, mh)
+  local ox, oy = o.x or 1, o.y or 1
+  w = min(w or mw, mw - ox + 1)
+  h = min(h or mh, mh - oy + 1)
   -- setResolution - вызов не direct, то есть целый тик машины. Если
   -- разрешение уже нужное (обычный случай: экран и так 160x50), тик
   -- тратить не на что.
-  if not o.keepResolution then
+  if not o.keepResolution and ox == 1 and oy == 1 then
     local cw, ch = gpu.getResolution()
     if cw ~= w or ch ~= h then gpu.setResolution(w, h) end
   end
@@ -297,7 +300,7 @@ function gfx.new(gpu, w, h, o)
     dr = {}, dn = 0, rmin = {}, rmax = {}, rlist = {},
     rgb = o.rgb and true or false,
   }, S)
-  logInit(s, gpu, 1, 1, w, h, not s.rgb)
+  logInit(s, gpu, ox, oy, w, h, not s.rgb)
   -- в shown верхний и нижний цвет ячейки лежат одним числом
   s.mul = s.rgb and 16777216 or 16
   local bgc = o.background or 0
@@ -457,7 +460,7 @@ function S:scroll(dx)
     logOp(self, "c", 1, self.top, w, rows, -dx, 0)
     self.calls = self.calls + 2
   else
-    g.copy(1, self.top, w, rows, -dx, 0)
+    g.copy(self.ox, self.oy + self.top - 1, w, rows, -dx, 0)
     self.screenCalls = self.screenCalls + 1
   end
 end
@@ -488,7 +491,7 @@ function S:text(x, row, str, fg, bg)
     g.set(x, row, str)
     logOp(self, "s", x, row, str, fg, bg)
   else
-    g.set(x, row, str)
+    g.set(self.ox + x - 1, self.oy + row - 1, str)
     self.screenCalls = self.screenCalls + 1
   end
   self.calls = self.calls + 1
@@ -509,6 +512,9 @@ local function scan(self, row1, row2, col1, col2)
   if col1 < 1 then col1 = 1 end
   if col2 > w then col2 = w end
   local buffered = self.buf ~= nil
+  -- без видеопамяти пишем прямо на экран - со сдвигом холста
+  local dx, dy = 0, 0
+  if not buffered then dx, dy = self.ox - 1, self.oy - 1 end
   for row = row1, row2 do
     local o1 = (row * 2 - 2) * w
     local o2 = o1 + w
@@ -526,13 +532,13 @@ local function scan(self, row1, row2, col1, col2)
         if t == b then
           self:setbg(t)
           str = run(self, n, " ")
-          g.set(x, row, str)
+          g.set(x + dx, row + dy, str)
           if buffered then logOp(self, "s", x, row, str, self.fg or t, t) end
         else
           self:setbg(t)
           self:setfg(b)
           str = run(self, n, BLOCK)
-          g.set(x, row, str)
+          g.set(x + dx, row + dy, str)
           if buffered then logOp(self, "s", x, row, str, b, t) end
         end
         self.calls = self.calls + 1

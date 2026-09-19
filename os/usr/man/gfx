@@ -11,7 +11,8 @@
   копит правки в журнале: мало - повторит их прямо на экране, много -
   сделает один bitblt.
 
-  gfx.new(gpu, w, h, o)   пиксельный холст: w на 2h точек полублоками
+  gfx.new(gpu, w, h, o)   пиксельный холст: w на 2h точек полублоками,
+                          o.x, o.y - куда на экране его поставить
     :clear, :rect, :pixel, :tile, :stamp, :text, :flush, :present
   gfx.surface(gpu, o)     текстовый холст поверх области экрана
     :set, :fill, :copy, :get, :sync, :release, :present, :close
@@ -22,4 +23,4 @@
   работают.
 
 СМОТРИ ТАКЖЕ
-  sysmon, edit, less
+  sysmon, bench, edit, less
