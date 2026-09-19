@@ -123,8 +123,21 @@ local function at(name)
 end
 if not component.isAvailable("internet") then die("нужна интернет-карта") end
 local internet = require("internet")
+local REF = BRANCH
+do
+  local ok, h = pcall(internet.request,
+    ("https://api.github.com/repos/%s/commits/%s"):format(REPO, BRANCH), nil,
+    { ["user-agent"] = "dwos", ["accept"] = "application/vnd.github.sha" })
+  if ok and h then
+    local body = {}
+    pcall(function() for chunk in h do body[#body + 1] = chunk end end)
+    pcall(h.close)
+    local sha = table.concat(body):match("^%s*(%x+)%s*$")
+    if sha and #sha == 40 then REF = sha end
+  end
+end
 local function open(path)
-  local url = ("https://raw.githubusercontent.com/%s/%s/%s%s"):format(REPO, BRANCH, SUB, path)
+  local url = ("https://raw.githubusercontent.com/%s/%s/%s%s"):format(REPO, REF, SUB, path)
   local ok, h = pcall(internet.request, url, nil, { ["user-agent"] = "dwos" })
   if not ok then return nil, tostring(h) end
   local code
@@ -193,7 +206,8 @@ local function install(entry, to)
   end
   return nil, last
 end
-print(("DwOS: %s@%s/%s"):format(REPO, BRANCH, SUB ~= "" and SUB or "."))
+print(("DwOS: %s@%s%s/%s"):format(REPO, BRANCH, REF ~= BRANCH and (" (" .. REF:sub(1, 7) .. ")") or "",
+  SUB ~= "" and SUB or "."))
 local src, why = fetch("manifest.lua")
 if not src then die("manifest.lua: " .. tostring(why)) end
 local chunk, perr = load("return " .. src, "=manifest", "t", {})

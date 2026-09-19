@@ -64,7 +64,7 @@
 		{ "bin/umount.lua",                 size = 850, crc = "d8be06b0" },
 		{ "bin/unalias.lua",                size = 344, crc = "4dee0310" },
 		{ "bin/unset.lua",                  size = 164, crc = "2b788fd7" },
-		{ "bin/update.lua",                 size = 9917, crc = "d6a80107" },
+		{ "bin/update.lua",                 size = 10433, crc = "136e42d9" },
 		{ "bin/uptime.lua",                 size = 174, crc = "fffa0b65" },
 		{ "bin/useradd.lua",                size = 241, crc = "8f639fd5" },
 		{ "bin/userdel.lua",                size = 216, crc = "faa63fcf" },
