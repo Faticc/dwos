@@ -228,6 +228,7 @@ local scrollX, scrollY = 0, 0
 local running = true
 local anchor = nil                -- начало выделения: { символ, строка }
 local clip = {}                   -- свой буфер обмена, строками
+local cutting = false             -- Ctrl+K подряд складывает строки в один кусок
 local status, dirty = nil, {}
 local fullRedraw, modified = true, false
 local match, pair = nil, nil      -- найденное и парная скобка
@@ -1067,7 +1068,10 @@ local handlers = {
       status = "вырезано строк: " .. #clip
       return
     end
+    -- подряд нажатый Ctrl+K копит строки, но стоит отойти - буфер новый
+    if not cutting then clip = {} end
     clip[#clip + 1] = curLine()
+    cutting = true
     delete(true)
     home()
   end,
@@ -1191,6 +1195,9 @@ local function onKeyDown(char, code)
     else
       handler()
     end
+    -- любое другое действие обрывает цепочку Ctrl+K. Сам Ctrl приходит
+    -- отдельным key_down, но обработчика у него нет - цепочка цела
+    if name ~= "cut" then cutting = false end
   elseif readonly and code == keys.q then
     running = false
   elseif not readonly and char and not keyboard.isControl(char) then
@@ -1209,6 +1216,7 @@ local function onKeyDown(char, code)
     else
       insert(ch)
     end
+    cutting = false
   end
 end
 

@@ -189,6 +189,7 @@ local scrollX, scrollY = 0, 0
 local running = true
 local anchor = nil
 local clip = {}
+local cutting = false
 local status, dirty = nil, {}
 local fullRedraw, modified = true, false
 local match, pair = nil, nil
@@ -910,7 +911,9 @@ local handlers = {
       status = "вырезано строк: " .. #clip
       return
     end
+    if not cutting then clip = {} end
     clip[#clip + 1] = curLine()
+    cutting = true
     delete(true)
     home()
   end,
@@ -1026,6 +1029,7 @@ local function onKeyDown(char, code)
     else
       handler()
     end
+    if name ~= "cut" then cutting = false end
   elseif readonly and code == keys.q then
     running = false
   elseif not readonly and char and not keyboard.isControl(char) then
@@ -1044,6 +1048,7 @@ local function onKeyDown(char, code)
     else
       insert(ch)
     end
+    cutting = false
   end
 end
 local function onClipboard(value)

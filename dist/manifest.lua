@@ -19,7 +19,7 @@
 		{ "bin/dmesg.lua",                  size = 1075, crc = "d3a45064" },
 		{ "bin/du.lua",                     size = 2487, crc = "f67ffa00" },
 		{ "bin/echo.lua",                   size = 518, crc = "92c93f67" },
-		{ "bin/edit.lua",                   size = 34886, crc = "b7bfedf5" },
+		{ "bin/edit.lua",                   size = 35031, crc = "eacb6e62" },
 		{ "bin/false.lua",                  size = 9, crc = "a5b1a2bb" },
 		{ "bin/find.lua",                   size = 2191, crc = "8b273095" },
 		{ "bin/flash.lua",                  size = 2130, crc = "e556a8be" },
