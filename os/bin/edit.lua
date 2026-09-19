@@ -81,6 +81,8 @@ local DEFAULTS = {
   complete = { { "tab" } },
   completeList = { { "control", "space" } },
   unindent = { { "shift", "tab" } },
+  run = { { "f5" }, { "control", "r" } },
+  shell = { { "control", "e" } },
 }
 
 local function loadConfig()
@@ -502,6 +504,8 @@ local function helpText()
   pretty("выход", "close")
   pretty("поиск", "find")
   pretty("отмена", "undo")
+  pretty("запуск", "run")
+  pretty("оболочка", "shell")
   out[#out + 1] = "Tab дополнить"
   return table.concat(out, "  ")
 end
@@ -614,6 +618,8 @@ local function clampScroll()
   if before ~= (scrollX .. ":" .. scrollY) then fullRedraw = true end
 end
 
+local popupDraw = nil     -- рисует список вариантов поверх кадра
+
 local function redraw()
   syncGutter()
   clampScroll()
@@ -630,6 +636,7 @@ local function redraw()
   lastCursorRow = cy
   drawStatus()
   drawCursor()
+  if popupDraw then popupDraw() end
   S:present()
 end
 
@@ -981,73 +988,119 @@ local function updateGhost()
   if was or ghost then markDirty(cy) end
 end
 
---- Список вариантов рядом с курсором. Буквы сужают список, Enter или Tab
---- подставляют, Esc отменяет.
-local function popup(list, frag)
-  local sel, top, base = 1, 1, frag
+--- Заменить набранный кусок (n символов перед курсором) на слово.
+local function replaceFrag(n, word)
+  if n > 0 then
+    local line = curLine()
+    splice(cy, 1, { unicode.sub(line, 1, cx - n - 1) .. unicode.sub(line, cx) })
+    setCursor(cx - n, cy)
+  end
+  insert(word)
+  commit()
+end
+
+-- Событие, которое список закрыл собой: его отдадут обычной обработке,
+-- чтобы нажатая клавиша не пропала (набрал "(" - список закрылся, а скобка
+-- встала).
+local replay = nil
+
+local MODS = {}
+for _, k in ipairs({ "lshift", "rshift", "lcontrol", "rcontrol", "lmenu", "rmenu" }) do
+  if keys[k] then MODS[keys[k]] = true end
+end
+
+--- Список вариантов у курсора: поля таблицы после точки или слова.
+--- Буквы идут прямо в текст и сужают список, стрелки выбирают, Enter и
+--- Tab подставляют. Любая другая клавиша закрывает список и срабатывает
+--- как обычно, так что печатать дальше он не мешает.
+local function popup(path)
+  local list = dictionary(path)
+  if not list or #list == 0 then return false end
+  local key = table.concat(path, ".")
+  local sel, top = 1, 1
+  ghost = nil
+  local function close()
+    popupDraw = nil
+    status = nil
+    fullRedraw = true
+  end
   while true do
-    local shown, low = {}, frag:lower()
-    for _, w in ipairs(list) do
-      if w:lower():sub(1, #low) == low then shown[#shown + 1] = w end
+    local chain = chainBefore() or ""
+    local p, frag = splitChain(chain)
+    if chain == "" then p, frag = {}, "" end
+    if table.concat(p, ".") ~= key then return close() end
+    local low = frag:lower()
+    local shown = {}
+    for i = lowerBound(list, low), #list do
+      local w = list[i]
+      if w:lower():sub(1, #low) ~= low then break end
+      shown[#shown + 1] = w
     end
-    if #shown == 0 then
-      fullRedraw = true
-      return nil
-    end
+    if #shown == 0 then return close() end
     if sel > #shown then sel = #shown end
-    local h = math.min(8, #shown)
+    local h = math.min(10, #shown, rows - 1)
     if sel < top then top = sel end
     if sel > top + h - 1 then top = sel - h + 1 end
 
-    local width = 0
-    for i = top, math.min(top + h - 1, #shown) do
-      width = math.max(width, unicode.wlen(shown[i]))
+    popupDraw = function()
+      local width = 0
+      for i = top, top + h - 1 do width = math.max(width, unicode.wlen(shown[i])) end
+      width = math.min(width + 3, W - 4)
+      local x = GW + dispCol(curLine(), cx - unicode.len(frag)) - scrollX
+      x = math.max(1, math.min(x, W - width))
+      local y = cy - scrollY + 1
+      if y + h - 1 > rows then y = math.max(1, cy - scrollY - h) end
+      for i = 0, h - 1 do
+        local bg = (top + i == sel) and POP_SEL or POP_BG
+        S:fill(x, y + i, width, 1, " ", POP_FG, bg)
+        S:set(x + 1, y + i, fit(shown[top + i], width - 2), POP_FG, bg)
+      end
+      if top > 1 then S:set(x + width - 1, y, "^", BAR_POS, POP_BG) end
+      if top + h - 1 < #shown then S:set(x + width - 1, y + h - 1, "v", BAR_POS, POP_BG) end
     end
-    width = math.min(width + 3, W - 4)
+    status = string.format("%s%s: %d из %d   Enter - вставить", key, key ~= "" and "." or "",
+      sel, #shown)
+    fullRedraw = true
+    redraw()
 
-    local x = math.max(1, math.min(GW + dispCol(curLine(), cx) - scrollX, W - width))
-    local y = cy - scrollY + 1
-    if y + h - 1 > rows then y = math.max(1, cy - scrollY - h) end
-
-    for i = 0, h - 1 do
-      local bg = (top + i == sel) and POP_SEL or POP_BG
-      S:fill(x, y + i, width, 1, " ", POP_FG, bg)
-      S:set(x + 1, y + i, fit(shown[top + i], width - 2), POP_FG, bg)
-    end
-    if #shown > h then S:set(x + width - 1, y, "+", BAR_POS, POP_SEL) end
-    drawStatus()
-    S:present()
-
-    local e, addr, char, code = event.pull()
+    local ev = table.pack(event.pull())
+    local e, addr, char, code = ev[1], ev[2], ev[3], ev[4]
     if e == "key_down" and addr == term.keyboard() then
       if code == keys.up then
         sel = sel > 1 and sel - 1 or #shown
       elseif code == keys.down then
         sel = sel < #shown and sel + 1 or 1
+      elseif code == keys.pageUp then
+        sel = math.max(1, sel - h)
+      elseif code == keys.pageDown then
+        sel = math.min(#shown, sel + h)
       elseif code == keys.enter or code == keys.numpadenter or code == keys.tab then
-        fullRedraw = true
-        return shown[sel], base
-      elseif code == keys.back then
-        if unicode.len(frag) <= unicode.len(base) then
-          fullRedraw = true
-          return nil
-        end
-        frag = unicode.sub(frag, 1, -2)
-        sel = 1
-      elseif char and char > 32 and not keyboard.isControl(char) and unicode.char(char):match("[%w_]") then
-        frag = frag .. unicode.char(char)
-        sel = 1
-      else
-        fullRedraw = true
-        return nil
+        close()
+        replaceFrag(unicode.len(frag), shown[sel])
+        return true
+      elseif code == keys.back and frag ~= "" then
+        local line = curLine()
+        splice(cy, 1, { unicode.sub(line, 1, cx - 2) .. unicode.sub(line, cx) }, "erase")
+        setCursor(cx - 1, cy)
+        sel, top = 1, 1
+      elseif char and char > 32 and not keyboard.isControl(char) and unicode.char(char):match("[%w_]")
+             and not keyboard.isControlDown(term.keyboard()) then
+        insert(unicode.char(char))
+        sel, top = 1, 1
+      elseif not MODS[code] then
+        close()
+        replay = ev
+        return true
       end
     elseif e ~= "key_up" and e ~= "interrupted" then
-      fullRedraw = true
-      return nil
+      close()
+      replay = ev
+      return true
     end
   end
 end
 
+--- Tab без подсказки и Ctrl+Space: вариант один - подставить, иначе список.
 local function complete()
   local chain = chainBefore()
   if not chain then return false end
@@ -1056,21 +1109,32 @@ local function complete()
     status = "нечем дополнить"
     return true
   end
-  local pick, base = list[1], frag
-  if #list > 1 then
-    pick, base = popup(list, frag)
-    if not pick then return true end
+  if #list == 1 then
+    replaceFrag(unicode.len(frag), list[1])
+  else
+    popup((splitChain(chain)))
   end
-  -- стереть набранный кусок и поставить выбранное
-  local n = unicode.len(base or frag)
-  if n > 0 then
-    local line = curLine()
-    splice(cy, 1, { unicode.sub(line, 1, cx - n - 1) .. unicode.sub(line, cx) })
-    setCursor(cx - n, cy)
-  end
-  insert(pick)
-  commit()
   return true
+end
+
+--- Курсор в коде, а не в строке или комментарии: там точка - просто точка.
+local function inCode()
+  if not lua then return false end
+  local at, pos = 1, cx - 1
+  for _, t in ipairs(tokensFor(cy)) do
+    local len = unicode.len(t[1])
+    if pos >= at and pos < at + len then return t[2] ~= C_CMT and t[2] ~= C_STR end
+    at = at + len
+  end
+  return true
+end
+
+--- После точки за именем живой таблицы список открывается сам:
+--- component. - устройства, component.gpu. - методы видеокарты.
+local function autoPopup()
+  local chain = chainBefore()
+  if not chain or chain:sub(-1) ~= "." or chain:find("..", 1, true) or not inCode() then return end
+  popup((splitChain(chain)))
 end
 
 ------------------------------------------------------------------ отступы
@@ -1138,6 +1202,75 @@ local function save()
     fs.name(filename), #buffer, chars)
   if not new then fs.remove(backup) end
   return true
+end
+
+------------------------------------------------------------------ запуск
+
+--- Выйти из редактора на обычный терминал, сделать fn и вернуться. Холст
+--- отдаём целиком: запущенная программа может рисовать, менять разрешение
+--- и занимать видеопамять сама.
+local function outside(fn)
+  S:close()
+  term.setCursorBlink(true)
+  term.clear()
+  local ok, err = xpcall(fn, debug.traceback)
+  if not ok then io.stderr:write(tostring(err), "\n") end
+  term.setCursorBlink(false)
+  gpu = tty.gpu()
+  S = gfx.surface(gpu)
+  W, H = S.w, S.h
+  rows = H - 1
+  memberCache = {}          -- устройства могли подключить или снять
+  lastCursorRow = nil
+  fullRedraw = true
+end
+
+local function waitKey()
+  io.write("\n\27[33m[любая клавиша - обратно в edit]\27[37m")
+  while true do
+    local e, addr = event.pull()
+    if e == "key_down" and addr == term.keyboard() then return end
+    if e == "touch" and addr == term.screen() then return end
+  end
+end
+
+--- F5: сохранить и запустить файл, посмотреть вывод, вернуться.
+local function runFile()
+  if modified and not readonly and not save() then return end
+  outside(function()
+    local sh = require("sh")
+    local ok, reason = sh.execute(_ENV, '"' .. filename .. '"')
+    if not ok and reason then io.stderr:write(tostring(reason), "\n") end
+    waitKey()
+  end)
+  status = "вернулись из " .. fs.name(filename)
+end
+
+--- Ctrl+E: оболочка поверх редактора. Своя, а не новый sh: тот прочитал бы
+--- /etc/profile, очистил экран и увёл в /home.
+local function shellHere()
+  if modified and not readonly then save() end
+  outside(function()
+    local sh = require("sh")
+    io.write("\27[33mОболочка поверх edit. exit - вернуться к " .. fs.name(filename) .. "\27[37m\n")
+    local hint = { hint = sh.hintHandler }
+    while true do
+      if tty.getCursor() > 1 then io.write("\n") end
+      io.write(sh.expand(os.getenv("PS1") or "$ "))
+      tty.window.cursor = hint
+      local command = io.stdin:readLine(false)
+      tty.window.cursor = nil
+      if command == nil then return end
+      if command then
+        command = text.trim(command)
+        if command == "exit" then return end
+        if command ~= "" then
+          local ok, reason = sh.execute(_ENV, command)
+          if not ok and reason then io.stderr:write(tostring(reason), "\n") end
+        end
+      end
+    end
+  end)
 end
 
 ------------------------------------------------------------------ команды
@@ -1238,8 +1371,9 @@ local handlers = {
     if readonly then return end
     if selection() then
       indentSelection(false)
-    elseif ghost then
-      -- подсказка уже на экране: Tab её просто принимает
+    elseif ghost and not (chainBefore() or ""):match("[%.:]$") then
+      -- подсказка уже на экране: Tab её просто принимает. Сразу после
+      -- точки вариантов много, и Tab открывает их список
       insert(ghost.text)
       commit()
       ghost = nil
@@ -1251,6 +1385,8 @@ local handlers = {
     if not readonly then complete() end
   end,
   unindent = function() if not readonly then indentSelection(true) end end,
+  run = runFile,
+  shell = shellHere,
 
   goto_line = function()
     local s = readLine("Строка: ")
@@ -1339,6 +1475,7 @@ local function onKeyDown(char, code)
       commit()
     else
       insert(ch)
+      if ch == "." and not selection() then autoPopup() end
     end
     cutting = false
   end
@@ -1412,44 +1549,52 @@ end
 
 -- Падение внутри цикла не должно оставить экран в цветах холста: убираем
 -- за собой в любом случае, а ошибку отдаём дальше.
+local function dispatch(e, addr, a, b, c)
+  -- Ctrl+C у нас копирует, поэтому прерывание редактор не закрывает:
+  -- иначе несохранённое пропадало бы молча
+  if e == "interrupted" or (addr ~= term.keyboard() and addr ~= term.screen()) then return end
+  if e == "key_down" then
+    onKeyDown(a, b)
+    updateGhost()
+    findPair()
+    redraw()
+  elseif e == "clipboard" then
+    onClipboard(a)
+    updateGhost()
+    findPair()
+    redraw()
+  elseif e == "touch" or e == "drag" then
+    local gx, gy = term.getGlobalArea()
+    local col, row = a - gx + 1, b - gy + 1
+    if col >= 1 and row >= 1 and col <= W and row <= rows then
+      if e == "touch" then
+        dropSelection()
+      elseif not anchor then
+        anchor = { cx, cy }
+      end
+      setCursor(charAt(buffer[row + scrollY] or "", math.max(1, col - GW + scrollX)), row + scrollY)
+      commit()
+      updateGhost()
+      if anchor then fullRedraw = true end
+      redraw()
+    end
+  elseif e == "scroll" then
+    move(cx, cy - (c or 0) * 12)
+    updateGhost()
+    fullRedraw = true
+    redraw()
+  end
+end
+
 local function loop()
   redraw()
   while running do
-    local e, addr, a, b, c = event.pull()
-    -- Ctrl+C у нас копирует, поэтому прерывание редактор не закрывает:
-    -- иначе несохранённое пропадало бы молча
-    if e ~= "interrupted" and (addr == term.keyboard() or addr == term.screen()) then
-      if e == "key_down" then
-        onKeyDown(a, b)
-        updateGhost()
-        findPair()
-        redraw()
-      elseif e == "clipboard" then
-        onClipboard(a)
-        updateGhost()
-        findPair()
-        redraw()
-      elseif e == "touch" or e == "drag" then
-        local gx, gy = term.getGlobalArea()
-        local col, row = a - gx + 1, b - gy + 1
-        if col >= 1 and row >= 1 and col <= W and row <= rows then
-          if e == "touch" then
-            dropSelection()
-          elseif not anchor then
-            anchor = { cx, cy }
-          end
-          setCursor(charAt(buffer[row + scrollY] or "", math.max(1, col - GW + scrollX)), row + scrollY)
-          commit()
-          updateGhost()
-          if anchor then fullRedraw = true end
-          redraw()
-        end
-      elseif e == "scroll" then
-        move(cx, cy - (c or 0) * 12)
-        updateGhost()
-        fullRedraw = true
-        redraw()
-      end
+    dispatch(event.pull())
+    -- клавиша, которой закрыли список вариантов, срабатывает как обычно
+    while replay and running do
+      local ev = replay
+      replay = nil
+      dispatch(table.unpack(ev, 1, ev.n or #ev))
     end
   end
 end
