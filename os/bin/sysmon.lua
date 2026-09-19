@@ -129,17 +129,21 @@ local function draw()
   S:present()
 end
 
-draw()
-while true do
-  local e, _, _, code = event.pull(0.5)
-  if e == "interrupted" then break end
-  if e == "key_down" and (code == keys.q or code == 1) then break end
-  if computer.uptime() - hwAt > 5 then
-    hw, hwAt = hardware(), computer.uptime()
-  end
+local function loop()
   draw()
+  while true do
+    local e, _, _, code = event.pull(0.5)
+    if e == "interrupted" then break end
+    if e == "key_down" and (code == keys.q or code == 1) then break end
+    if computer.uptime() - hwAt > 5 then
+      hw, hwAt = hardware(), computer.uptime()
+    end
+    draw()
+  end
 end
 
+local ok, err = xpcall(loop, debug.traceback)
 S:close()
 term.setCursorBlink(true)
 term.clear()
+if not ok then error(err, 0) end

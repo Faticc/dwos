@@ -88,6 +88,9 @@ local function logInit(s, gpu, x, y, w, h, pal)
   s.cset, s.ccopy, s.cfill, s.ccolor = COST.set[t], COST.copy[t], COST.fill[t], COST.color[t]
   s.buf = allocate(gpu, w, h)
   s.calls, s.screenCalls = 0, 0
+  -- цвета карты - состояние общее, не своё у каждого буфера: запоминаем,
+  -- с чем пришли, чтобы close вернул их терминалу
+  s.was = { fg = { gpu.getForeground() }, bg = { gpu.getBackground() } }
 end
 
 local function target(s)
@@ -160,6 +163,13 @@ function Log.close(s)
     s.gpu.setActiveBuffer(0)
     pcall(s.gpu.freeBuffer, s.buf)
     s.buf = nil
+  end
+  -- Без этого term.clear() после выхода зальёт экран фоном последней
+  -- надписи холста: цвета остаются на карте, терминал их не переспрашивает.
+  if s.was then
+    pcall(s.gpu.setBackground, table.unpack(s.was.bg))
+    pcall(s.gpu.setForeground, table.unpack(s.was.fg))
+    s.fg, s.bg, s.was = nil, nil, nil
   end
 end
 

@@ -109,7 +109,10 @@ local tty = require("tty")
 local event = require("event")
 
 local FG, BG = 0xD0D0D0, 0x000000
-local SFG, SBG, HL = 0x000000, 0xB0B0B0, 0xFFFF00
+-- служебная строка тёмная, в тон окнам системы: белая полоса на весь экран
+-- перебивает сам текст, ради которого всё и затевалось
+local BAR_BG, BAR_FG, BAR_NAME, BAR_POS = 0x1B2A3A, 0x7A8A98, 0xE1E1E1, 0x66CCFF
+local HL, HL_FG, ASK = 0x2D4A66, 0xFFFFFF, 0xFFAA00
 
 local gpu = tty.gpu()
 term.clear()
@@ -135,18 +138,20 @@ local function draw()
   end
   -- подсветить найденное
   if found and found >= top and found < top + rows then
-    S:fill(1, found - top + 1, W, 1, " ", BG, HL)
-    if lines[found] ~= "" then S:set(1, found - top + 1, lines[found], BG, HL) end
+    S:fill(1, found - top + 1, W, 1, " ", HL_FG, HL)
+    if lines[found] ~= "" then S:set(1, found - top + 1, lines[found], HL_FG, HL) end
   end
   local bottom = math.min(top + rows - 1, #lines)
   local tail = eof and #lines or ("~" .. #lines)
-  local left = string.format(" %s  %d-%d/%s", name, top, bottom, tail)
-  if eof and bottom >= #lines then left = left .. "  (END)" end
-  local right = "q — выход · / — поиск · n — дальше "
-  S:fill(1, H, W, 1, " ", SFG, SBG)
-  S:set(1, H, unicode.wtrunc(left .. " ", W + 1), SFG, SBG)
-  local at = W - unicode.wlen(right) + 1
-  if at > unicode.wlen(left) + 2 then S:set(at, H, right, SFG, SBG) end
+  S:fill(1, H, W, 1, " ", BAR_FG, BAR_BG)
+  S:set(2, H, name, BAR_NAME, BAR_BG)
+  local at = 2 + unicode.wlen(name) + 2
+  local pos = string.format("%d-%d/%s", top, bottom, tail)
+  if eof and bottom >= #lines then pos = pos .. "  конец" end
+  S:set(at, H, pos, BAR_POS, BAR_BG)
+  local hint = "q выход   / поиск   n дальше"
+  local hat = W - unicode.wlen(hint) - 1
+  if hat > at + unicode.wlen(pos) + 2 then S:set(hat, H, hint, BAR_FG, BAR_BG) end
   S:present()
 end
 
@@ -154,8 +159,10 @@ end
 local function prompt(label)
   local buf = ""
   while true do
-    S:fill(1, H, W, 1, " ", SFG, SBG)
-    S:set(1, H, unicode.wtrunc(" " .. label .. buf .. "_ ", W + 1), SFG, SBG)
+    S:fill(1, H, W, 1, " ", BAR_FG, BAR_BG)
+    S:set(2, H, label, ASK, BAR_BG)
+    S:set(2 + unicode.wlen(label), H, unicode.wtrunc(buf .. " ", W - 4), BAR_NAME, BAR_BG)
+    S:set(math.min(W, 2 + unicode.wlen(label) + unicode.wlen(buf)), H, "_", BAR_BG, BAR_POS)
     S:present()
     local e, _, char, code = event.pull()
     if e == "interrupted" then return nil end
@@ -204,31 +211,36 @@ local function quit()
   if not eof then pcall(reader.close, reader) end
 end
 
-draw()
-while true do
-  local e, _, char, code, dir = event.pull()
-  if e == "interrupted" then break end
-  if e == "key_down" then
-    if code == keys.q then break
-    elseif code == keys.down or code == keys.enter or code == keys.numpadenter then move(1)
-    elseif code == keys.up then move(-1)
-    elseif code == keys.space or code == keys.pageDown then move(rows - 1)
-    elseif code == keys.pageUp then move(-(rows - 1))
-    elseif code == keys.home then top = 1
-    elseif code == keys["end"] then top = lastTop()
-    elseif char == 47 then -- "/"
-      query = prompt("/")
-      found = nil
-      if query then search(top + 1) end
-    elseif code == keys.n then
-      search((found or top) + 1)
+-- Убираем за собой даже при ошибке: иначе на экране останутся цвета холста.
+local function loop()
+  draw()
+  while true do
+    local e, _, char, code, dir = event.pull()
+    if e == "interrupted" then break end
+    if e == "key_down" then
+      if code == keys.q then break
+      elseif code == keys.down or code == keys.enter or code == keys.numpadenter then move(1)
+      elseif code == keys.up then move(-1)
+      elseif code == keys.space or code == keys.pageDown then move(rows - 1)
+      elseif code == keys.pageUp then move(-(rows - 1))
+      elseif code == keys.home then top = 1
+      elseif code == keys["end"] then top = lastTop()
+      elseif char == 47 then -- "/"
+        query = prompt("/")
+        found = nil
+        if query then search(top + 1) end
+      elseif code == keys.n then
+        search((found or top) + 1)
+      end
+      draw()
+    elseif e == "scroll" then
+      -- колесо: direction 1 - от себя (вверх по тексту)
+      move((dir or 0) > 0 and -3 or 3)
+      draw()
     end
-    draw()
-  elseif e == "scroll" then
-    -- колесо: direction 1 - от себя (вверх по тексту)
-    move((dir or 0) > 0 and -3 or 3)
-    draw()
   end
 end
 
+local ok, err = xpcall(loop, debug.traceback)
 quit()
+if not ok then error(err, 0) end

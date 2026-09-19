@@ -73,7 +73,9 @@ end
 local config = loadConfig()
 local FG, BG = 0xD0D0D0, 0x000000
 local C_KW, C_STR, C_NUM, C_CMT, C_BLT, C_OP = 0x66CCFF, 0x88DD88, 0xFFAA00, 0x707070, 0xFF9966, 0xBBBBBB
-local S_FG, S_BG, CUR = 0x000000, 0xB0B0B0, 0xFFFFFF
+local BAR_BG, BAR_FG, BAR_NAME = 0x1B2A3A, 0x7A8A98, 0xE1E1E1
+local BAR_POS, BAR_MARK, BAR_MSG = 0x66CCFF, 0xFFAA00, 0x88DD88
+local GUT, GUT_CUR, CUR, FIND = 0x4E5D6B, 0x9AA8B4, 0xFFFFFF, 0xFFAA00
 local KEYWORD = {}
 for w in ("and break do else elseif end for function goto if in local not or " ..
           "repeat return then until while"):gmatch("%S+") do KEYWORD[w] = true end
@@ -170,7 +172,10 @@ local running, cutBuffer, cutting = true, {}, false
 local status, dirty = nil, {}
 local fullRedraw = true
 local modified = false
+local match = nil
+local GW = 2
 local function curLine() return buffer[cy] or "" end
+local function textW() return W - GW end
 local function dispCol(line, i)
   return unicode.wlen(unicode.sub(line, 1, i - 1)) + 1
 end
@@ -212,27 +217,39 @@ local function drawRow(i)
   if y < 1 or y > rows then return end
   S:fill(1, y, W, 1, " ", FG, BG)
   if not buffer[i] then return end
-  local col = 1
+  local n = tostring(i)
+  S:set(GW - #n, y, n, i == cy and GUT_CUR or GUT, BG)
+  local TW, col = textW(), 1
   for _, t in ipairs(tokensFor(i)) do
     local piece, color = t[1], t[2]
     local wl = unicode.wlen(piece)
-    if col + wl - 1 > scrollX and col <= scrollX + W then
+    if col + wl - 1 > scrollX and col <= scrollX + TW then
       local at = col - scrollX
       if at < 1 then
         piece = removePrefix(piece, scrollX - col + 1)
         at = 1
       end
-      local room = W - at + 1
+      local room = TW - at + 1
       if unicode.wlen(piece) > room then piece = unicode.wtrunc(piece, room + 1) end
-      if piece ~= "" then S:set(at, y, piece, color, BG) end
+      if piece ~= "" then S:set(GW + at, y, piece, color, BG) end
     end
     col = col + wl
   end
+  if match and match.line == i then
+    local at = dispCol(buffer[i], match.from) - scrollX
+    local txt = unicode.sub(buffer[i], match.from, match.from + match.len - 1)
+    if at >= 1 and at <= TW and txt ~= "" then
+      local room = TW - at + 1
+      if unicode.wlen(txt) > room then txt = unicode.wtrunc(txt, room + 1) end
+      S:set(GW + at, y, txt, BG, FIND)
+    end
+  end
 end
 local function helpText()
+  local out = {}
   local function pretty(label, command)
     local kb = type(config.keybinds) == "table" and config.keybinds[command]
-    if type(kb) ~= "table" or type(kb[1]) ~= "table" then return "" end
+    if type(kb) ~= "table" or type(kb[1]) ~= "table" then return end
     local alt, control, shift, key
     for _, v in ipairs(kb[1]) do
       if v == "alt" then alt = true
@@ -240,34 +257,57 @@ local function helpText()
       elseif v == "shift" then shift = true
       else key = v end
     end
-    if not key then return "" end
-    return label .. ": [" .. (control and "Ctrl+" or "") .. (alt and "Alt+" or "") ..
-      (shift and "Shift+" or "") .. unicode.upper(key) .. "] "
+    if not key then return end
+    out[#out + 1] = (control and "^" or alt and "M-" or shift and "S-" or "") ..
+      unicode.upper(key) .. " " .. label
   end
-  return pretty("Сохранить", "save") .. pretty("Выход", "close") .. pretty("Поиск", "find") ..
-    pretty("Вырезать", "cut") .. pretty("Вставить", "uncut") .. pretty("Строка", "goto_line")
+  pretty("сохранить", "save")
+  pretty("выход", "close")
+  pretty("поиск", "find")
+  pretty("вырезать", "cut")
+  pretty("вставить", "uncut")
+  pretty("строка", "goto_line")
+  return table.concat(out, "  ")
 end
+local HELP = helpText()
 local function drawStatus()
+  S:fill(1, H, W, 1, " ", BAR_FG, BAR_BG)
   local right = string.format("%d,%d", cy, cx)
-  if #cutBuffer > 0 then right = string.format("(#%d) %s", #cutBuffer, right) end
-  right = text.padLeft(right, 10)
-  local left = status or helpText()
-  S:fill(1, H, W, 1, " ", S_FG, S_BG)
-  local room = W - #right - 1
-  if unicode.wlen(left) > room then left = unicode.wtrunc(left, room + 1) end
-  if left ~= "" then S:set(1, H, left, S_FG, S_BG) end
-  S:set(W - #right + 1, H, right, S_FG, S_BG)
+  if #cutBuffer > 0 then right = string.format("#%d  %s", #cutBuffer, right) end
+  S:set(W - #right, H, right, BAR_POS, BAR_BG)
+  local name = fs.name(filename)
+  S:set(2, H, name, BAR_NAME, BAR_BG)
+  local at = 2 + unicode.wlen(name)
+  local mark = readonly and " [чтение]" or modified and " *" or ""
+  if mark ~= "" then
+    S:set(at, H, mark, BAR_MARK, BAR_BG)
+    at = at + unicode.wlen(mark)
+  end
+  local mid = status or HELP
+  local room = W - #right - at - 2
+  if unicode.wlen(mid) > room then mid = unicode.wtrunc(mid, room + 1) end
+  if mid ~= "" and room > 0 then
+    S:set(at + 2, H, mid, status and BAR_MSG or BAR_FG, BAR_BG)
+  end
 end
 local function drawCursor()
   local y = cy - scrollY
   local col = dispCol(curLine(), cx) - scrollX
-  if y < 1 or y > rows or col < 1 or col > W then return end
+  if y < 1 or y > rows or col < 1 or col > textW() then return end
   local ch = unicode.sub(curLine(), cx, cx)
   if ch == "" or ch == "\t" then ch = " " end
-  S:set(col, y, ch, BG, readonly and 0x88AAFF or CUR)
+  S:set(GW + col, y, ch, BG, readonly and 0x88AAFF or CUR)
 end
 local lastCursorRow
+local function syncGutter()
+  local w = #tostring(math.max(#buffer, 1)) + 1
+  if w ~= GW then
+    GW = w
+    fullRedraw = true
+  end
+end
 local function redraw()
+  syncGutter()
   if fullRedraw then
     for i = scrollY + 1, math.min(scrollY + rows, math.max(#buffer, scrollY + rows)) do
       drawRow(i)
@@ -290,9 +330,9 @@ local function clampScroll()
   if cy - scrollY < 1 then scrollY = cy - 1 end
   if cy - scrollY > rows then scrollY = cy - rows end
   if scrollY < 0 then scrollY = 0 end
-  local col = dispCol(curLine(), cx)
+  local col, TW = dispCol(curLine(), cx), textW()
   if col - scrollX < 1 then scrollX = col - 1 end
-  if col - scrollX > W then scrollX = col - W end
+  if col - scrollX > TW then scrollX = col - TW end
   if scrollX < 0 then scrollX = 0 end
   if before ~= (scrollX .. ":" .. scrollY) then fullRedraw = true end
 end
@@ -325,6 +365,10 @@ local function down(n) setCursor(cx, cy + (n or 1)) cutting = false end
 local function touch(i)
   modified = true
   status = nil
+  if match then
+    markDirty(match.line)
+    match = nil
+  end
   invalidate(i)
   markDirty(i)
 end
@@ -369,9 +413,11 @@ end
 local function readLine(label, initial, onChange)
   local buf = initial or ""
   while true do
-    status = label .. buf
-    drawStatus()
-    S:set(math.min(W, unicode.wlen(label) + unicode.wlen(buf) + 1), H, "_", S_BG, S_FG)
+    S:fill(1, H, W, 1, " ", BAR_FG, BAR_BG)
+    S:set(2, H, label, BAR_MARK, BAR_BG)
+    local at = 2 + unicode.wlen(label)
+    S:set(at, H, unicode.wtrunc(buf .. " ", W - at), BAR_NAME, BAR_BG)
+    S:set(math.min(W, at + unicode.wlen(buf)), H, "_", BAR_BG, BAR_POS)
     S:present()
     local e, addr, char, code = event.pull()
     if e == "interrupted" then status = nil return nil end
@@ -405,6 +451,7 @@ local function searchFrom(bx, by)
     local at = unicode.lower(buffer[i]):find(low, from, true)
     if at then
       setCursor(unicode.len(buffer[i]:sub(1, at - 1)) + 1, i)
+      match = { line = i, from = cx, len = unicode.len(findText) }
       fullRedraw = true
       return true
     end
@@ -412,6 +459,10 @@ local function searchFrom(bx, by)
   status = "не найдено: " .. findText
 end
 local function find(again)
+  if match then
+    markDirty(match.line)
+    match = nil
+  end
   if again and findText ~= "" then
     searchFrom(cx + 1, cy)
     return
@@ -527,6 +578,7 @@ local function bindFor(code)
   return result
 end
 local function onKeyDown(char, code)
+  status = nil
   local handler = bindFor(code)
   if handler then
     handler()
@@ -571,31 +623,35 @@ do
     status = string.format([==["%s" [новый файл]]==], fs.name(filename))
   end
 end
-redraw()
-while running do
-  local e, addr, a, b, c = event.pull()
-  if e == "interrupted" then break end
-  if addr == term.keyboard() or addr == term.screen() then
-    if e == "key_down" then
-      onKeyDown(a, b)
-      redraw()
-    elseif e == "clipboard" then
-      onClipboard(a)
-      redraw()
-    elseif e == "touch" or e == "drag" then
-      local gx, gy = term.getGlobalArea()
-      local col, row = a - gx + 1, b - gy + 1
-      if col >= 1 and row >= 1 and col <= W and row <= rows then
-        setCursor(charAt(buffer[row + scrollY] or "", col + scrollX), row + scrollY)
+local function loop()
+  redraw()
+  while running do
+    local e, addr, a, b, c = event.pull()
+    if e == "interrupted" then break end
+    if addr == term.keyboard() or addr == term.screen() then
+      if e == "key_down" then
+        onKeyDown(a, b)
+        redraw()
+      elseif e == "clipboard" then
+        onClipboard(a)
+        redraw()
+      elseif e == "touch" or e == "drag" then
+        local gx, gy = term.getGlobalArea()
+        local col, row = a - gx + 1, b - gy + 1
+        if col >= 1 and row >= 1 and col <= W and row <= rows then
+          setCursor(charAt(buffer[row + scrollY] or "", math.max(1, col - GW + scrollX)), row + scrollY)
+          redraw()
+        end
+      elseif e == "scroll" then
+        setCursor(cx, cy - (c or 0) * 12)
+        fullRedraw = true
         redraw()
       end
-    elseif e == "scroll" then
-      setCursor(cx, cy - (c or 0) * 12)
-      fullRedraw = true
-      redraw()
     end
   end
 end
+local ok, err = xpcall(loop, debug.traceback)
 S:close()
 term.setCursorBlink(true)
 term.clear()
+if not ok then error(err, 0) end

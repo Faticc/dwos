@@ -54,6 +54,7 @@ local function logInit(s, gpu, x, y, w, h, pal)
   s.cset, s.ccopy, s.cfill, s.ccolor = COST.set[t], COST.copy[t], COST.fill[t], COST.color[t]
   s.buf = allocate(gpu, w, h)
   s.calls, s.screenCalls = 0, 0
+  s.was = { fg = { gpu.getForeground() }, bg = { gpu.getBackground() } }
 end
 local function target(s)
   if s.buf then s.gpu.setActiveBuffer(s.buf) end
@@ -117,6 +118,11 @@ function Log.close(s)
     s.gpu.setActiveBuffer(0)
     pcall(s.gpu.freeBuffer, s.buf)
     s.buf = nil
+  end
+  if s.was then
+    pcall(s.gpu.setBackground, table.unpack(s.was.bg))
+    pcall(s.gpu.setForeground, table.unpack(s.was.fg))
+    s.fg, s.bg, s.was = nil, nil, nil
   end
 end
 local T = {}
