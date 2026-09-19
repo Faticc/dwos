@@ -38,9 +38,16 @@ computer.pullSignal = function(seconds)
     -- Ctrl+C прерывает, Ctrl+Alt+C убивает процесс
     if keyboard.isControlDown() and keyboard.isKeyDown(keyboard.keys.c) and uptime() - lastInterrupt > 1 then
       lastInterrupt = uptime()
+      -- Ctrl+Alt+C убивает программу, но не корневую оболочку: убивать её
+      -- некому, и вместо выхода на экран вываливается трасса из init.
+      -- Программа может закрыться от него сама: process.killable(false) -
+      -- тогда ей придёт обычное "interrupted", и что с ним делать, решает она.
       if keyboard.isAltDown() then
-        require("process").info().data.signal("interrupted", 0)
-        return
+        local p = require("process").findProcess()
+        if p and p.parent and p.data.killable ~= false then
+          p.data.signal("interrupted", 0)
+          return
+        end
       end
       event.push("interrupted", lastInterrupt)
     end

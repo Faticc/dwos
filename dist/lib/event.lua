@@ -31,8 +31,11 @@ computer.pullSignal = function(seconds)
     if keyboard.isControlDown() and keyboard.isKeyDown(keyboard.keys.c) and uptime() - lastInterrupt > 1 then
       lastInterrupt = uptime()
       if keyboard.isAltDown() then
-        require("process").info().data.signal("interrupted", 0)
-        return
+        local p = require("process").findProcess()
+        if p and p.parent and p.data.killable ~= false then
+          p.data.signal("interrupted", 0)
+          return
+        end
       end
       event.push("interrupted", lastInterrupt)
     end

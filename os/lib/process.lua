@@ -120,6 +120,19 @@ function process.info(levelOrThread)
   end
 end
 
+--- Можно ли убить эту программу по Ctrl+Alt+C. С доводом - меняет ответ:
+--- process.killable(false) закрывает программу от убийства, и вместо смерти
+--- ей приходит обычное "interrupted" - дальше она решает сама. Корневую
+--- оболочку не убивают никогда, её некому подхватить.
+function process.killable(value)
+  local p = process.findProcess()
+  if not p then return false end
+  if value ~= nil then
+    p.data.killable = value and true or false
+  end
+  return p.parent ~= nil and p.data.killable ~= false
+end
+
 -- внутреннее, может меняться
 process.internal = {}
 

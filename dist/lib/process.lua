@@ -103,6 +103,14 @@ function process.info(levelOrThread)
     return { path = p.path, env = p.env, command = p.command, data = p.data }
   end
 end
+function process.killable(value)
+  local p = process.findProcess()
+  if not p then return false end
+  if value ~= nil then
+    p.data.killable = value and true or false
+  end
+  return p.parent ~= nil and p.data.killable ~= false
+end
 process.internal = {}
 function process.internal.close(thread, result)
   checkArg(1, thread, "thread")
