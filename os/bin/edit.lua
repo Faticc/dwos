@@ -18,6 +18,7 @@ local text = require("text")
 local unicode = require("unicode")
 local event = require("event")
 local computer = require("computer")
+local component = require("component")
 local gfx = require("gfx")
 local tty = require("tty")
 
@@ -745,6 +746,11 @@ local function readLine(label)
         status = nil
         return nil
       elseif code == keys.back then
+        -- Esc забирает себе Minecraft, так что выйти можно Backspace'ом
+        if buf == "" then
+          status = nil
+          return nil
+        end
         buf = unicode.sub(buf, 1, -2)
       elseif char and not keyboard.isControl(char) then
         buf = buf .. unicode.char(char)
@@ -755,7 +761,8 @@ local function readLine(label)
   end
 end
 
---- Вопрос в служебной строке: да, нет или отмена (Esc).
+--- Вопрос в служебной строке: да, нет или отмена. Esc до машины не доходит -
+--- Minecraft закрывает им окно экрана, - поэтому отмена на C и Backspace.
 local function ask(question)
   S:fill(1, H, W, 1, " ", BAR_FG, BAR_BG)
   S:set(2, H, fit(question, W - 4), BAR_MARK, BAR_BG)
@@ -765,7 +772,7 @@ local function ask(question)
     if e == "key_down" and addr == term.keyboard() then
       if code == keys.y or char == 121 then return true end
       if code == keys.n or char == 110 then return false end
-      if code == 1 then return nil end
+      if code == keys.c or code == keys.back or code == 1 then return nil end
     end
   end
 end
@@ -886,21 +893,34 @@ local function splitChain(chain)
 end
 
 --- Отсортированный словарь, по которому ищем: поля таблицы или слова файла.
+--- Всё, что под component, живёт недолго: устройство могут подключить или
+--- снять, пока файл открыт, - и сундук, которого не было, должен появиться.
 local function dictionary(path)
   if #path == 0 then return wordList() end
   local key = table.concat(path, ".")
+  local live = path[1] == "component"
   local cached = memberCache[key]
-  if cached ~= nil then return cached or nil end
-  local t = resolve(path)
-  if type(t) ~= "table" then
-    memberCache[key] = false
-    return nil
+  if cached ~= nil and not (live and computer.uptime() - cached.at >= 1) then
+    return cached.list or nil
   end
+  local t = resolve(path)
   local all, seen = {}, {}
-  keysOf(t, all, seen)
-  table.sort(all, function(a, b) return a:lower() < b:lower() end)
-  memberCache[key] = all
-  return all
+  if type(t) == "table" then
+    keysOf(t, all, seen)
+    -- component.<тип>: подключённые устройства, а не только уже основные
+    if live and #path == 1 then
+      pcall(function()
+        for _, kind in component.list() do
+          if not seen[kind] then seen[kind] = true all[#all + 1] = kind end
+        end
+      end)
+    end
+    table.sort(all, function(a, b) return a:lower() < b:lower() end)
+  else
+    all = false
+  end
+  memberCache[key] = { list = all, at = computer.uptime() }
+  return all or nil
 end
 
 --- Первый индекс, с которого слова не меньше приставки.
@@ -1144,7 +1164,7 @@ local handlers = {
   save = save,
   close = function()
     if modified and not readonly then
-      local answer = ask("Файл изменён. Сохранить перед выходом? [Y/n, Esc - остаться]")
+      local answer = ask("Файл изменён. Сохранить перед выходом? [Y/n, C - остаться]")
       if answer == nil then
         status = nil
         return
@@ -1324,19 +1344,49 @@ local function onKeyDown(char, code)
   end
 end
 
+-- Вставка идёт одной правкой и без автоотступа на каждой строке: если к
+-- своим отступам вставленного кода добавлять отступ предыдущей строки, текст
+-- уезжает лесенкой вправо, а end его не возвращает. Вместо этого блок целиком
+-- сдвигается к отступу строки, куда вставляют: общий отступ снимаем, свой
+-- ставим, а внутренняя лесенка блока остаётся как была.
 local function onClipboard(value)
   if readonly then return end
   deleteSelection()
-  value = value:gsub("\r\n", "\n")
-  local start = 1
-  local at = value:find("\n", 1, true)
-  while at do
-    insert(text.detab(value:sub(start, at - 1), 2))
-    enter()
-    start = at + 1
-    at = value:find("\n", start, true)
+  value = value:gsub("\r\n", "\n"):gsub("\r", "\n")
+  local parts = {}
+  for piece in (value .. "\n"):gmatch("(.-)\n") do
+    parts[#parts + 1] = text.detab(piece, 2)
   end
-  insert(text.detab(value:sub(start), 2))
+  if #parts == 1 then
+    insert(parts[1], "paste")
+    commit()
+    return
+  end
+  local line = curLine()
+  local head = unicode.sub(line, 1, cx - 1)
+  local ws = head:match("^ *")
+  -- первая строка часто скопирована с середины, без отступа: её не считаем
+  local common
+  for i, p in ipairs(parts) do
+    local lead = #p:match("^ *")
+    if p:find("%S") and (i > 1 or lead > 0) and (not common or lead < common) then
+      common = lead
+    end
+  end
+  common = common or 0
+  for i, p in ipairs(parts) do
+    local lead = #p:match("^ *")
+    p = p:sub(math.min(lead, common) + 1)
+    if i > 1 and p ~= "" then p = ws .. p end
+    parts[i] = p
+  end
+  local last = parts[#parts]
+  local new = { head .. parts[1] }
+  for i = 2, #parts - 1 do new[#new + 1] = parts[i] end
+  new[#new + 1] = last .. unicode.sub(line, cx)
+  splice(cy, 1, new)
+  setCursor(unicode.len(last) + 1, cy + #parts - 1)
+  commit()
 end
 
 ------------------------------------------------------------------ загрузка
