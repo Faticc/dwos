@@ -615,12 +615,65 @@ do
   end
 end
 
+-- Память - без очков: планки в OpenComputers задают только лимит, на
+-- скорость они не влияют. Проба занимает память кусками, пока не
+-- останется запас на отрисовку, и показывает, сколько программе реально
+-- досталось из заявленного.
+local RESERVE = 96 * 1024
+local mem = { name = "Память", color = 0xF7768E, kind = "mem",
+  title = "Сколько памяти достаётся программе", about = "заполнение до упора, без очков" }
+do
+  local keep, total, free0, cols
+  function mem.init()
+    keep, total = {}, computer.totalMemory()
+    free0 = computer.freeMemory()
+    cols = ramp({ mix(mem.color, PANEL, 0.6), mem.color, 0xFFE0E6 }, PH)
+    P:rect(1, 1, PW, PH, LINE)
+  end
+
+  --- Кусок-другой; true - дальше некуда.
+  function mem.step()
+    for _ = 1, 4 do
+      local free = computer.freeMemory()
+      if free <= RESERVE then return true end
+      local n = min(2048, max(64, floor((free - RESERVE) / 24)))
+      local ok, t = pcall(function()
+        local t = {}
+        for i = 1, n do t[i] = i end
+        return t
+      end)
+      if not ok then return true end
+      keep[#keep + 1] = t
+    end
+    return false
+  end
+
+  function mem.draw()
+    local used = total - computer.freeMemory()
+    mem.value = free0 - computer.freeMemory()
+    mem.progress = used / total
+    -- столбик занятого снизу вверх: общая высота - весь объём машины
+    local h = floor(used / total * PH + 0.5)
+    for y = 1, PH do
+      P:rect(1, y, PW, 1, PH - y < h and cols[PH - y + 1] or LINE)
+    end
+  end
+
+  function mem.show()
+    return ("%.1fM из %.1fM"):format(mem.value / 1048576, total / 1048576)
+  end
+
+  function mem.finish() keep = nil end
+end
+
 local TESTS = { life, mand, str, tab, scr, fps, fig, disk, sig }
+-- в список и прогон память идёт последней, в итог - нет
+local ALL = { life, mand, str, tab, scr, fps, fig, disk, sig, mem }
 
 ------------------------------------------------------------------ экран
 
 local function row(i) return 3 + (i - 1) * 2 end
-local SUM = row(#TESTS) + 2
+local SUM = row(#ALL) + 2
 local SPIN = { "◐", "◓", "◑", "◒" }
 local BAR = L - 20
 
@@ -650,30 +703,34 @@ local function layout()
 end
 
 local function drawList()
-  for i, t in ipairs(TESTS) do
+  for i, t in ipairs(ALL) do
     local y = row(i)
-    local on = i == current and not t.score
+    local fin = t.score or t.done
+    local on = i == current and not fin
     local icon, ic = "○", DIM
-    if t.score then icon, ic = "●", t.color elseif on then icon, ic = SPIN[spin % 4 + 1], t.color end
+    if fin then icon, ic = "●", t.color elseif on then icon, ic = SPIN[spin % 4 + 1], t.color end
     put(2, y, 1, icon, ic, BG)
-    put(4, y, L - 14, t.name, (t.score or on) and FG or DIM, BG)
+    put(4, y, L - 14, t.name, (fin or on) and FG or DIM, BG)
     put(L - 9, y, 8, t.score and tostring(t.score) or "", t.color, BG, true)
     -- полоска: пока проба идёт - сколько прошло, потом - очки (2000 во всю длину)
-    local frac = t.score and min(1, t.score / 2000) or on and (t.progress or 0) or 0
+    local frac = t.score and min(1, t.score / 2000) or (on or t.done) and (t.progress or 0) or 0
     local full = floor(min(1, frac) * BAR + 0.5)
     if bars[i] ~= full then
       bars[i] = full
-      if full > 0 then T:set(4, y + 1, ("━"):rep(full), t.score and t.color or mix(t.color, BG, 0.4), BG) end
+      if full > 0 then T:set(4, y + 1, ("━"):rep(full), fin and t.color or mix(t.color, BG, 0.4), BG) end
       if full < BAR then T:set(4 + full, y + 1, ("─"):rep(BAR - full), LINE, BG) end
     end
-    put(L - 15, y + 1, 14, t.value and (human(t.value) .. " " .. t.unit) or "", DIM, BG, true)
+    local v = ""
+    if t.show then v = t.value and t.show() or ""
+    elseif t.value then v = human(t.value) .. " " .. t.unit end
+    put(L - 15, y + 1, 14, v, DIM, BG, true)
   end
 end
 
 local function drawFrame(total)
   T.fg, T.bg = nil, nil
   drawList()
-  local t = TESTS[current]
+  local t = ALL[current]
   if t then
     put(VX, 3, VW, t.name .. " · " .. t.title, t.color, PANEL)
     put(VX, 4, VW, t.about, DIM, PANEL)
@@ -684,11 +741,11 @@ local function drawFrame(total)
   if saved.last then
     prev = ("прошлый %d · лучший %d"):format(saved.last, saved.best or saved.last)
   end
-  put(2, SUM + 2, L - 3, prev, DIM, BG)
+  if SUM + 2 < H then put(2, SUM + 2, L - 3, prev, DIM, BG) end
   if total then
     put(2, H, W - 2, "r — ещё раз · q — выход", DIM, BG)
   else
-    put(2, H, W - 2, ("q — выход · проба %d из %d · %.1f с"):format(current, #TESTS, uptime() - started), DIM, BG)
+    put(2, H, W - 2, ("q — выход · проба %d из %d · %.1f с"):format(current, #ALL, uptime() - started), DIM, BG)
   end
   T:present("replay")
   P.fg, P.bg = nil, nil
@@ -703,11 +760,26 @@ local function aborted()
 end
 
 local function runTest(i)
-  local t = TESTS[i]
-  current, t.progress, t.value, t.score = i, 0, nil, nil
+  local t = ALL[i]
+  current, t.progress, t.value, t.score, t.done = i, 0, nil, nil, nil
   P:clear(PANEL)
   t.init()
-  if t.kind == "real" then
+  if t.kind == "mem" then
+    local ok, err = pcall(function()
+      repeat
+        local full = t.step()
+        t.draw()
+        spin = spin + 1
+        drawFrame()
+        P:flush()
+      until full or aborted()
+    end)
+    t.finish()
+    t.done = true
+    if not ok then t.about = "упёрлись раньше запаса: " .. tostring(err) end
+    drawFrame()
+    return not aborted()
+  elseif t.kind == "real" then
     drawFrame()
     local t0, units, ui = uptime(), 0, 0
     repeat
@@ -820,11 +892,11 @@ end
 local function run()
   while true do
     quit = false
-    for _, t in ipairs(TESTS) do t.score, t.value, t.progress = nil, nil, 0 end
+    for _, t in ipairs(ALL) do t.score, t.value, t.progress, t.done = nil, nil, 0, nil end
     layout()
     invalidate()
     started, spin = uptime(), 0
-    for i = 1, #TESTS do
+    for i = 1, #ALL do
       if not runTest(i) then return end
     end
     local sum, cnt = 0, 0

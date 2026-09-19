@@ -9,7 +9,7 @@
 		{ ".prop",                          size = 98, crc = "1b2a0711" },
 		{ "bin/address.lua",                size = 46, crc = "7460e3ae" },
 		{ "bin/alias.lua",                  size = 853, crc = "4f8327b9" },
-		{ "bin/bench.lua",                  size = 25867, crc = "2a394ed6" },
+		{ "bin/bench.lua",                  size = 27823, crc = "0a63cb8d" },
 		{ "bin/cat.lua",                    size = 1368, crc = "74cc2e93" },
 		{ "bin/cd.lua",                     size = 929, crc = "420a2489" },
 		{ "bin/clear.lua",                  size = 23, crc = "d33fe617" },
@@ -129,7 +129,7 @@
 		{ "lib/tty.lua",                    size = 6698, crc = "0b0712d0" },
 		{ "lib/uuid.lua",                   size = 401, crc = "e41d554b" },
 		{ "lib/vt100.lua",                  size = 4581, crc = "6858f3c0" },
-		{ "usr/man/pages",                  size = 35560, crc = "1512615a" },
+		{ "usr/man/pages",                  size = 35682, crc = "f5f7dee4" },
 		{ "usr/misc/greetings.txt",         size = 2379, crc = "aae78cc8" },
 	},
 }
