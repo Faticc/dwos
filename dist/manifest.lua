@@ -20,7 +20,7 @@
 		{ "bin/dmesg.lua",                  size = 934, crc = "09810c64" },
 		{ "bin/du.lua",                     size = 2217, crc = "d194033c" },
 		{ "bin/echo.lua",                   size = 491, crc = "8f05c503" },
-		{ "bin/edit.lua",                   size = 78555, crc = "670fe44f" },
+		{ "bin/edit.lua",                   size = 79405, crc = "eba06011" },
 		{ "bin/false.lua",                  size = 9, crc = "a5b1a2bb" },
 		{ "bin/find.lua",                   size = 1940, crc = "8287dc6e" },
 		{ "bin/flash.lua",                  size = 1925, crc = "853c645b" },
@@ -130,7 +130,7 @@
 		{ "lib/tty.lua",                    size = 5495, crc = "4de04359" },
 		{ "lib/uuid.lua",                   size = 304, crc = "bae5348b" },
 		{ "lib/vt100.lua",                  size = 3781, crc = "a9604ad4" },
-		{ "usr/man/pages",                  size = 47258, crc = "a2c6b68c" },
+		{ "usr/man/pages",                  size = 48183, crc = "d162ba9f" },
 		{ "usr/misc/greetings.txt",         size = 2379, crc = "aae78cc8" },
 	},
 }

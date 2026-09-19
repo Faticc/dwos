@@ -82,6 +82,11 @@ moveDown={{"alt","down"},{"control","shift","down"}},
 fold={{"control","lbracket"}},
 debug={{"f6"}},
 breakpoint={{"f9"}},
+stepGo={{"f5"},{"c"}},
+stepOver={{"f10"},{"n"}},
+stepInto={{"f11"},{"f7"},{"s"}},
+stepOut={{"shift","f11"},{"shift","f7"},{"o"}},
+stepStop={{"f4"},{"q"}},
 help={{"f1"}},
 }
 local function loadConfig()
@@ -113,6 +118,31 @@ end
 return env
 end
 local config=loadConfig()
+local function bindWeight(command,code,shift,control,alt)
+local binds=config.keybinds[command]
+local best=0
+for _,bind in ipairs(type(binds)=="table"and binds or{})do
+if type(bind)=="table"then
+local wantAlt,wantCtrl,wantShift,key=false,false,false,nil
+for _,v in ipairs(bind)do
+if v=="alt"then wantAlt=true
+elseif v=="control"then wantCtrl=true
+elseif v=="shift"then wantShift=true
+else key=v end
+end
+if wantAlt==alt and wantCtrl==control and wantShift==shift
+and code==keys[key]and#bind>best then
+best=#bind
+end
+end
+end
+return best
+end
+local function pressed(command,code)
+local kbd=term.keyboard()
+return bindWeight(command,code,not not keyboard.isShiftDown(kbd),
+not not keyboard.isControlDown(kbd),not not keyboard.isAltDown(kbd))>0
+end
 local P={
 FG=0xD0D0D0,BG=0x000000,
 C_KW=0x66CCFF,C_STR=0x88DD88,C_NUM=0xFFAA00,C_CMT=0x707070,C_BLT=0xFF9966,C_OP=0xBBBBBB,
@@ -2007,19 +2037,20 @@ S:set(bx,i," "..pad(s,bw-1),fg,bg)
 end
 end
 status=info.final and"F5 или Enter - закрыть"or
-"F5 дальше  F10 шаг  F11 внутрь  S-F11 наружу  F4 стоп  F9 точка"
+"F5 дальше  F10 шаг  F11 внутрь  S-F11 наружу  F4 стоп  F9 точка"..
+"  (или C N S O Q)"
 fullRedraw=true
 redraw()
 local ev=table.pack(event.pull())
 local e,addr,char,code=ev[1],ev[2],ev[3],ev[4]
 if e=="key_down"and addr==term.keyboard()then
-local shift=keyboard.isShiftDown(term.keyboard())
-if code==keys.f5 or(info.final and(code==keys.enter or code==keys.back))then
+if pressed("stepGo",code)or(info.final and(code==keys.enter or code==keys.back))then
 answer="run"
-elseif not info.final and code==keys.f10 then answer="over"
-elseif not info.final and code==keys.f11 then answer=shift and"out"or"into"
-elseif not info.final and code==keys.f4 then answer="stop"
-elseif code==keys.f9 then bps[cy]=not bps[cy]or nil
+elseif not info.final and pressed("stepOver",code)then answer="over"
+elseif not info.final and pressed("stepOut",code)then answer="out"
+elseif not info.final and pressed("stepInto",code)then answer="into"
+elseif not info.final and pressed("stepStop",code)then answer="stop"
+elseif pressed("breakpoint",code)then bps[cy]=not bps[cy]or nil
 elseif code==keys.tab then focus=not focus and#list>0
 elseif focus and code==keys.up then sel=math.max(1,sel-1)
 elseif focus and code==keys.down then sel=math.min(#list,sel+1)
@@ -2685,6 +2716,9 @@ local list={
 {"nextDoc","следующий открытый файл"},{"prevDoc","предыдущий открытый файл"},
 {"run","сохранить и запустить"},{"debug","запустить под отладчиком"},
 {"breakpoint","точка останова (или щелчок по номеру)"},
+{"stepGo","отладчик: дальше"},{"stepOver","отладчик: шаг"},
+{"stepInto","отладчик: внутрь вызова"},{"stepOut","отладчик: наружу"},
+{"stepStop","отладчик: остановить"},
 {"shell","оболочка в панели"},{"panel","показать или скрыть панель"},
 {"problem","к следующей ошибке"},{"problemPrev","к предыдущей ошибке"},
 {"find","поиск (/шаблон - шаблон Lua)"},{"findnext","искать дальше"},
@@ -2717,7 +2751,7 @@ end
 end
 if#names>0 then items[#items+1]={text=pad(table.concat(names,", "),26)..it[2]}end
 end
-items[#items+1]={text=pad("Отладка:",26).."F5 дальше, F10 шаг, F11 внутрь, Shift+F11 наружу, F4 стоп, Tab - переменные"}
+items[#items+1]={text=pad("Tab",26).."отладчик: переменные, Enter - раскрыть"}
 chooseFrom("Клавиши (буквы - фильтр, Backspace - выйти)",items)
 end
 local MOVES={
@@ -2732,22 +2766,8 @@ local control=not not keyboard.isControlDown(kbd)
 local alt=not not keyboard.isAltDown(kbd)
 for command,binds in pairs(config.keybinds)do
 if type(binds)=="table"and handlers[command]then
-for _,bind in ipairs(binds)do
-if type(bind)=="table"then
-local wantAlt,wantCtrl,wantShift,key=false,false,false,nil
-for _,v in ipairs(bind)do
-if v=="alt"then wantAlt=true
-elseif v=="control"then wantCtrl=true
-elseif v=="shift"then wantShift=true
-else key=v end
-end
-if wantAlt==alt and wantCtrl==control and wantShift==shift
-and code==keys[key]and#bind>weight then
-weight=#bind
-result=command
-end
-end
-end
+local w=bindWeight(command,code,shift,control,alt)
+if w>weight then weight,result=w,command end
 end
 end
 if not result and shift and not control and not alt then
