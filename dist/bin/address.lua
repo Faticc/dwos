@@ -1,1 +1,1 @@
-io.write(require("computer").address(), "\n")
+io.write(require("computer").address(),"\n")

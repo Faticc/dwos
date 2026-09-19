@@ -1,1 +1,1 @@
-return { loaded = {} }
+return{loaded={}}

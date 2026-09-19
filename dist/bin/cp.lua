@@ -1,8 +1,8 @@
-local shell = require("shell")
-local transfer = require("tools/transfer")
-local args, options = shell.parse(...)
-options.h = options.h or options.help
-if #args < 2 or options.h then
+local shell=require("shell")
+local transfer=require("tools/transfer")
+local args,options=shell.parse(...)
+options.h=options.h or options.help
+if#args<2 or options.h then
 io.write([[Usage: cp [OPTIONS] <from...> <to>
  -i: prompt before overwrite (overrides -n option).
  -n: do not overwrite an existing file.
@@ -16,9 +16,9 @@ io.write([[Usage: cp [OPTIONS] <from...> <to>
 ]])
 return not not options.h
 end
-return transfer.batch(args, {
-cmd = "cp",
-i = options.i, f = options.f, n = options.n, r = options.r,
-u = options.u, P = options.P, v = options.v, x = options.x,
-skip = { options.skip },
+return transfer.batch(args,{
+cmd="cp",
+i=options.i,f=options.f,n=options.n,r=options.r,
+u=options.u,P=options.P,v=options.v,x=options.x,
+skip={options.skip},
 })

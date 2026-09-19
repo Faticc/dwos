@@ -1,8 +1,8 @@
-local shell = require("shell")
-local transfer = require("tools/transfer")
-local args, options = shell.parse(...)
-options.h = options.h or options.help
-if #args < 2 or options.h then
+local shell=require("shell")
+local transfer=require("tools/transfer")
+local args,options=shell.parse(...)
+options.h=options.h or options.help
+if#args<2 or options.h then
 io.write([[Usage: mv [OPTIONS] <from> <to>
   -f         overwrite without prompt
   -i         prompt before overwriting
@@ -14,9 +14,9 @@ io.write([[Usage: mv [OPTIONS] <from> <to>
 ]])
 return not not options.h
 end
-return transfer.batch(args, {
-cmd = "mv",
-f = options.f, i = options.i, v = options.v, n = options.n,
-skip = { options.skip },
-P = true, r = true, x = true,
+return transfer.batch(args,{
+cmd="mv",
+f=options.f,i=options.i,v=options.v,n=options.n,
+skip={options.skip},
+P=true,r=true,x=true,
 })

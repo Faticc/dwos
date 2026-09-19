@@ -1,38 +1,38 @@
-local computer = require("computer")
-local unicode = require("unicode")
-local tty = require("tty")
-local tips = {}
-local f = io.open("/usr/misc/greetings.txt")
+local computer=require("computer")
+local unicode=require("unicode")
+local tty=require("tty")
+local tips={}
+local f=io.open("/usr/misc/greetings.txt")
 if f then
 pcall(function()
-for line in f:lines() do
-if line ~= "" then tips[#tips + 1] = line end
+for line in f:lines()do
+if line~=""then tips[#tips+1]=line end
 end
 end)
 f:close()
 end
-local tip = tips[math.random(1, math.max(#tips, 1))] or ""
-local head = _OSVERSION .. " (" .. math.floor(computer.totalMemory() / 1024) .. "k RAM)"
-local lines = { head }
-local width = math.min(unicode.wlen(tip), (tty.getViewport() or math.huge) - 5)
-local maxLine = unicode.wlen(head)
-while unicode.len(tip) > 0 do
-local piece = unicode.wlen(tip) <= width and tip or unicode.wtrunc(tip, width + 1)
-if piece ~= tip then
-local cut = piece:match("^(.*%s)%S*$")
-if cut and #cut > 0 then piece = cut end
+local tip=tips[math.random(1,math.max(#tips,1))]or""
+local head=_OSVERSION.." ("..math.floor(computer.totalMemory()/1024).."k RAM)"
+local lines={head}
+local width=math.min(unicode.wlen(tip),(tty.getViewport()or math.huge)-5)
+local maxLine=unicode.wlen(head)
+while unicode.len(tip)>0 do
+local piece=unicode.wlen(tip)<=width and tip or unicode.wtrunc(tip,width+1)
+if piece~=tip then
+local cut=piece:match("^(.*%s)%S*$")
+if cut and#cut>0 then piece=cut end
 end
-lines[#lines + 1] = (piece:gsub("%s+$", ""))
-maxLine = math.max(maxLine, unicode.wlen(lines[#lines]))
-tip = unicode.sub(tip, unicode.len(piece) + 1)
+lines[#lines+1]=(piece:gsub("%s+$",""))
+maxLine=math.max(maxLine,unicode.wlen(lines[#lines]))
+tip=unicode.sub(tip,unicode.len(piece)+1)
 end
-local c = unicode.char
-io.write("\27[36m", c(0x256D), string.rep(c(0x2500), maxLine + 2), c(0x256E), "\n")
-for i, line in ipairs(lines) do
-io.write(c(0x2502), " ", i == 1 and "\27[37m" or "\27[33m", line, "\27[36m",
-string.rep(" ", maxLine - unicode.wlen(line) + 1), c(0x2502), "\n")
+local c=unicode.char
+io.write("\27[36m",c(0x256D),string.rep(c(0x2500),maxLine+2),c(0x256E),"\n")
+for i,line in ipairs(lines)do
+io.write(c(0x2502)," ",i==1 and"\27[37m"or"\27[33m",line,"\27[36m",
+string.rep(" ",maxLine-unicode.wlen(line)+1),c(0x2502),"\n")
 end
-io.write(c(0x2570), string.rep(c(0x2500), maxLine + 2), c(0x256F), "\27[37m\n")
-if require("filesystem").get("home").isReadOnly() then
+io.write(c(0x2570),string.rep(c(0x2500),maxLine+2),c(0x256F),"\27[37m\n")
+if require("filesystem").get("home").isReadOnly()then
 io.write("\27[33mДомашний каталог только для чтения: выполните `install` и перезагрузитесь.\27[37m\n")
 end

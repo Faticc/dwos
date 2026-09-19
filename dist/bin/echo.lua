@@ -1,4 +1,4 @@
-local args, options = require("shell").parse(...)
+local args,options=require("shell").parse(...)
 if options.help then
 io.write([[
 `echo` writes the provided string(s) to the standard output.
@@ -9,11 +9,11 @@ io.write([[
 return
 end
 if options.e then
-for index, arg in ipairs(args) do
-args[index] = assert(load("return \"" .. arg:gsub('"', [[\"]]) .. "\""))()
+for index,arg in ipairs(args)do
+args[index]=assert(load("return \""..arg:gsub('"',[[\"]]).."\""))()
 end
 end
-io.write(table.concat(args, " "))
+io.write(table.concat(args," "))
 if not options.n then
 io.write("\n")
 end

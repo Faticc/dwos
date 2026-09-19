@@ -1,4 +1,4 @@
-if require("filesystem").exists("/etc/hostname") then
+if require("filesystem").exists("/etc/hostname")then
 loadfile("/bin/hostname.lua")("--update")
 end
-os.setenv("SHELL", "/bin/sh.lua")
+os.setenv("SHELL","/bin/sh.lua")

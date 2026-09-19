@@ -1,1 +1,1 @@
-io.write(os.date("%F %T"), "\n")
+io.write(os.date("%F %T"),"\n")
