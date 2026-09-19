@@ -1,0 +1,19 @@
+ИМЯ
+  rc - службы, запускаемые при загрузке
+
+ВЫЗОВ
+  rc [СЛУЖБА [start|stop|restart|enable|disable]]
+
+ОПИСАНИЕ
+  Службы лежат в /etc/rc.d/*.lua, список включённых - в
+  /etc/rc.cfg. Без доводов печатает, что есть и что включено.
+
+ПРИМЕРЫ
+  rc example start
+  rc example enable
+
+ФАЙЛЫ
+  /etc/rc.cfg, /etc/rc.d/
+
+СМОТРИ ТАКЖЕ
+  dmesg
