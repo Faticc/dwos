@@ -499,8 +499,14 @@ local function readLine(label, initial, onChange)
     S:fill(1, H, W, 1, " ", BAR_FG, BAR_BG)
     S:set(2, H, label, BAR_MARK, BAR_BG)
     local at = 2 + unicode.wlen(label)
-    S:set(at, H, unicode.wtrunc(buf .. " ", W - at), BAR_NAME, BAR_BG)
-    S:set(math.min(W, at + unicode.wlen(buf)), H, "_", BAR_BG, BAR_POS)
+    local room = W - at - 1
+    if room > 0 then
+      -- длинный ввод показываем хвостом: важно то, что набирают сейчас
+      local shown = buf
+      while unicode.wlen(shown) > room do shown = unicode.sub(shown, 2) end
+      if shown ~= "" then S:set(at, H, shown, BAR_NAME, BAR_BG) end
+      S:set(at + unicode.wlen(shown), H, "_", BAR_BG, BAR_POS)
+    end
     S:present()
     local e, addr, char, code = event.pull()
     if e == "interrupted" then status = nil return nil end

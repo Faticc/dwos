@@ -161,8 +161,14 @@ local function prompt(label)
   while true do
     S:fill(1, H, W, 1, " ", BAR_FG, BAR_BG)
     S:set(2, H, label, ASK, BAR_BG)
-    S:set(2 + unicode.wlen(label), H, unicode.wtrunc(buf .. " ", W - 4), BAR_NAME, BAR_BG)
-    S:set(math.min(W, 2 + unicode.wlen(label) + unicode.wlen(buf)), H, "_", BAR_BG, BAR_POS)
+    local at = 2 + unicode.wlen(label)
+    local room = W - at - 1
+    if room > 0 then
+      local shown = buf
+      while unicode.wlen(shown) > room do shown = unicode.sub(shown, 2) end
+      if shown ~= "" then S:set(at, H, shown, BAR_NAME, BAR_BG) end
+      S:set(at + unicode.wlen(shown), H, "_", BAR_BG, BAR_POS)
+    end
     S:present()
     local e, _, char, code = event.pull()
     if e == "interrupted" then return nil end
