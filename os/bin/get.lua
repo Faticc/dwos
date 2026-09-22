@@ -5,6 +5,9 @@
 --   get update [ИМЯ...]    обновить всё поставленное (или только это)
 --   get remove ИМЯ...      убрать
 --   --dry  только показать   --force  качать заново   --disk=ПУТЬ  класть сюда
+--   --rehash  пересчитать хэши своих файлов, не веря записанным
+--
+-- update - это get update: одна команда на всю систему.
 --
 -- Всё лежит в одном репозитории Faticc/dwos: система - в dist/, игры и
 -- ролики - в games/, программы - в apps/. Веб-установщик ставит только
@@ -38,6 +41,7 @@ local fetch = require("fetch")
 
 local args, opts = shell.parse(...)
 local DRY, FORCE = opts.dry and true or false, opts.force and true or false
+local REHASH = opts.rehash and true or false
 local cmd = table.remove(args, 1) or "list"
 
 local function die(s) io.stderr:write(s .. "\n") os.exit(1) end
@@ -49,6 +53,7 @@ if cmd == "help" or opts.help then
   get update [ИМЯ...]    обновить всё поставленное (или только это)
   get remove ИМЯ...      убрать
   --dry   только показать    --force   качать заново
+  --rehash               пересчитать хэши своих файлов
   --disk=ПУТЬ            класть сюда (/mnt/...); с install - и перенести
                          уже стоящее. Без него get раскладывает сам]])
   return 0
@@ -377,7 +382,7 @@ local function fresh(s, e)
   if FORCE or not e.crc then return false, path end
   local size, mtime = fs.size(path), fs.lastModified(path)
   if e.size and size ~= e.size then return false, path end
-  local crc = rec and rec.size == size and rec.mtime == mtime and rec.crc or hashFile(path)
+  local crc = not REHASH and rec and rec.size == size and rec.mtime == mtime and rec.crc or hashFile(path)
   return crc == e.crc, path, { size = size, crc = crc, mtime = mtime }
 end
 
@@ -394,8 +399,15 @@ for _, s in ipairs(SOURCES) do
   if cmd == "list" or cmd == "install" or s.installed then active[#active + 1] = s end
 end
 prefetch(active)
+-- источник, чей манифест не пришёл, не проверен: "всё свежее" про него
+-- было бы неправдой - в конце скажем и выйдем с ошибкой
+local broken = {}
 for _, s in ipairs(active) do
-  if s.manifest then itemsOf(s) else io.stderr:write(("%s: %s\n"):format(s.name, tostring(s.err))) end
+  if s.manifest then itemsOf(s)
+  else
+    io.stderr:write(("%s: %s\n"):format(s.name, tostring(s.err)))
+    broken[#broken + 1] = s.title
+  end
 end
 
 --- Найти позиции по имени: ключ, ярлык, имя ролика без расширения,
@@ -498,11 +510,18 @@ if cmd == "update" then
       for _, it in ipairs(found) do only[it] = true end
     end
   end
+  local what = {}
   for _, s in ipairs(active) do
+    local names = {}
     for _, it in ipairs(s.items or {}) do
-      if (not only or only[it]) and (it.kind == "system" or itemPlaced(it)) then planOf(s).want[it] = true end
+      if (not only or only[it]) and (it.kind == "system" or itemPlaced(it)) then
+        planOf(s).want[it] = true
+        names[#names + 1] = it.kind == "system" and (s.manifest.version or "") or it.key
+      end
     end
+    if #names > 0 then what[#what + 1] = s.title .. " " .. table.concat(names, ", ") end
   end
+  if #what > 0 then print("Проверяю: " .. table.concat(what, "; ")) end
 end
 
 ------------------------------------------------------------------ сверка
@@ -744,7 +763,8 @@ local function run(list, s)
   if #list == 0 then return end
   local _, bad = fetch.files{
     need = list,
-    url = function(e, path) return e.src.base .. path end,
+    -- у пакета (all.gz) своего источника нет - он системный
+    url = function(e, path) return (e.src or s).base .. path end,
     path = function(e) return e.to end,
     -- пакет - только у системы: вся она одним сжатым файлом
     all = s and s.manifest.files, pack = s and s.manifest.pack,
@@ -854,6 +874,9 @@ for s, ns in pairs(newState) do
   end
 end
 
+if #broken > 0 then
+  die("не проверено - манифест не пришёл: " .. table.concat(broken, ", "))
+end
 if #failed > 0 then
   for _, b in ipairs(failed) do io.stderr:write(("  %s: %s\n"):format(b.entry.lname, tostring(b.err))) end
   die(("не скачалось файлов: %d"):format(#failed))
