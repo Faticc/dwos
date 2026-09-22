@@ -1,7 +1,7 @@
 -- size и crc считает tools/dwosbuild.py, руками не правь
 {name="DwOS",version="1.0",label="DwOS",
 keep={"etc/rc.cfg","home/.shrc"},
-pack={"all.gz",size=121624,crc="5b2981d2",raw=369120},
+pack={"all.gz",size=127528,crc="7a8aa000",raw=386312},
 files={
 {".prop",size=98,crc="1b2a0711"},
 {"bin/address.lua",size=45,crc="b740573d"},
@@ -22,6 +22,7 @@ files={
 {"bin/find.lua",size=1582,crc="4f334908"},
 {"bin/flash.lua",size=1641,crc="71121b60"},
 {"bin/free.lua",size=188,crc="24107f3c"},
+{"bin/get.lua",size=14747,crc="b9a9cca6"},
 {"bin/grep.lua",size=4637,crc="1384a44c"},
 {"bin/head.lua",size=1842,crc="7211bbac"},
 {"bin/hostname.lua",size=481,crc="816295d3"},
@@ -103,7 +104,7 @@ files={
 {"lib/core/splash.lua",size=2036,crc="512c6882"},
 {"lib/devfs.lua",size=4821,crc="9ab1dac0"},
 {"lib/event.lua",size=2513,crc="1ee9c91b"},
-{"lib/fetch.lua",size=6800,crc="f975c24c"},
+{"lib/fetch.lua",size=7199,crc="cd6af613"},
 {"lib/filesystem.lua",size=4497,crc="66d5f750"},
 {"lib/gfx.lua",size=10761,crc="9e7a122f"},
 {"lib/inflate.lua",size=4698,crc="889a2037"},
@@ -129,6 +130,6 @@ files={
 {"lib/tty.lua",size=3882,crc="7375f3cd"},
 {"lib/uuid.lua",size=265,crc="6811218c"},
 {"lib/vt100.lua",size=3004,crc="0903c206"},
-{"usr/man/pages",size=50129,crc="5a4f3b0a"},
-{"usr/misc/greetings.txt",size=2379,crc="aae78cc8"},
+{"usr/man/pages",size=52052,crc="9565af7a"},
+{"usr/misc/greetings.txt",size=2502,crc="773f3481"},
 }}

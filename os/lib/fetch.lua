@@ -286,19 +286,26 @@ fetch.memory = 65536
 
 --- Поставить файлы из репозитория, сверяя размер и CRC32 из манифеста.
 ---   o.base      адрес каталога сборки, с "/" на конце
----   o.need      записи манифеста, которые надо скачать ({ имя, size, crc })
+---   o.url(e, p) или так: адрес файла p записи e (p - e[1] или e.gz)
+---   o.need      записи манифеста, которые надо скачать ({ имя, size, crc });
+---               e.gz - путь сжатого gzip двойника (e.gzsize - его размер):
+---               тогда качается он и распаковывается на лету
 ---   o.all       все файлы манифеста по порядку (для пакета)
 ---   o.pack      запись пакета из манифеста ({ имя, size, crc }) или nil
 ---   o.path(e)   куда класть файл
 ---   o.done(e, n, err, code)  файл готов (n) или не вышел (err)
+---   o.progress(e, n)  большой файл: пришло n байт (раз в 64 КБ)
 --- На диск попадает только сошедшееся: небольшой файл ждёт проверки в
 --- памяти, большой - в .part рядом. Что не пришло пакетом, качается
 --- поштучно. Возвращает число поставленных и список несошедшихся.
 function fetch.files(o)
   local fs = require("filesystem")
   local wanted, left = {}, 0
-  for _, e in ipairs(o.need) do wanted[e[1]] = e left = left + 1 end
+  -- записи различаются самой таблицей, а не именем: у двух источников
+  -- может быть по своему install.lua
+  for _, e in ipairs(o.need) do wanted[e] = true left = left + 1 end
   local placed, failed = 0, {}
+  local function url(e, p) return o.url and o.url(e, p) or (o.base .. p) end
 
   local function mkdir(path)
     local dir = path:match("^(.*)/[^/]*$")
@@ -319,6 +326,7 @@ function fetch.files(o)
     end
     local sk = {}
     function sk.write(s)
+      if o.progress and math.floor((n + #s) / 65536) > math.floor(n / 65536) then o.progress(e, n + #s) end
       n, crc = n + #s, fetch.crc32(crc, s)
       if parts then
         parts[#parts + 1] = s
@@ -362,7 +370,7 @@ function fetch.files(o)
         return err
       end
       parts = nil
-      wanted[e[1]] = nil
+      wanted[e] = nil
       placed = placed + 1
       if o.done then o.done(e, n) end
     end
@@ -377,7 +385,7 @@ function fetch.files(o)
       local cur
       local write, finish = fetch.unpack(o.all, {
         open = function(e)
-          if not wanted[e[1]] then return nil end
+          if not wanted[e] then return nil end
           cur = sink(e)
           local sk = cur
           return { write = function(_, s) sk.write(s) end, close = function() end }
@@ -390,7 +398,7 @@ function fetch.files(o)
       local z = inflate.new(write, "gzip")
       local err
       fetch.many({ {
-        url = o.base .. o.pack[1], size = o.pack.size, plain = true,
+        url = url(o.pack, o.pack[1]), size = o.pack.size, plain = true,
         write = function(s) z:feed(s) end,
         finish = function(e) err = e end,
       } })
@@ -404,30 +412,43 @@ function fetch.files(o)
   for _ = 1, 2 do
     local jobs = {}
     for _, e in ipairs(o.need) do
-      if wanted[e[1]] then
+      if wanted[e] then
         local sk = sink(e)
-        jobs[#jobs + 1] = {
-          url = o.base .. e[1], size = e.size,
+        local job = {
+          url = url(e, e[1]), size = e.size,
           write = sk.write,
           finish = function(err, code)
             if err then sk.drop() else err = sk.finish() end
-            failed[e[1]] = err and { err = err, code = code } or nil
+            failed[e] = err and { err = err, code = code } or nil
           end,
         }
+        if e.gz then
+          -- сжатый двойник: GitHub двоичное сам не сжимает, а ролик
+          -- втрое-вполовину легче - столько же меньше тиков
+          local z = inflate.new(sk.write, "gzip")
+          job.url, job.size, job.plain = url(e, e.gz), e.gzsize, true
+          job.write = function(s) z:feed(s) end
+          local fin = job.finish
+          job.finish = function(err, code)
+            if not err and not z.done then err = "сжатый поток оборвался" end
+            fin(err, code)
+          end
+        end
+        jobs[#jobs + 1] = job
       end
     end
     if #jobs == 0 then break end
     fetch.many(jobs)
     -- 404 повтор не лечит
     local again = false
-    for name, f in pairs(failed) do if f.code ~= 404 and wanted[name] then again = true end end
+    for e, f in pairs(failed) do if f.code ~= 404 and wanted[e] then again = true end end
     if not again then break end
   end
 
   local bad = {}
   for _, e in ipairs(o.need) do
-    if wanted[e[1]] then
-      local f = failed[e[1]] or { err = "не скачался" }
+    if wanted[e] then
+      local f = failed[e] or { err = "не скачался" }
       bad[#bad + 1] = { entry = e, err = f.err, code = f.code }
       if o.done then o.done(e, nil, f.err, f.code) end
     end
