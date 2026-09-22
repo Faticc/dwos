@@ -101,7 +101,7 @@
 		{ "lib/core/full_sh.lua",           size = 10786, crc = "4e7bfba7" },
 		{ "lib/core/full_text.lua",         size = 6035, crc = "de3fae3f" },
 		{ "lib/core/install_basics.lua",    size = 3392, crc = "4d563007" },
-		{ "lib/core/install_ui.lua",        size = 6767, crc = "5413ae8f" },
+		{ "lib/core/install_ui.lua",        size = 11747, crc = "14130bec" },
 		{ "lib/core/lua_shell.lua",         size = 2959, crc = "08a40c5d" },
 		{ "lib/core/splash.lua",            size = 2360, crc = "30ead1e6" },
 		{ "lib/devfs.lua",                  size = 6467, crc = "c8f54f90" },

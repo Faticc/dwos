@@ -1,5 +1,33 @@
 local graphic=...
 local unicode=require("unicode")
+local function mb(n)
+if not n then return"?"end
+if n>=1048576 then return string.format("%.1f МБ",n/1048576)end
+return string.format("%d КБ",math.floor(n/1024+0.5))
+end
+local function needs(items,disks)
+local need,over={},nil
+for _,it in ipairs(items)do
+if it.on and not it.header and it.disk and it.disk~=it.at then
+need[it.disk]=(need[it.disk]or 0)+(it.size or 0)
+end
+end
+for i,d in ipairs(disks)do
+if need[i]and d.free and need[i]>d.free then
+over=over or string.format("на \"%s\" не влезает: нужно %s, свободно %s",
+d.name,mb(need[i]),mb(d.free))
+end
+end
+return need,over
+end
+local function toggle(it)
+if it.header or it.lock then return end
+it.on=not it.on
+end
+local function shiftDisk(it,disks,step)
+if it.header or it.lock or not it.on or#disks==0 then return end
+it.disk=((it.disk or 1)-1+step)%#disks+1
+end
 local PROMPT={
 sources="What do you want to install?",
 targets="Where do you want to install to?",
@@ -80,6 +108,48 @@ io.write(s,"\n")
 end
 function text.pause()end
 function text.close()end
+function text.checklist(title,items,disks,options)
+options=options or{}
+while true do
+io.write("\n",title,"\n")
+for i,d in ipairs(disks)do
+io.write(string.format("  диск %d: %s, свободно %s\n",i,d.name,mb(d.free)))
+end
+for i,it in ipairs(items)do
+if it.header then
+io.write("  ",it.text,"\n")
+else
+local mark=it.lock and"[*]"or it.on and"[x]"or"[ ]"
+local where=it.on and it.disk and(" -> диск "..it.disk)or""
+io.write(string.format("%3d) %s %s  %s%s\n",i,mark,it.text,it.sub or"",where))
+end
+end
+local _,over=needs(items,disks)
+if over then io.write("!! ",over,"\n")end
+io.write("номер - отметить, 'номер диск' - куда, 'все диск' - всё туда,\n")
+io.write("пустая строка - ставить, q - отмена: ")
+local s=io.read()
+if not s or s=="q"then return nil end
+local a,b=s:match("^%s*(%S*)%s*(%S*)%s*$")
+if a==""then
+if not over then return true end
+elseif a=="все"or a=="all"then
+local d=tonumber(b)
+if d and disks[d]then
+for _,it in ipairs(items)do
+if it.on and not it.lock and not it.header then it.disk=d end
+end
+end
+else
+local it,d=items[tonumber(a)or 0],tonumber(b)
+if it and d and disks[d]then
+if not it.lock and not it.header then it.on=true it.disk=d end
+elseif it then
+toggle(it)
+end
+end
+end
+end
 if not graphic then return text end
 local gfx=require("gfx")
 local term=require("term")
@@ -91,12 +161,14 @@ local BG,FG,DIM,ACC=0x1B2A3A,0xE1E1E1,0x8C8C8C,0x66CCFF
 local SEL,BAR,VOID=0x2D4A66,0x33B5E5,0x000000
 local ui={graphic=true}
 local S,W,H
-local function open()
-if S then return end
+local function open(w,h)
 local gpu=tty.gpu()
 local sw,sh=gpu.getResolution()
-W=math.min(62,sw-2)
-H=math.min(16,sh-2)
+w=math.min(w or 62,sw-2)
+h=math.min(h or 16,sh-2)
+if S and W==w and H==h then return end
+if S then S:close()S=nil end
+W,H=w,h
 term.clear()
 term.setCursorBlink(false)
 S=gfx.surface(gpu,{
@@ -180,6 +252,87 @@ elseif code==keys["end"]then
 sel=#devs
 elseif code==keys.enter or code==keys.numpadenter then
 return devs[sel]
+elseif code==keys.q or char==113 or code==1 then
+return nil
+end
+end
+end
+local RED,OK=0xFF6655,0x77DD77
+function ui.checklist(title,items,disks,options)
+options=options or{}
+local gpu=tty.gpu()
+local sw,sh=gpu.getResolution()
+open(math.min(sw-2,110),math.min(sh-2,#items+9))
+local rows=H-7
+local DW=#disks>0 and 26 or 0
+local function selectable(i)return items[i]and not items[i].header end
+local sel=1
+while items[sel]and not selectable(sel)do sel=sel+1 end
+local top,warn=1,nil
+local function move(step)
+local i=sel
+repeat i=i+step until i<1 or i>#items or selectable(i)
+if selectable(i)then sel=i end
+end
+while true do
+if sel<top then top=sel end
+if sel>1 and items[sel-1].header and sel-1<top then top=sel-1 end
+if sel>top+rows-1 then top=sel-rows+1 end
+frame(title,"пробел — отметить · ←→ — диск · Tab — этот диск всем · Enter — ставить · Q — отмена")
+line(2,options.prompt or"Отметь, что поставить, и выбери, на какой диск",DIM)
+body()
+for i=0,rows-1 do
+local it=items[top+i]
+if not it then break end
+local row=4+i
+if it.header then
+line(row,it.text,ACC)
+else
+local cur=top+i==sel
+local bg=cur and SEL or BG
+local mark=it.lock and"[•]"or it.on and"[x]"or"[ ]"
+line(row,(cur and"▸ "or"  ")..mark.." "..it.text,it.on and FG or DIM,bg)
+local right=W-3-DW
+if it.sub then
+local s=fit(it.sub,24)
+S:set(right-unicode.wlen(s)-1,row,s,DIM,bg)
+end
+if DW>0 and it.on and disks[it.disk]then
+local moved=it.at and it.disk~=it.at
+local d=disks[it.disk].name
+local s=(it.lock and"  "or"◂ ")..fit(d,DW-4)
+s=s..(" "):rep(DW-2-unicode.wlen(s))..(it.lock and""or"▸")
+S:set(right+1,row,s,(it.at==nil or moved)and ACC or DIM,bg)
+end
+end
+end
+local need,over=needs(items,disks)
+local parts={}
+for i,d in ipairs(disks)do
+if need[i]then parts[#parts+1]=string.format("%s: %s из %s",d.name,mb(need[i]),mb(d.free))end
+end
+local summary=#parts>0 and("запишется — "..table.concat(parts," · "))or"ничего нового не качается"
+line(H-2,warn or over or summary,(warn or over)and RED or OK)
+warn=nil
+S:present()
+local char,code=keyPress()
+if not code then return nil end
+local it=items[sel]
+if code==keys.up then move(-1)
+elseif code==keys.down then move(1)
+elseif code==keys.pageUp then for _=1,rows do move(-1)end
+elseif code==keys.pageDown then for _=1,rows do move(1)end
+elseif code==keys.space then toggle(it)
+elseif code==keys.left then shiftDisk(it,disks,-1)
+elseif code==keys.right then shiftDisk(it,disks,1)
+elseif code==keys.tab then
+if it and it.on and it.disk then
+for _,o in ipairs(items)do
+if o.on and not o.lock and not o.header then o.disk=it.disk end
+end
+end
+elseif code==keys.enter or code==keys.numpadenter then
+if over then warn=over else return true end
 elseif code==keys.q or char==113 or code==1 then
 return nil
 end
