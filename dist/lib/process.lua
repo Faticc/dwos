@@ -1,168 +1,168 @@
-local process={}
-process.list=setmetatable({},{__mode="k"})
-function process.findProcess(co)
-co=co or coroutine.running()
-for main,p in pairs(process.list)do
-if main==co then
-return p
+local a={}
+a.list=setmetatable({},{__mode="k"})
+function a.findProcess(b)
+b=b or coroutine.running()
+for d,c in pairs(a.list)do
+if d==b then
+return c
 end
-for _,instance in pairs(p.instances)do
-if instance==co then
-return p
-end
-end
+for d,d in pairs(c.instances)do
+if d==b then
+return c
 end
 end
-function process.load(path,env,init,name)
-checkArg(1,path,"string","function")
-checkArg(2,env,"table","nil")
-checkArg(3,init,"function","nil")
-checkArg(4,name,"string","nil")
-assert(type(path)=="string"or env==nil,"process cannot load function environments")
-local p=process.findProcess()
-env=env or p.env
-local code
-if type(path)=="string"then
-code=function(...)
-local fs,shell=require("filesystem"),require("shell")
-local program,reason=shell.resolve(path,"lua")
-if not program then
-return require("tools/programLocations").reportNotFound(path,reason)
-end
-os.setenv("_",program)
-local f=fs.open(program)
-if f then
-local shebang=(f:read(1024)or""):match("^#!([^\n]+)")
-f:close()
-if shebang then
-path=shebang:gsub("%s","")
-return code(program,...)
 end
 end
-return assert(loadfile(program,"bt",env))(...)
+function a.load(b,d,e,i)
+checkArg(1,b,"string","function")
+checkArg(2,d,"table","nil")
+checkArg(3,e,"function","nil")
+checkArg(4,i,"string","nil")
+assert(type(b)=="string"or d==nil,"process cannot load function environments")
+local f=a.findProcess()
+d=d or f.env
+local g
+if type(b)=="string"then
+g=function(...)
+local j,h=require("filesystem"),require("shell")
+local c,k=h.resolve(b,"lua")
+if not c then
+return require("tools/programLocations").reportNotFound(b,k)
+end
+os.setenv("_",c)
+local h=j.open(c)
+if h then
+local j=(h:read(1024)or""):match("^#!([^\n]+)")
+h:close()
+if j then
+b=j:gsub("%s","")
+return g(c,...)
+end
+end
+return assert(loadfile(c,"bt",d))(...)
 end
 else
-code=path
+g=b
 end
-local thread
-thread=coroutine.create(function(...)
-local result={
+local h
+h=coroutine.create(function(...)
+local c={
 xpcall(function(...)
-init=init or function(...)return...end
-return code(init(...))
+e=e or function(...)return...end
+return g(e(...))
 end,
-function(msg)
-if type(msg)=="table"and msg.reason=="terminated"then
-return msg.code or 0
+function(e)
+if type(e)=="table"and e.reason=="terminated"then
+return e.code or 0
 end
-return{msg,debug.traceback()}
+return{e,debug.traceback()}
 end,...)
 }
-if not result[1]and type(result[2])=="table"then
+if not c[1]and type(c[2])=="table"then
 xpcall(function()
-local stack=result[2][2]:gsub("^([^\n]*\n)[^\n]*\n[^\n]*\n","%1")
-io.stderr:write(string.format("%s:\n%s",result[2][1]or"",stack))
+local e=c[2][2]:gsub("^([^\n]*\n)[^\n]*\n[^\n]*\n","%1")
+io.stderr:write(string.format("%s:\n%s",c[2][1]or"",e))
 end,
-function(msg)
-io.stderr:write("process library exception handler crashed: ",tostring(msg))
+function(e)
+io.stderr:write("process library exception handler crashed: ",tostring(e))
 end)
-result[2]=128
+c[2]=128
 end
-process.internal.close(thread,result)
-return select(2,table.unpack(result))
+a.internal.close(h,c)
+return select(2,table.unpack(c))
 end,true)
-local new_proc={
-path=path,
-command=name or tostring(path),
-env=env,
+local c={
+path=b,
+command=i or tostring(b),
+env=d,
 data={handles={},io={}},
-parent=p,
+parent=f,
 instances=setmetatable({},{__mode="v"}),
 }
-for i,fd in pairs(p.data.io)do
-new_proc.data.io[i]=io.dup(fd)
+for b,d in pairs(f.data.io)do
+c.data.io[b]=io.dup(d)
 end
-setmetatable(new_proc.data,{__index=p.data})
-process.list[thread]=new_proc
-return thread
+setmetatable(c.data,{__index=f.data})
+a.list[h]=c
+return h
 end
-function process.info(levelOrThread)
-checkArg(1,levelOrThread,"thread","number","nil")
-local p
-if type(levelOrThread)=="thread"then
-p=process.findProcess(levelOrThread)
+function a.info(c)
+checkArg(1,c,"thread","number","nil")
+local b
+if type(c)=="thread"then
+b=a.findProcess(c)
 else
-local level=levelOrThread or 1
-p=process.findProcess()
-while level>1 and p do
-p=p.parent
-level=level-1
+local d=c or 1
+b=a.findProcess()
+while d>1 and b do
+b=b.parent
+d=d-1
 end
 end
-if p then
-return{path=p.path,env=p.env,command=p.command,data=p.data}
+if b then
+return{path=b.path,env=b.env,command=b.command,data=b.data}
 end
 end
-function process.killable(value)
-local p=process.findProcess()
-if not p then return false end
-if value~=nil then
-p.data.killable=value and true or false
+function a.killable(c)
+local b=a.findProcess()
+if not b then return false end
+if c~=nil then
+b.data.killable=c and true or false
 end
-return p.parent~=nil and p.data.killable~=false
+return b.parent~=nil and b.data.killable~=false
 end
-process.internal={}
-function process.internal.close(thread,result)
-checkArg(1,thread,"thread")
-local pdata=process.info(thread).data
-pdata.result=result
-while pdata.handles[1]do
-local h=table.remove(pdata.handles)
-if h.close then
-pcall(h.close,h)
-end
-end
-process.list[thread]=nil
-end
-function process.internal.continue(co,...)
-local result={}
-local args=table.pack(...)
-while coroutine.status(co)~="dead"do
-result=table.pack(coroutine.resume(co,table.unpack(args,1,args.n)))
-if coroutine.status(co)~="dead"then
-args=table.pack(coroutine.yield(table.unpack(result,2,result.n)))
-elseif not result[1]then
-io.stderr:write(result[2])
+a.internal={}
+function a.internal.close(b,d)
+checkArg(1,b,"thread")
+local c=a.info(b).data
+c.result=d
+while c.handles[1]do
+local d=table.remove(c.handles)
+if d.close then
+pcall(d.close,d)
 end
 end
-return table.unpack(result,2,result.n)
+a.list[b]=nil
 end
-function process.removeHandle(handle,proc)
-local handles=(proc or process.info()).data.handles
-for pos,h in ipairs(handles)do
-if h==handle then
-return table.remove(handles,pos)
+function a.internal.continue(c,...)
+local b={}
+local d=table.pack(...)
+while coroutine.status(c)~="dead"do
+b=table.pack(coroutine.resume(c,table.unpack(d,1,d.n)))
+if coroutine.status(c)~="dead"then
+d=table.pack(coroutine.yield(table.unpack(b,2,b.n)))
+elseif not b[1]then
+io.stderr:write(b[2])
+end
+end
+return table.unpack(b,2,b.n)
+end
+function a.removeHandle(c,d)
+local b=(d or a.info()).data.handles
+for d,e in ipairs(b)do
+if e==c then
+return table.remove(b,d)
 end
 end
 end
-function process.addHandle(handle,proc)
-local _close=handle.close
-local handles=(proc or process.info()).data.handles
-handles[#handles+1]=handle
-function handle:close(...)
-if _close then
-self.close=_close
-_close=nil
-process.removeHandle(self,proc)
+function a.addHandle(b,d)
+local c=b.close
+local e=(d or a.info()).data.handles
+e[#e+1]=b
+function b:close(...)
+if c then
+self.close=c
+c=nil
+a.removeHandle(self,d)
 return self:close(...)
 end
 end
-return handle
+return b
 end
-function process.running(level)
-local info=process.info(level)
-if info then
-return info.path,info.env,info.command
+function a.running(c)
+local b=a.info(c)
+if b then
+return b.path,b.env,b.command
 end
 end
-return process
+return a

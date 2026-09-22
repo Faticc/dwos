@@ -1,95 +1,95 @@
-local adapter_api=...
-local fs=require("filesystem")
-local text=require("text")
-local cache={}
-local function once(callback)
-local c=cache[callback]
-if not c then
-c=callback()
-cache[callback]=c
+local b=...
+local f=require("filesystem")
+local g=require("text")
+local d={}
+local function e(c)
+local a=d[c]
+if not a then
+a=c()
+d[c]=a
 end
-return c
+return a
 end
 return{
-computer=function(proxy)
+computer=function(a)
 return{
-beep={write=adapter_api.createWriter(proxy.beep,0,"number","number")},
-running=adapter_api.create_toggle(proxy.isRunning,proxy.start,proxy.stop),
+beep={write=b.createWriter(a.beep,0,"number","number")},
+running=b.create_toggle(a.isRunning,a.start,a.stop),
 }
 end,
-eeprom=function(proxy)
+eeprom=function(a)
 return{
-contents={read=proxy.get,write=proxy.set},
-data={read=proxy.getData,write=proxy.setData},
-checksum={read=proxy.getChecksum,size=function()return 8 end},
-size={once(proxy.getSize)},
-dataSize={once(proxy.getDataSize)},
-label={write=proxy.setLabel,proxy.getLabel()},
-makeReadonly={write=proxy.makeReadonly},
+contents={read=a.get,write=a.set},
+data={read=a.getData,write=a.setData},
+checksum={read=a.getChecksum,size=function()return 8 end},
+size={e(a.getSize)},
+dataSize={e(a.getDataSize)},
+label={write=a.setLabel,a.getLabel()},
+makeReadonly={write=a.makeReadonly},
 }
 end,
-filesystem=function(proxy)
+filesystem=function(a)
 return{
 label={
-read=function()return proxy.getLabel()or""end,
-write=function(v)proxy.setLabel(text.trim(v))end,
+read=function()return a.getLabel()or""end,
+write=function(c)a.setLabel(g.trim(c))end,
 },
-isReadOnly={proxy.isReadOnly()},
-spaceUsed={proxy.spaceUsed()},
-spaceTotal={proxy.spaceTotal()},
+isReadOnly={a.isReadOnly()},
+spaceUsed={a.spaceUsed()},
+spaceTotal={a.spaceTotal()},
 mounts={read=function()
-local mounts={}
-for mproxy,mpath in fs.mounts()do
-if mproxy.address==proxy.address then
-mounts[#mounts+1]=mpath
+local c={}
+for d,e in f.mounts()do
+if d.address==a.address then
+c[#c+1]=e
 end
 end
-return table.concat(mounts,"\n")
+return table.concat(c,"\n")
 end},
 }
 end,
-gpu=function(proxy)
-local screen=proxy.getScreen()
-screen=screen and("../"..screen)
+gpu=function(a)
+local c=a.getScreen()
+c=c and("../"..c)
 return{
-viewport={write=adapter_api.createWriter(proxy.setViewport,2,"number","number"),proxy.getViewport()},
-resolution={write=adapter_api.createWriter(proxy.setResolution,2,"number","number"),proxy.getResolution()},
-maxResolution={proxy.maxResolution()},
-screen={link=screen,isAvailable=proxy.getScreen},
-depth={write=adapter_api.createWriter(proxy.setDepth,1,"number"),proxy.getDepth()},
-maxDepth={proxy.maxDepth()},
-background={write=adapter_api.createWriter(proxy.setBackground,1,"number","boolean"),proxy.getBackground()},
-foreground={write=adapter_api.createWriter(proxy.setForeground,1,"number","boolean"),proxy.getForeground()},
+viewport={write=b.createWriter(a.setViewport,2,"number","number"),a.getViewport()},
+resolution={write=b.createWriter(a.setResolution,2,"number","number"),a.getResolution()},
+maxResolution={a.maxResolution()},
+screen={link=c,isAvailable=a.getScreen},
+depth={write=b.createWriter(a.setDepth,1,"number"),a.getDepth()},
+maxDepth={a.maxDepth()},
+background={write=b.createWriter(a.setBackground,1,"number","boolean"),a.getBackground()},
+foreground={write=b.createWriter(a.setForeground,1,"number","boolean"),a.getForeground()},
 }
 end,
-internet=function(proxy)
+internet=function(a)
 return{
-httpEnabled={proxy.isHttpEnabled()},
-tcpEnabled={proxy.isTcpEnabled()},
+httpEnabled={a.isHttpEnabled()},
+tcpEnabled={a.isTcpEnabled()},
 }
 end,
-modem=function(proxy)
+modem=function(a)
 return{
 wakeMessage={
-read=function()return proxy.getWakeMessage()or""end,
-write=function(msg)return proxy.setWakeMessage(msg)end,
+read=function()return a.getWakeMessage()or""end,
+write=function(c)return a.setWakeMessage(c)end,
 },
-wireless={proxy.isWireless()},
+wireless={a.isWireless()},
 }
 end,
-screen=function(proxy)
+screen=function(a)
 return{
-aspectRatio={proxy.getAspectRatio()},
+aspectRatio={a.getAspectRatio()},
 keyboards={read=function()
-local ks={}
-for _,ka in ipairs(proxy.getKeyboards())do
-ks[#ks+1]=ka
+local c={}
+for d,d in ipairs(a.getKeyboards())do
+c[#c+1]=d
 end
-return table.concat(ks,"\n")
+return table.concat(c,"\n")
 end},
-on=adapter_api.create_toggle(proxy.isOn,proxy.turnOn,proxy.turnOff),
-precise=adapter_api.create_toggle(proxy.isPrecise,proxy.setPrecise),
-touchModeInverted=adapter_api.create_toggle(proxy.isTouchModeInverted,proxy.setTouchModeInverted),
+on=b.create_toggle(a.isOn,a.turnOn,a.turnOff),
+precise=b.create_toggle(a.isPrecise,a.setPrecise),
+touchModeInverted=b.create_toggle(a.isTouchModeInverted,a.setTouchModeInverted),
 }
 end,
 }

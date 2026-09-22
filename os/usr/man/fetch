@@ -1,0 +1,28 @@
+ИМЯ
+  fetch - скачивание по HTTP, быстрое для интернет-карты
+
+ВЫЗОВ
+  local fetch = require("fetch")
+
+ОПИСАНИЕ
+  У интернет-карты request и read стоят по тику, а read отдаёт не
+  больше 2 КБ - около 20 КБ/с на поток. fetch выжимает остальное:
+  просит gzip и распаковывает его сам (код на Lua приходит втрое
+  меньше), держит до четырёх запросов разом, чтобы ожидание ответа
+  не стоило тиков, и не тратит лишних read в конце файла.
+
+  fetch.get(url[, o])     тело целиком или nil, ошибка, код ответа;
+                          o.headers - свои заголовки, o.plain - без gzip
+  fetch.many(список)      много запросов разом; у каждого url, write(s),
+                          finish(ошибка, код), size - ждать столько байт
+  fetch.files(o)          поставить файлы по манифесту со сверкой CRC32
+  fetch.crc32(crc, s)     CRC32, fetch.hex(crc) - восемь hex-цифр
+
+  Распаковка отдельно - require("inflate"): inflate.new(sink, "gzip")
+  и :feed(кусок), inflate.string(s) - строку целиком.
+
+ПРИМЕРЫ
+  local src = fetch.get("https://raw.githubusercontent.com/o/r/main/a.lua")
+
+СМОТРИ ТАКЖЕ
+  wget, update

@@ -1,34 +1,34 @@
-local fs=require("filesystem")
-local shell=require("shell")
-local args,options=shell.parse(...)
-if#args<1 then
+local b=require("filesystem")
+local f=require("shell")
+local c,e=f.parse(...)
+if#c<1 then
 io.write("Usage: umount [-a] <mount>\n")
 io.write(" -a  Remove any mounts by file system label or address instead of by path. Note that the address may be abbreviated.\n")
 return 1
 end
-local target,reason
-if options.a then
-local proxy
-proxy,reason=fs.proxy(args[1])
-target=proxy and proxy.address
+local a,d
+if e.a then
+local e
+e,d=b.proxy(c[1])
+a=e and e.address
 else
-local path=shell.resolve(args[1])
-local proxy,mount=fs.get(path)
-if proxy then
-if mount~=path then
+local e=f.resolve(c[1])
+local f,c=b.get(e)
+if f then
+if c~=e then
 io.stderr:write("not a mount point\n")
 return 1
 end
-target=mount
+a=c
 else
-reason=mount
+d=c
 end
 end
-if not target then
-io.stderr:write(tostring(reason).."\n")
+if not a then
+io.stderr:write(tostring(d).."\n")
 return 1
 end
-if not fs.umount(target)then
+if not b.umount(a)then
 io.stderr:write("nothing to unmount here\n")
 return 1
 end

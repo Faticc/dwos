@@ -1,139 +1,139 @@
-local tty=require("tty")
-local computer=require("computer")
-local process=require("process")
-local event=require("event")
-local core_cursor=require("core/cursor")
-local keys=require("keyboard").keys
-local term=setmetatable({internal={}},{__index=tty})
-local function as_window(window,func,...)
-local data=process.info().data
-if not data.window or not window then
-return func(...)
+local a=require("tty")
+local h=require("computer")
+local e=require("process")
+local l=require("event")
+local i=require("core/cursor")
+local j=require("keyboard").keys
+local b=setmetatable({internal={}},{__index=a})
+local function f(d,g,...)
+local c=e.info().data
+if not c.window or not d then
+return g(...)
 end
-local prev=rawget(data,"window")
-data.window=window
-local ret=table.pack(func(...))
-data.window=prev
-return table.unpack(ret,1,ret.n)
+local k=rawget(c,"window")
+c.window=d
+local d=table.pack(g(...))
+c.window=k
+return table.unpack(d,1,d.n)
 end
-function term.internal.open(...)
-local dx,dy,w,h=...
-local window={fullscreen=select("#",...)==0,blink=true,output_buffer=""}
-setmetatable(window,{
-__index=function(tbl,key)
-key=key=="w"and"width"or key=="h"and"height"or key
-return rawget(tbl,key)
+function b.internal.open(...)
+local g,k,m,n=...
+local d={fullscreen=select("#",...)==0,blink=true,output_buffer=""}
+setmetatable(d,{
+__index=function(o,c)
+c=c=="w"and"width"or c=="h"and"height"or c
+return rawget(o,c)
 end,
-__newindex=function(tbl,key,value)
-key=key=="w"and"width"or key=="h"and"height"or key
-return rawset(tbl,key,value)
+__newindex=function(o,c,p)
+c=c=="w"and"width"or c=="h"and"height"or c
+return rawset(o,c,p)
 end,
 })
-if rawget(tty,"window")then
-for _,p in pairs(process.list)do
-if not p.parent then
-p.data.window=tty.window
+if rawget(a,"window")then
+for c,c in pairs(e.list)do
+if not c.parent then
+c.data.window=a.window
 break
 end
 end
-tty.window=nil
-setmetatable(tty,{
-__index=function(_,key)
-if key=="window"then
-return process.info().data.window
+a.window=nil
+setmetatable(a,{
+__index=function(c,c)
+if c=="window"then
+return e.info().data.window
 end
 end,
 })
 end
-as_window(window,tty.setViewport,w,h,dx,dy,1,1)
-as_window(window,tty.bind,tty.gpu())
-return window
+f(d,a.setViewport,m,n,g,k,1,1)
+f(d,a.bind,a.gpu())
+return d
 end
-local function create_cursor(history,ops)
-local cursor=history or{}
-cursor.hint=ops.hint or cursor.hint
-local filter=ops.filter or cursor.filter
-if filter then
-if type(filter)=="string"then
-local filter_text=filter
-filter=function(value)return value:match(filter_text)end
+local function m(d,g)
+local c=d or{}
+c.hint=g.hint or c.hint
+local d=g.filter or c.filter
+if d then
+if type(d)=="string"then
+local e=d
+d=function(k)return k:match(e)end
 end
-function cursor:handle(name,char,code)
-if name=="key_down"and(code==keys.enter or code==keys.numpadenter)then
-if not filter(self.data)then
-computer.beep(2000,0.1)
+function c:handle(k,n,e)
+if k=="key_down"and(e==j.enter or e==j.numpadenter)then
+if not d(self.data)then
+h.beep(2000,0.1)
 return true
 end
 end
-return self.super.handle(self,name,char,code)
+return self.super.handle(self,k,n,e)
 end
 end
-local pwchar=ops.pwchar or cursor.pwchar
-local nobreak=ops.dobreak==false or cursor.dobreak==false
-if pwchar or nobreak then
-if type(pwchar)=="string"then
-local pwchar_text=pwchar
-pwchar=function(value)return value:gsub(".",pwchar_text)end
+local e=g.pwchar or c.pwchar
+local j=g.dobreak==false or c.dobreak==false
+if e or j then
+if type(e)=="string"then
+local d=e
+e=function(g)return g:gsub(".",d)end
 end
-function cursor:echo(arg,...)
-if pwchar and type(arg)=="string"and#arg>0 and not arg:match("^\27")then
-arg=pwchar(arg)
-elseif nobreak and arg=="\n"then
-arg=""
+function c:echo(d,...)
+if e and type(d)=="string"and#d>0 and not d:match("^\27")then
+d=e(d)
+elseif j and d=="\n"then
+d=""
 end
-return self.super.echo(self,arg,...)
+return self.super.echo(self,d,...)
 end
 end
-return core_cursor.new(cursor,cursor.nowrap and core_cursor.horizontal)
+return i.new(c,c.nowrap and i.horizontal)
 end
-function term.write(value,wrap)
+function b.write(c,d)
 io.stdout:flush()
-local previous_nowrap=tty.window.nowrap
-tty.window.nowrap=wrap==false
-io.write(value)
+local e=a.window.nowrap
+a.window.nowrap=d==false
+io.write(c)
 io.stdout:flush()
-tty.window.nowrap=previous_nowrap
+a.window.nowrap=e
 end
-function term.read(history,dobreak,hint,pwchar,filter)
-tty.window.cursor=create_cursor(history,{
-dobreak=dobreak,
-pwchar=pwchar,
-filter=filter,
-hint=hint,
+function b.read(c,d,e,g,j)
+a.window.cursor=m(c,{
+dobreak=d,
+pwchar=g,
+filter=j,
+hint=e,
 })
 return io.stdin:readLine(false)
 end
-function term.getGlobalArea()
-local w,h,dx,dy=tty.getViewport()
-return dx+1,dy+1,w,h
+function b.getGlobalArea()
+local c,d,e,g=a.getViewport()
+return e+1,g+1,c,d
 end
-function term.clearLine()
-term.write("\27[2K\27[999D")
+function b.clearLine()
+b.write("\27[2K\27[999D")
 end
-function term.setCursorBlink(enabled)
-tty.window.blink=enabled
+function b.setCursorBlink(c)
+a.window.blink=c
 end
-function term.getCursorBlink()
-return tty.window.blink
+function b.getCursorBlink()
+return a.window.blink
 end
-function term.pull(...)
-local args=table.pack(...)
-local timeout=math.huge
-if type(args[1])=="number"then
-timeout=computer.uptime()+table.remove(args,1)
-args.n=args.n-1
+function b.pull(...)
+local c=table.pack(...)
+local d=math.huge
+if type(c[1])=="number"then
+d=h.uptime()+table.remove(c,1)
+c.n=c.n-1
 end
-local cursor=core_cursor.new()
-while timeout>=computer.uptime()do
-cursor:echo()
-local s=table.pack(event.pull(.5,table.unpack(args,1,args.n)))
-cursor:echo(not s[1])
-if s.n>1 then return table.unpack(s,1,s.n)end
+local e=i.new()
+while d>=h.uptime()do
+e:echo()
+local d=table.pack(l.pull(.5,table.unpack(c,1,c.n)))
+e:echo(not d[1])
+if d.n>1 then return table.unpack(d,1,d.n)end
 end
 end
-function term.bind(gpu,window)
-return as_window(window,tty.bind,gpu)
+function b.bind(c,d)
+return f(d,a.bind,c)
 end
-term.scroll=tty.stream.scroll
-term.internal.run_in_window=as_window
-return term
+b.scroll=a.stream.scroll
+b.internal.run_in_window=f
+return b

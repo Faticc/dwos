@@ -1,244 +1,244 @@
-local text=require("text")
-local unicode=require("unicode")
-local process=require("process")
-local buffer=require("buffer")
-function text.tokenize(value,options)
-checkArg(1,value,"string")
-checkArg(2,options,"table","nil")
-options=options or{}
-local tokens,reason=text.internal.tokenize(value,options)
-if type(tokens)~="table"then
-return nil,reason
+local a=require("text")
+local b=require("unicode")
+local k=require("process")
+local l=require("buffer")
+function a.tokenize(e,c)
+checkArg(1,e,"string")
+checkArg(2,c,"table","nil")
+c=c or{}
+local d,f=a.internal.tokenize(e,c)
+if type(d)~="table"then
+return nil,f
 end
-if options.doNotNormalize then
-return tokens
+if c.doNotNormalize then
+return d
 end
-return text.internal.normalize(tokens)
+return a.internal.normalize(d)
 end
-function text.split(input,delimiters,dropDelims,di)
-checkArg(1,input,"string")
-checkArg(2,delimiters,"table")
-checkArg(3,dropDelims,"boolean","nil")
-checkArg(4,di,"number","nil")
-if#input==0 then return{}end
-di=di or 1
-local result={input}
-if di>#delimiters then return result end
-local function add(part,index,r,s,e)
-local sub=part:sub(s,e)
-if#sub==0 then return index end
-local subs=r and text.split(sub,delimiters,dropDelims,r)or{sub}
-for i=1,#subs do
-table.insert(result,index+i-1,subs[i])
+function a.split(c,e,i,d)
+checkArg(1,c,"string")
+checkArg(2,e,"table")
+checkArg(3,i,"boolean","nil")
+checkArg(4,d,"number","nil")
+if#c==0 then return{}end
+d=d or 1
+local f={c}
+if d>#e then return f end
+local function g(j,c,m,n,o)
+local h=j:sub(n,o)
+if#h==0 then return c end
+local j=m and a.split(h,e,i,m)or{h}
+for h=1,#j do
+table.insert(f,c+h-1,j[h])
 end
-return index+#subs
+return c+#j
 end
-local i,d=1,delimiters[di]
+local c,m=1,e[d]
 while true do
-local nxt=table.remove(result,i)
-if not nxt then break end
-local si,ei=nxt:find(d)
-if si and ei and ei~=0 then
-i=add(nxt,i,di+1,1,si-1)
-i=dropDelims and i or add(nxt,i,false,si,ei)
-i=add(nxt,i,di,ei+1)
+local e=table.remove(f,c)
+if not e then break end
+local j,h=e:find(m)
+if j and h and h~=0 then
+c=g(e,c,d+1,1,j-1)
+c=i and c or g(e,c,false,j,h)
+c=g(e,c,d,h+1)
 else
-i=add(nxt,i,di+1,1,#nxt)
+c=g(e,c,d+1,1,#e)
 end
 end
-return result
+return f
 end
-function text.internal.splitWords(words,delimiters)
-checkArg(1,words,"table")
-checkArg(2,delimiters,"table")
-local split_words={}
-local next_word
-local function add_part(part)
-if next_word then
-split_words[#split_words+1]={}
+function a.internal.splitWords(e,f)
+checkArg(1,e,"table")
+checkArg(2,f,"table")
+local d={}
+local c
+local function g(h)
+if c then
+d[#d+1]={}
 end
-table.insert(split_words[#split_words],part)
-next_word=false
+table.insert(d[#d],h)
+c=false
 end
-for wi=1,#words do
-local word=words[wi]
-next_word=true
-for pi=1,#word do
-local part=word[pi]
-local qr=part.qr
-if qr then
-add_part(part)
+for i=1,#e do
+local h=e[i]
+c=true
+for i=1,#h do
+local e=h[i]
+local h=e.qr
+if h then
+g(e)
 else
-for _,sub_txt in ipairs(text.split(part.txt,delimiters))do
-local delim=#text.split(sub_txt,delimiters,true)==0
-next_word=next_word or delim
-add_part({txt=sub_txt,qr=qr})
-next_word=delim
+for i,i in ipairs(a.split(e.txt,f))do
+local e=#a.split(i,f,true)==0
+c=c or e
+g({txt=i,qr=h})
+c=e
 end
 end
 end
 end
-return split_words
+return d
 end
-function text.internal.normalize(words,omitQuotes)
-checkArg(1,words,"table")
-checkArg(2,omitQuotes,"boolean","nil")
-local norms={}
-for _,word in ipairs(words)do
-local norm={}
-for _,part in ipairs(word)do
-if not omitQuotes and part.qr then
-norm[#norm+1]=part.qr[1]
-norm[#norm+1]=part.txt
-norm[#norm+1]=part.qr[2]
+function a.internal.normalize(c,f)
+checkArg(1,c,"table")
+checkArg(2,f,"boolean","nil")
+local e={}
+for d,g in ipairs(c)do
+local c={}
+for d,d in ipairs(g)do
+if not f and d.qr then
+c[#c+1]=d.qr[1]
+c[#c+1]=d.txt
+c[#c+1]=d.qr[2]
 else
-norm[#norm+1]=part.txt
+c[#c+1]=d.txt
 end
 end
-norms[#norms+1]=table.concat(norm)
+e[#e+1]=table.concat(c)
 end
-return norms
+return e
 end
-function text.internal.stream_base(binary)
+function a.internal.stream_base(c)
 return{
-binary=binary,
-plen=binary and string.len or unicode.len,
-psub=binary and string.sub or unicode.sub,
-seek=function(handle,whence,to)
-if not handle.txt then
+binary=c,
+plen=c and string.len or b.len,
+psub=c and string.sub or b.sub,
+seek=function(d,f,e)
+if not d.txt then
 return nil,"bad file descriptor"
 end
-to=to or 0
-local offset=handle:indexbytes()
-if whence=="cur"then
-offset=offset+to
-elseif whence=="set"then
-offset=to
-elseif whence=="end"then
-offset=handle.len+to
+e=e or 0
+local c=d:indexbytes()
+if f=="cur"then
+c=c+e
+elseif f=="set"then
+c=e
+elseif f=="end"then
+c=d.len+e
 end
-offset=math.max(0,math.min(offset,handle.len))
-handle:byteindex(offset)
-return offset
+c=math.max(0,math.min(c,d.len))
+d:byteindex(c)
+return c
 end,
-indexbytes=function(handle)
-return handle.psub(handle.txt,1,handle.index):len()
+indexbytes=function(c)
+return c.psub(c.txt,1,c.index):len()
 end,
-byteindex=function(handle,offset)
-handle.index=handle.plen(string.sub(handle.txt,1,offset))
+byteindex=function(c,d)
+c.index=c.plen(string.sub(c.txt,1,d))
 end,
 }
 end
-function text.internal.reader(txt,mode)
-checkArg(1,txt,"string")
-local reader=setmetatable({
-txt=txt,
-len=string.len(txt),
+function a.internal.reader(c,d)
+checkArg(1,c,"string")
+local g=setmetatable({
+txt=c,
+len=string.len(c),
 index=0,
-read=function(self,n)
-checkArg(1,n,"number")
-if not self.txt then
+read=function(c,e)
+checkArg(1,e,"number")
+if not c.txt then
 return nil,"bad file descriptor"
 end
-if self.index>=self.plen(self.txt)then
+if c.index>=c.plen(c.txt)then
 return nil
 end
-local nxt=self.psub(self.txt,self.index+1,self.index+n)
-self.index=self.index+self.plen(nxt)
-return nxt
+local f=c.psub(c.txt,c.index+1,c.index+e)
+c.index=c.index+c.plen(f)
+return f
 end,
-close=function(self)
-if not self.txt then
+close=function(c)
+if not c.txt then
 return nil,"bad file descriptor"
 end
-self.txt=nil
+c.txt=nil
 return true
 end,
-},{__index=text.internal.stream_base((mode or""):match("b"))})
-return process.addHandle(buffer.new((mode or"r"):match("[rb]+"),reader))
+},{__index=a.internal.stream_base((d or""):match("b"))})
+return k.addHandle(l.new((d or"r"):match("[rb]+"),g))
 end
-function text.internal.writer(ostream,mode,append_txt)
-if type(ostream)=="table"then
-local mt=getmetatable(ostream)or{}
-checkArg(1,mt.__call,"function")
+function a.internal.writer(d,e,f)
+if type(d)=="table"then
+local c=getmetatable(d)or{}
+checkArg(1,c.__call,"function")
 end
-checkArg(1,ostream,"function","table")
-checkArg(2,append_txt,"string","nil")
-local writer=setmetatable({
+checkArg(1,d,"function","table")
+checkArg(2,f,"string","nil")
+local h=setmetatable({
 txt="",
 index=0,
 len=0,
-write=function(self,...)
-if not self.txt then
+write=function(c,...)
+if not c.txt then
 return nil,"bad file descriptor"
 end
-local pre=self.psub(self.txt,1,self.index)
-local pos=self.psub(self.txt,self.index+1)
-local vs=table.concat({...})
-self.index=self.index+self.plen(vs)
-self.txt=pre..vs..pos
-self.len=string.len(self.txt)
+local i=c.psub(c.txt,1,c.index)
+local j=c.psub(c.txt,c.index+1)
+local g=table.concat({...})
+c.index=c.index+c.plen(g)
+c.txt=i..g..j
+c.len=string.len(c.txt)
 return true
 end,
-close=function(self)
-if not self.txt then
+close=function(c)
+if not c.txt then
 return nil,"bad file descriptor"
 end
-ostream((append_txt or"")..self.txt)
-self.txt=nil
+d((f or"")..c.txt)
+c.txt=nil
 return true
 end,
-},{__index=text.internal.stream_base((mode or""):match("b"))})
-return process.addHandle(buffer.new((mode or"w"):match("[awb]+"),writer))
+},{__index=a.internal.stream_base((e or""):match("b"))})
+return k.addHandle(l.new((e or"w"):match("[awb]+"),h))
 end
-function text.detab(value,tabWidth)
-checkArg(1,value,"string")
-checkArg(2,tabWidth,"number","nil")
-tabWidth=tabWidth or 8
-local function rep(match)
-return match..string.rep(" ",tabWidth-match:len()%tabWidth)
+function a.detab(d,c)
+checkArg(1,d,"string")
+checkArg(2,c,"number","nil")
+c=c or 8
+local function f(e)
+return e..string.rep(" ",c-e:len()%c)
 end
-return(value:gsub("([^\n]-)\t",rep))
+return(d:gsub("([^\n]-)\t",f))
 end
-function text.padLeft(value,length)
-checkArg(1,value,"string","nil")
-checkArg(2,length,"number")
-if not value or unicode.wlen(value)==0 then
-return string.rep(" ",length)
+function a.padLeft(c,d)
+checkArg(1,c,"string","nil")
+checkArg(2,d,"number")
+if not c or b.wlen(c)==0 then
+return string.rep(" ",d)
 end
-return string.rep(" ",length-unicode.wlen(value))..value
+return string.rep(" ",d-b.wlen(c))..c
 end
-function text.padRight(value,length)
-checkArg(1,value,"string","nil")
-checkArg(2,length,"number")
-if not value or unicode.wlen(value)==0 then
-return string.rep(" ",length)
+function a.padRight(c,d)
+checkArg(1,c,"string","nil")
+checkArg(2,d,"number")
+if not c or b.wlen(c)==0 then
+return string.rep(" ",d)
 end
-return value..string.rep(" ",length-unicode.wlen(value))
+return c..string.rep(" ",d-b.wlen(c))
 end
-function text.wrap(value,width,maxWidth)
-checkArg(1,value,"string")
-checkArg(2,width,"number")
-checkArg(3,maxWidth,"number")
-local line,nl=value:match("([^\r\n]*)(\r?\n?)")
-if unicode.wlen(line)>width then
-local partial=unicode.wtrunc(line,width)
-local wrapped=partial:match("(.*[^a-zA-Z0-9._()'`=])")
-if wrapped or unicode.wlen(line)>maxWidth then
-partial=wrapped or partial
-return partial,unicode.sub(value,unicode.len(partial)+1),true
+function a.wrap(c,f,g)
+checkArg(1,c,"string")
+checkArg(2,f,"number")
+checkArg(3,g,"number")
+local d,h=c:match("([^\r\n]*)(\r?\n?)")
+if b.wlen(d)>f then
+local e=b.wtrunc(d,f)
+local f=e:match("(.*[^a-zA-Z0-9._()'`=])")
+if f or b.wlen(d)>g then
+e=f or e
+return e,b.sub(c,b.len(e)+1),true
 end
-return"",value,true
+return"",c,true
 end
-local start=unicode.len(line)+unicode.len(nl)+1
-return line,start<=unicode.len(value)and unicode.sub(value,start)or nil,unicode.len(nl)>0
+local e=b.len(d)+b.len(h)+1
+return d,e<=b.len(c)and b.sub(c,e)or nil,b.len(h)>0
 end
-function text.wrappedLines(value,width,maxWidth)
-local line
+function a.wrappedLines(b,d,e)
+local c
 return function()
-if value then
-line,value=text.wrap(value,width,maxWidth)
-return line
+if b then
+c,b=a.wrap(b,d,e)
+return c
 end
 end
 end

@@ -1,51 +1,51 @@
-local shell=require("shell")
-local fs=require("filesystem")
-local args=shell.parse(...)
-if#args==0 then
-args={"-"}
+local b=require("shell")
+local h=require("filesystem")
+local a=b.parse(...)
+if#a==0 then
+a={"-"}
 end
-for i=1,#args do
-local arg=shell.resolve(args[i])
-if fs.isDirectory(arg)then
-io.stderr:write(string.format("cat %s: Is a directory\n",arg))
+for c=1,#a do
+local e=b.resolve(a[c])
+if h.isDirectory(e)then
+io.stderr:write(string.format("cat %s: Is a directory\n",e))
 os.exit(1)
 end
-local file,reason,method,param
-if args[i]=="-"then
-file,reason=io.stdin,"missing stdin"
-method,param="readLine",false
+local b,f,d,g
+if a[c]=="-"then
+b,f=io.stdin,"missing stdin"
+d,g="readLine",false
 else
-file,reason=fs.open(arg)
-method,param="read",2048
+b,f=h.open(e)
+d,g="read",2048
 end
-if not file then
-io.stderr:write(string.format("cat: %s: %s\n",args[i],tostring(reason)))
+if not b then
+io.stderr:write(string.format("cat: %s: %s\n",a[c],tostring(f)))
 os.exit(1)
 end
-local carry=""
+local c=""
 repeat
-local chunk=file[method](file,param)
-if chunk and method=="read"then
-chunk=carry..chunk
-local cut=#chunk
-for i=#chunk,math.max(1,#chunk-3),-1 do
-local b=chunk:byte(i)
-if b<0x80 then break end
-if b>=0xC0 then
-local need=b>=0xF0 and 4 or b>=0xE0 and 3 or 2
-if#chunk-i+1<need then cut=i-1 end
+local a=b[d](b,g)
+if a and d=="read"then
+a=c..a
+local e=#a
+for f=#a,math.max(1,#a-3),-1 do
+local d=a:byte(f)
+if d<0x80 then break end
+if d>=0xC0 then
+local g=d>=0xF0 and 4 or d>=0xE0 and 3 or 2
+if#a-f+1<g then e=f-1 end
 break
 end
 end
-carry=chunk:sub(cut+1)
-chunk=chunk:sub(1,cut)
-elseif not chunk and carry~=""then
-chunk,carry=carry,""
+c=a:sub(e+1)
+a=a:sub(1,e)
+elseif not a and c~=""then
+a,c=c,""
 end
-if chunk then
-io.write(chunk)
+if a then
+io.write(a)
 end
-until not chunk
-file:close()
+until not a
+b:close()
 end
 io.stdout:close()

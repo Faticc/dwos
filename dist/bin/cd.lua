@@ -1,40 +1,40 @@
-local shell=require("shell")
-local fs=require("filesystem")
-local args,ops=shell.parse(...)
-local path
-local verbose=false
-if ops.help then
+local b=require("shell")
+local e=require("filesystem")
+local c,f=b.parse(...)
+local a
+local d=false
+if f.help then
 print("Usage cd [dir]\nFor more options, run: man cd")
 return
 end
-if#args==0 then
-path=os.getenv("HOME")
-if not path then
+if#c==0 then
+a=os.getenv("HOME")
+if not a then
 io.stderr:write("cd: HOME not set\n")
 return 1
 end
-elseif args[1]=="-"then
-verbose=true
-path=os.getenv("OLDPWD")
-if not path then
+elseif c[1]=="-"then
+d=true
+a=os.getenv("OLDPWD")
+if not a then
 io.stderr:write("cd: OLDPWD not set\n")
 return 1
 end
 else
-path=args[1]
+a=c[1]
 end
-local resolved=shell.resolve(path)
-if not fs.exists(resolved)then
-io.stderr:write("cd: ",path,": No such file or directory\n")
+local c=b.resolve(a)
+if not e.exists(c)then
+io.stderr:write("cd: ",a,": No such file or directory\n")
 return 1
 end
-local oldpwd=shell.getWorkingDirectory()
-local result,reason=shell.setWorkingDirectory(resolved)
-if not result then
-io.stderr:write("cd: ",resolved,": ",reason)
+local a=b.getWorkingDirectory()
+local e,f=b.setWorkingDirectory(c)
+if not e then
+io.stderr:write("cd: ",c,": ",f)
 return 1
 end
-os.setenv("OLDPWD",oldpwd)
-if verbose then
+os.setenv("OLDPWD",a)
+if d then
 os.execute("pwd")
 end

@@ -1,6 +1,6 @@
 local component = require("component")
 local fs = require("filesystem")
-local internet = require("internet")
+local fetch = require("fetch")
 local shell = require("shell")
 local text = require("text")
 
@@ -56,32 +56,27 @@ f = nil
 if not options.q then
   io.write("Downloading... ")
 end
-local ok, response = pcall(internet.request, url, nil, { ["user-agent"] = "Wget/OpenComputers" })
-if not ok then
-  if not options.q then io.write("failed.\n") end
-  return fail("HTTP request failed: " .. response .. "\n", response)
-end
-
+-- через fetch: сжатым, если сервер умеет (GitHub умеет), и без лишних
+-- read в конце - интернет-карта берёт тик за каждый
 local result
-result, reason = pcall(function()
-  for chunk in response do
+fetch.many({ {
+  url = url, headers = { ["user-agent"] = "Wget/OpenComputers" },
+  write = function(chunk)
     if not f then
       f, reason = io.open(filename, "wb")
       assert(f, "failed opening file for writing: " .. tostring(reason))
     end
     f:write(chunk)
-  end
-end)
+  end,
+  finish = function(err) result, reason = not err, err end,
+} })
 if not result then
   if not options.q then
     io.stderr:write("failed.\n")
   end
-  if f then
-    f:close()
-    if not preexisted then
-      fs.remove(filename)
-    end
-  end
+  if f then f:close() end
+  -- файл создан выше заранее: не было его - не оставляем и пустым
+  if not preexisted then fs.remove(filename) end
   return fail("HTTP request failed: " .. tostring(reason) .. "\n", reason)
 end
 if f then

@@ -1,64 +1,64 @@
-local component=require("component")
-local shell=require("shell")
-local fs=require("filesystem")
-local args,options=shell.parse(...)
-if#args<1 and not options.l then
+local e=require("component")
+local f=require("shell")
+local h=require("filesystem")
+local d,a=f.parse(...)
+if#d<1 and not a.l then
 io.write("Usage: flash [-qlr] [<bios.lua>] [label]\n")
 io.write(" q: quiet mode, don't ask questions.\n")
 io.write(" l: print current contents of installed EEPROM.\n")
 io.write(" r: save the current contents of installed EEPROM to file.\n")
 return
 end
-local function confirm()
+local function g()
 repeat
-local response=io.read()
-until response and response:lower():sub(1,1)=="y"
+local b=io.read()
+until b and b:lower():sub(1,1)=="y"
 end
-local eeprom=component.eeprom
-if options.l then
-io.write(eeprom.get())
-elseif options.r then
-local fileName=shell.resolve(args[1])
-if not options.q then
-if fs.exists(fileName)then
-io.write("Are you sure you want to overwrite "..fileName.."?\nType `y` to confirm.\n")
-confirm()
+local b=e.eeprom
+if a.l then
+io.write(b.get())
+elseif a.r then
+local c=f.resolve(d[1])
+if not a.q then
+if h.exists(c)then
+io.write("Are you sure you want to overwrite "..c.."?\nType `y` to confirm.\n")
+g()
 end
-io.write("Reading EEPROM "..eeprom.address..".\n")
+io.write("Reading EEPROM "..b.address..".\n")
 end
-local file=assert(io.open(fileName,"wb"))
-file:write(eeprom.get())
-file:close()
-if not options.q then
-io.write("All done!\nThe label is '"..eeprom.getLabel().."'.\n")
+local f=assert(io.open(c,"wb"))
+f:write(b.get())
+f:close()
+if not a.q then
+io.write("All done!\nThe label is '"..b.getLabel().."'.\n")
 end
 else
-local file=assert(io.open(args[1],"rb"))
-local bios=file:read("*a")
-file:close()
-if not options.q then
+local c=assert(io.open(d[1],"rb"))
+local f=c:read("*a")
+c:close()
+if not a.q then
 io.write("Insert the EEPROM you would like to flash.\nWhen ready to write, type `y` to confirm.\n")
-confirm()
+g()
 io.write("Beginning to flash EEPROM.\n")
 end
-eeprom=component.eeprom
-if not options.q then
-io.write("Flashing EEPROM "..eeprom.address..".\n")
+b=e.eeprom
+if not a.q then
+io.write("Flashing EEPROM "..b.address..".\n")
 io.write("Please do NOT power down or restart your computer during this operation!\n")
 end
-eeprom.set(bios)
-local label=args[2]
-if not options.q and not label then
+b.set(f)
+local c=d[2]
+if not a.q and not c then
 io.write("Enter new label for this EEPROM. Leave input blank to leave the label unchanged.\n")
-label=io.read()
+c=io.read()
 end
-if label and#label>0 then
-eeprom.setLabel(label)
-if not options.q then
-io.write("Set label to '"..eeprom.getLabel().."'.\n")
+if c and#c>0 then
+b.setLabel(c)
+if not a.q then
+io.write("Set label to '"..b.getLabel().."'.\n")
 end
 end
-if not options.q then
+if not a.q then
 io.write("All done! You can remove the EEPROM and re-insert the previous one now.\n")
 end
 end

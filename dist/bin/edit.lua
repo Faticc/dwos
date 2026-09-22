@@ -1,38 +1,38 @@
-local fs=require("filesystem")
-local keyboard=require("keyboard")
-local keys=keyboard.keys
-local shell=require("shell")
-local term=require("term")
-local text=require("text")
-local unicode=require("unicode")
-local event=require("event")
-local computer=require("computer")
-local component=require("component")
-local gfx=require("gfx")
-local tty=require("tty")
-local luascan=require("luascan")
-if not term.isAvailable()then return end
-local args,options=shell.parse(...)
-if#args==0 then
+local g=require("filesystem")
+local H=require("keyboard")
+local h=H.keys
+local b=require("shell")
+local s=require("term")
+local a4=require("text")
+local a=require("unicode")
+local at=require("event")
+local J=require("computer")
+local ar=require("component")
+local bg=require("gfx")
+local Q=require("tty")
+local ah=require("luascan")
+if not s.isAvailable()then return end
+local c,d=b.parse(...)
+if#c==0 then
 io.write("Usage: edit [-r] <filename>\n")
 return
 end
-local filename=shell.resolve(args[1])
-local parent=fs.path(filename)
-if fs.exists(parent)and not fs.isDirectory(parent)then
-io.stderr:write(string.format("Not a directory: %s\n",parent))
+local j=b.resolve(c[1])
+local ai=g.path(j)
+if g.exists(ai)and not g.isDirectory(ai)then
+io.stderr:write(string.format("Not a directory: %s\n",ai))
 return 1
 end
-if fs.isDirectory(filename)then
+if g.isDirectory(j)then
 io.stderr:write("file is a directory\n")
 return 1
 end
-local readonly=options.r or fs.get(filename)==nil or fs.get(filename).isReadOnly()
-if not fs.exists(filename)and readonly then
+local k=d.r or g.get(j)==nil or g.get(j).isReadOnly()
+if not g.exists(j)and k then
 io.stderr:write("file system is read only\n")
 return 1
 end
-local DEFAULTS={
+local e={
 left={{"left"}},
 right={{"right"}},
 up={{"up"}},
@@ -89,61 +89,61 @@ stepOut={{"shift","f11"},{"shift","f7"},{"o"}},
 stepStop={{"f4"},{"q"}},
 help={{"f1"}},
 }
-local function loadConfig()
-local env={}
-local config=loadfile("/etc/edit.cfg",nil,env)
-if config then pcall(config)end
-if type(env.keybinds)~="table"then env.keybinds={}end
-local fresh=false
-for command,bind in pairs(DEFAULTS)do
-if env.keybinds[command]==nil then
-env.keybinds[command]=bind
-fresh=true
+local function f()
+local b={}
+local c=loadfile("/etc/edit.cfg",nil,b)
+if c then pcall(c)end
+if type(b.keybinds)~="table"then b.keybinds={}end
+local c=false
+for d,i in pairs(e)do
+if b.keybinds[d]==nil then
+b.keybinds[d]=i
+c=true
 end
 end
-if fresh then
-local root=fs.get("/")
-if root and not root.isReadOnly()then
-fs.makeDirectory("/etc")
-local f=io.open("/etc/edit.cfg","w")
-if f then
-local serialization=require("serialization")
-for k,v in pairs(env)do
-f:write(k.."="..tostring(serialization.serialize(v,math.huge)).."\n")
+if c then
+local c=g.get("/")
+if c and not c.isReadOnly()then
+g.makeDirectory("/etc")
+local c=io.open("/etc/edit.cfg","w")
+if c then
+local d=require("serialization")
+for e,i in pairs(b)do
+c:write(e.."="..tostring(d.serialize(i,math.huge)).."\n")
 end
-f:close()
-end
-end
-end
-return env
-end
-local config=loadConfig()
-local function bindWeight(command,code,shift,control,alt)
-local binds=config.keybinds[command]
-local best=0
-for _,bind in ipairs(type(binds)=="table"and binds or{})do
-if type(bind)=="table"then
-local wantAlt,wantCtrl,wantShift,key=false,false,false,nil
-for _,v in ipairs(bind)do
-if v=="alt"then wantAlt=true
-elseif v=="control"then wantCtrl=true
-elseif v=="shift"then wantShift=true
-else key=v end
-end
-if wantAlt==alt and wantCtrl==control and wantShift==shift
-and code==keys[key]and#bind>best then
-best=#bind
+c:close()
 end
 end
 end
-return best
+return b
 end
-local function pressed(command,code)
-local kbd=term.keyboard()
-return bindWeight(command,code,not not keyboard.isShiftDown(kbd),
-not not keyboard.isControlDown(kbd),not not keyboard.isAltDown(kbd))>0
+local au=f()
+local function bh(b,m,n,o,p)
+local c=au.keybinds[b]
+local d=0
+for b,b in ipairs(type(c)=="table"and c or{})do
+if type(b)=="table"then
+local e,f,i,l=false,false,false,nil
+for c,c in ipairs(b)do
+if c=="alt"then e=true
+elseif c=="control"then f=true
+elseif c=="shift"then i=true
+else l=c end
 end
-local P={
+if e==p and f==o and i==n
+and m==h[l]and#b>d then
+d=#b
+end
+end
+end
+return d
+end
+local function av(c,d)
+local b=s.keyboard()
+return bh(c,d,not not H.isShiftDown(b),
+not not H.isControlDown(b),not not H.isAltDown(b))>0
+end
+local c={
 FG=0xD0D0D0,BG=0x000000,
 C_KW=0x66CCFF,C_STR=0x88DD88,C_NUM=0xFFAA00,C_CMT=0x707070,C_BLT=0xFF9966,C_OP=0xBBBBBB,
 BAR_BG=0x1B2A3A,BAR_FG=0x7A8A98,BAR_NAME=0xE1E1E1,
@@ -154,2563 +154,2563 @@ ERR=0xFF6666,WARN=0xE0C050,
 BP_BG=0x8A2020,DBG_BG=0x3C3A12,FIND_ALL=0x5A4210,
 POP_BG=0x22323F,POP_FG=0xC8D2DA,POP_SEL=0x2D4A66,
 }
-local KEYWORD={}
-for w in("and break do else elseif end for function goto if in local not or "..
-"repeat return then until while"):gmatch("%S+")do KEYWORD[w]=true end
-local BUILTIN={}
-for w in("nil true false self _G _ENV require print pairs ipairs type tostring tonumber "..
+local aP={}
+for b in("and break do else elseif end for function goto if in local not or "..
+"repeat return then until while"):gmatch("%S+")do aP[b]=true end
+local as={}
+for b in("nil true false self _G _ENV require print pairs ipairs type tostring tonumber "..
 "string table math os io coroutine error assert pcall xpcall select setmetatable "..
 "getmetatable rawget rawset rawequal rawlen next load dofile loadfile unpack "..
 "component computer unicode checkArg"):gmatch("%S+")do
-BUILTIN[w]=true
+as[b]=true
 end
-local function isLua(name)return name:sub(-4)==".lua"or name:sub(-4)==".cfg"end
-local lua=isLua(filename)
-local function tokenize(s,state)
-local out,i,n={},1,#s
-local function push(t,c)if t~=""then out[#out+1]={t,c}end end
-while i<=n do
-if state then
-local close="]"..("="):rep(state.level).."]"
-local a=s:find(close,i,true)
-local col=state.comment and P.C_CMT or P.C_STR
-if a then
-push(s:sub(i,a+#close-1),col)
-i=a+#close
-state=nil
+local function bi(b)return b:sub(-4)==".lua"or b:sub(-4)==".cfg"end
+local K=bi(j)
+local function v(d,l)
+local n,b,m={},1,#d
+local function f(e,i)if e~=""then n[#n+1]={e,i}end end
+while b<=m do
+if l then
+local e="]"..("="):rep(l.level).."]"
+local i=d:find(e,b,true)
+local o=l.comment and c.C_CMT or c.C_STR
+if i then
+f(d:sub(b,i+#e-1),o)
+b=i+#e
+l=nil
 else
-push(s:sub(i),col)
-i=n+1
+f(d:sub(b),o)
+b=m+1
 end
 else
-local c=s:sub(i,i)
-if c:match("%s")then
-local a,b=s:find("%s+",i)
-push(s:sub(a,b),P.FG)
-i=b+1
-elseif s:find("^%-%-",i)then
-local eq=s:match("^%-%-%[(=*)%[",i)
-if eq then
-state={level=#eq,comment=true}
-push(s:sub(i,i+#eq+3),P.C_CMT)
-i=i+#eq+4
+local i=d:sub(b,b)
+if i:match("%s")then
+local o,e=d:find("%s+",b)
+f(d:sub(o,e),c.FG)
+b=e+1
+elseif d:find("^%-%-",b)then
+local e=d:match("^%-%-%[(=*)%[",b)
+if e then
+l={level=#e,comment=true}
+f(d:sub(b,b+#e+3),c.C_CMT)
+b=b+#e+4
 else
-push(s:sub(i),P.C_CMT)
-i=n+1
+f(d:sub(b),c.C_CMT)
+b=m+1
 end
-elseif s:find("^%[=*%[",i)then
-local eq=s:match("^%[(=*)%[",i)
-state={level=#eq,comment=false}
-push(s:sub(i,i+#eq+1),P.C_STR)
-i=i+#eq+2
-elseif c=='"'or c=="'"then
-local j=i+1
-while j<=n do
-local d=s:sub(j,j)
-if d=="\\"then
-j=j+2
-elseif d==c then
-j=j+1
+elseif d:find("^%[=*%[",b)then
+local e=d:match("^%[(=*)%[",b)
+l={level=#e,comment=false}
+f(d:sub(b,b+#e+1),c.C_STR)
+b=b+#e+2
+elseif i=='"'or i=="'"then
+local e=b+1
+while e<=m do
+local m=d:sub(e,e)
+if m=="\\"then
+e=e+2
+elseif m==i then
+e=e+1
 break
 else
-j=j+1
+e=e+1
 end
 end
-push(s:sub(i,j-1),P.C_STR)
-i=j
-elseif c:match("%d")or(c=="."and s:sub(i+1,i+1):match("%d"))then
-local a,b=s:find("^0[xX]%x+",i)
-if not a then a,b=s:find("^%d+%.?%d*[eE][-+]?%d+",i)end
-if not a then a,b=s:find("^%d*%.?%d+",i)end
-if not a then a,b=i,i end
-push(s:sub(a,b),P.C_NUM)
-i=b+1
-elseif c:match("[%a_\128-\255]")then
-local a,b=s:find("^[%w_\128-\255]+",i)
-local word=s:sub(a,b)
-push(word,KEYWORD[word]and P.C_KW or BUILTIN[word]and P.C_BLT or P.FG)
-i=b+1
+f(d:sub(b,e-1),c.C_STR)
+b=e
+elseif i:match("%d")or(i=="."and d:sub(b+1,b+1):match("%d"))then
+local e,m=d:find("^0[xX]%x+",b)
+if not e then e,m=d:find("^%d+%.?%d*[eE][-+]?%d+",b)end
+if not e then e,m=d:find("^%d*%.?%d+",b)end
+if not e then e,m=b,b end
+f(d:sub(e,m),c.C_NUM)
+b=m+1
+elseif i:match("[%a_\128-\255]")then
+local o,m=d:find("^[%w_\128-\255]+",b)
+local e=d:sub(o,m)
+f(e,aP[e]and c.C_KW or as[e]and c.C_BLT or c.FG)
+b=m+1
 else
-push(c,P.C_OP)
-i=i+1
+f(i,c.C_OP)
+b=b+1
+end
+end
+end
+return n,l
+end
+local r=Q.gpu()
+s.clear()
+s.setCursorBlink(false)
+local aQ,an=r.getResolution()
+local U=0
+local y=bg.surface(r,{h=an})
+local t,aF=y.w,y.h
+local x=aF-1
+local e={}
+local aR,ab={},1
+local d,b=1,1
+local z,E=0,0
+local aS=true
+local o=nil
+local q={}
+local aT=false
+local N=0
+local F=nil
+local f,Z=nil,{}
+local i,L=true,false
+local m,aw=nil,nil
+local V=2
+local aG=nil
+local aU
+local B,C={},{}
+local D={}
+local ac,A=nil,nil
+local ax,a5=nil,-1
+local aj=nil
+local ao=0
+local W=nil
+local aV=nil
+local aW,al={},{}
+local function p()return e[b]or""end
+local function aB()return t-V end
+local function aN(l,n)
+return a.wlen(a.sub(l,1,n-1))+1
+end
+local function bt(l,n)
+if n>a.wlen(l)then return a.len(l)+1 end
+return a.len(a.wtrunc(l,n))+1
+end
+local function aE(u,l)
+if l>=a.wlen(u)then return""end
+local w=a.wtrunc(u,l+1)
+local n=a.sub(u,a.len(w)+1)
+l=l-a.wlen(w)
+if l>0 then
+n=(" "):rep(a.charWidth(n)-l)..a.sub(n,2)
 end
-end
-end
-return out,state
-end
-local gpu=tty.gpu()
-term.clear()
-term.setCursorBlink(false)
-local SW,SH=gpu.getResolution()
-local panelH=0
-local S=gfx.surface(gpu,{h=SH})
-local W,H=S.w,S.h
-local rows=H-1
-local buffer={}
-local carry,carryTop={},1
-local cx,cy=1,1
-local scrollX,scrollY=0,0
-local running=true
-local anchor=nil
-local clip={}
-local cutting=false
-local rev=0
-local ghost=nil
-local status,dirty=nil,{}
-local fullRedraw,modified=true,false
-local match,pair=nil,nil
-local GW=2
-local sigHelp=nil
-local lineProblem
-local bps,folds={},{}
-local diag={}
-local syntaxErr,runErr=nil,nil
-local scan,scanRev=nil,-1
-local checkDue=nil
-local savedId=0
-local stamp=nil
-local dbgLine=nil
-local view,rowOf={},{}
-local function curLine()return buffer[cy]or""end
-local function textW()return W-GW end
-local function dispCol(line,i)
-return unicode.wlen(unicode.sub(line,1,i-1))+1
-end
-local function charAt(line,col)
-if col>unicode.wlen(line)then return unicode.len(line)+1 end
-return unicode.len(unicode.wtrunc(line,col))+1
-end
-local function removePrefix(line,length)
-if length>=unicode.wlen(line)then return""end
-local prefix=unicode.wtrunc(line,length+1)
-local suffix=unicode.sub(line,unicode.len(prefix)+1)
-length=length-unicode.wlen(prefix)
-if length>0 then
-suffix=(" "):rep(unicode.charWidth(suffix)-length)..unicode.sub(suffix,2)
-end
-return suffix
-end
-local function fit(s,w)
-if w<1 then return""end
-return unicode.wlen(s)>w and unicode.wtrunc(s,w+1)or s
-end
-local function invalidate(from)
-if carryTop>from then carryTop=from end
-end
-local function ensureCarry(upto)
-upto=math.min(upto,#buffer)
-while carryTop<=upto do
-local _,st=tokenize(buffer[carryTop]or"",carry[carryTop])
-carry[carryTop+1]=st
-carryTop=carryTop+1
-end
-end
-local function tokensFor(i)
-if not lua then return{{buffer[i]or"",P.FG}}end
-ensureCarry(i-1)
-return(tokenize(buffer[i]or"",carry[i]))
-end
-local function markDirty(i)dirty[i]=true end
-local function selection()
-if not anchor then return nil end
-local l1,c1,l2,c2=anchor[2],anchor[1],cy,cx
-if l1>l2 or(l1==l2 and c1>c2)then
-l1,c1,l2,c2=l2,c2,l1,c1
-end
-if l1==l2 and c1==c2 then return nil end
-return l1,c1,l2,c2
-end
-local function selectedText()
-local l1,c1,l2,c2=selection()
-if not l1 then return nil end
-if l1==l2 then
-return{unicode.sub(buffer[l1],c1,c2-1)}
-end
-local out={unicode.sub(buffer[l1],c1)}
-for i=l1+1,l2-1 do out[#out+1]=buffer[i]end
-out[#out+1]=unicode.sub(buffer[l2],1,c2-1)
-return out
-end
-local function dropSelection()
-if anchor then
-fullRedraw=true
-anchor=nil
-end
-end
-local undoStack,redoStack={},{}
-local pending=nil
-local UNDO_MAX=120
-local undoSeq=0
-local function topId()
-local e=undoStack[#undoStack]
-return e and e.id or 0
-end
-local function shiftMarks(at,count,n)
-local last,d=at+count-1,n-count
-local keep={}
-for l in pairs(bps)do
-if l<at then keep[#keep+1]=l
-elseif l>last then keep[#keep+1]=l+d
-elseif l-at<n then keep[#keep+1]=l end
-end
-for l in pairs(bps)do bps[l]=nil end
-for _,l in ipairs(keep)do bps[l]=true end
-local fk={}
-for s0,e0 in pairs(folds)do
-if last<s0 then fk[s0+d]=e0+d
-elseif at>e0 then fk[s0]=e0
-elseif at==s0 and last==s0 and n>0 then fk[s0]=e0+d end
-end
-for k in pairs(folds)do folds[k]=nil end
-for k,v in pairs(fk)do if v>k then folds[k]=v end end
-end
-local function apply(at,count,new)
-shiftMarks(at,count,#new)
-local tail={}
-for i=at+count,#buffer do tail[#tail+1]=buffer[i]end
-for i=#buffer,at,-1 do buffer[i]=nil end
-for i=1,#new do buffer[at+i-1]=new[i]end
-for i=1,#tail do buffer[at+#new+i-1]=tail[i]end
-if#buffer==0 then buffer[1]=""end
-end
-local function commit()pending=nil end
-local function setCursor(nx,ny)
-cy=math.max(1,math.min(#buffer,math.floor(ny)))
-cx=math.max(1,math.min(unicode.len(buffer[cy]or"")+1,math.floor(nx)))
-end
-local function splice(at,count,new,kind)
-local old={}
-for i=at,at+count-1 do old[#old+1]=buffer[i]or""end
-local merge=pending and kind and pending.kind==kind and pending.at==at
-and#pending.new==1 and count==1 and#new==1
-if merge then
-pending.new=new
-else
-undoSeq=undoSeq+1
-pending={at=at,old=old,new=new,kind=kind,cx=cx,cy=cy,id=undoSeq}
-undoStack[#undoStack+1]=pending
-if#undoStack>UNDO_MAX then table.remove(undoStack,1)end
-redoStack={}
-end
-apply(at,count,new)
-rev=rev+1
-modified=topId()~=savedId
-checkDue=computer.uptime()+0.5
-if runErr then runErr=nil fullRedraw=true end
-status=nil
-if match then markDirty(match.line)match=nil end
-invalidate(at)
-if count~=#new then fullRedraw=true else markDirty(at)end
-end
-local function undoStep(from,to)
-local entry=table.remove(from)
-if not entry then
-status="нечего отменять"
-return
-end
-apply(entry.at,#entry.new,entry.old)
-entry.old,entry.new=entry.new,entry.old
-local wasX,wasY=entry.cx,entry.cy
-entry.cx,entry.cy=cx,cy
-to[#to+1]=entry
-commit()
-anchor=nil
-setCursor(wasX,wasY)
-invalidate(entry.at)
-rev=rev+1
-modified=topId()~=savedId
-checkDue=computer.uptime()+0.5
-fullRedraw=true
-end
-local holes={}
-local function put(sx,y,s,fg,bg)
-if s==""then return end
-local w=unicode.wlen(s)
-for _,r in ipairs(holes)do
-if y>=r.y1 and y<=r.y2 and sx<=r.x2 and sx+w-1>=r.x1 then
-if sx<r.x1 then put(sx,y,fit(s,r.x1-sx),fg,bg)end
-if sx+w-1>r.x2 then put(r.x2+1,y,removePrefix(s,r.x2-sx+1),fg,bg)end
-return
-end
-end
-S:set(sx,y,s,fg,bg)
-end
-local findText=""
-local findAt
-local function matchesIn(line)
-local out,from={},1
-while findAt and#out<40 do
-local a,b=findAt(line,from)
-if not a or b<a then break end
-out[#out+1]={unicode.len(line:sub(1,a-1))+1,unicode.len(line:sub(1,b))+1}
-from=b+1
-end
-return out
-end
-local function drawRow(i)
-local y=rowOf[i]
-if not y then return end
-local line=buffer[i]
-if not line then
-put(1,y,(" "):rep(W),P.FG,P.BG)
-return
-end
-local n=tostring(i)
-local dg=diag[i]
-local gfg,gbg=P.GUT,P.BG
-if(dg and dg.err)or(runErr and runErr.l==i)or lineProblem(i)then gfg=P.ERR
-elseif dg and dg.warn then gfg=P.WARN
-elseif i==cy then gfg=P.GUT_CUR end
-if bps[i]then gfg,gbg=0xFFFFFF,P.BP_BG end
-if dbgLine==i then gfg,gbg=0x000000,P.WARN end
-put(1,y,(" "):rep(GW-1-#n)..n.." ",gfg,gbg)
-local rowBg=dbgLine==i and P.DBG_BG or P.BG
-local cuts={}
-local sl1,sc1,sl2,sc2=selection()
-local from,to
-if sl1 and i>=sl1 and i<=sl2 then
-from=(i==sl1)and sc1 or 1
-to=(i==sl2)and sc2 or math.huge
-cuts[#cuts+1],cuts[#cuts+2]=from,to
-end
-local mf,mt
-if match and match.line==i then
-mf,mt=match.from,match.from+match.len
-cuts[#cuts+1],cuts[#cuts+2]=mf,mt
-end
-local all=match and matchesIn(line)or{}
-for _,m in ipairs(all)do cuts[#cuts+1],cuts[#cuts+2]=m[1],m[2]end
-local marks={}
-if dg and dg.marks then
-for _,m in ipairs(dg.marks)do
-local a=unicode.len(line:sub(1,m[1]-1))+1
-local b=a+unicode.len(line:sub(m[1],m[1]+m[2]-1))
-marks[#marks+1]={a,b}
-cuts[#cuts+1],cuts[#cuts+2]=a,b
-end
-end
-local pairAt={}
-if pair then
-for _,p in ipairs(pair)do
-if p[2]==i then
-pairAt[p[1]]=true
-cuts[#cuts+1],cuts[#cuts+2]=p[1],p[1]+1
-end
-end
-end
-local cur=(i==cy)and cx or nil
-if cur then cuts[#cuts+1],cuts[#cuts+2]=cx,cx+1 end
-table.sort(cuts)
-local function style(pos,fg)
-if pos==cur then return P.BG,readonly and 0x88AAFF or P.CUR end
-if pairAt[pos]then return 0xFFFFFF,P.PAIR end
-if mf and pos>=mf and pos<mt then return P.BG,P.FIND end
-for _,m in ipairs(marks)do
-if pos>=m[1]and pos<m[2]then fg=dg.err and P.ERR or P.WARN end
-end
-if from and pos>=from and pos<to then return fg,P.SEL end
-for _,m in ipairs(all)do
-if pos>=m[1]and pos<m[2]then return fg,P.FIND_ALL end
-end
-return fg,rowBg
-end
-local TW,col,drawnTo=textW(),1,GW
-local function emit(s,fg,bg)
-local wl=unicode.wlen(s)
-if col+wl-1>scrollX and col<=scrollX+TW then
-local x=col-scrollX
-if x<1 then
-s=removePrefix(s,scrollX-col+1)
-x=1
-end
-s=fit(s,TW-x+1)
-if s~=""then
-put(GW+x,y,s,fg,bg)
-drawnTo=GW+x+unicode.wlen(s)-1
-end
-end
-col=col+wl
-end
-local at,ci=1,1
-for _,t in ipairs(tokensFor(i))do
-local rest,color=t[1],t[2]
-local pos=at
-while rest~=""do
-while cuts[ci]and cuts[ci]<=pos do ci=ci+1 end
-local k=cuts[ci]and(cuts[ci]-pos)or math.huge
-local part=rest
-if k<unicode.len(rest)then
-part=unicode.sub(rest,1,k)
-rest=unicode.sub(rest,k+1)
-else
-rest=""
-end
-local fg,bg=style(pos,color)
-if part=="\t"and pos==cur then part=" "end
-emit(part,fg,bg)
-pos=pos+unicode.len(part)
-end
-at=pos
-end
-if cur and cx>unicode.len(line)then
-local g=ghost and ghost.text or""
-local first=unicode.sub(g,1,1)
-emit(first~=""and first or" ",style(cx,P.FG))
-if unicode.len(g)>1 then emit(unicode.sub(g,2),P.GUT,P.BG)end
-end
-if folds[i]then emit(" ... ещё "..(folds[i]-i).." стр.",P.GUT,rowBg)end
-if drawnTo<W then put(drawnTo+1,y,(" "):rep(W-drawnTo),P.FG,rowBg)end
-end
-local function helpText()
-local out={}
-local function pretty(label,command)
-local kb=type(config.keybinds)=="table"and config.keybinds[command]
-if type(kb)~="table"or type(kb[1])~="table"then return end
-local alt,control,shift,key
-for _,v in ipairs(kb[1])do
-if v=="alt"then alt=true
-elseif v=="control"then control=true
-elseif v=="shift"then shift=true
-else key=v end
-end
-if not key then return end
-out[#out+1]=(control and"^"or alt and"M-"or shift and"S-"or"")..
-unicode.upper(key).." "..label
-end
-pretty("сохранить","save")
-pretty("выход","close")
-pretty("запуск","run")
-pretty("оболочка","shell")
-pretty("отладка","debug")
-pretty("поиск","find")
-pretty("клавиши","help")
-return table.concat(out,"  ")
-end
-local HELP=helpText()
-local function bar(parts)
-local x=1
-for _,p in ipairs(parts)do
-local s=p[1]
-if s~=""and x<=W then
-s=fit(s,W-x+1)
-S:set(x,H,s,p[2],p[3]or P.BAR_BG)
-x=x+unicode.wlen(s)
-end
-end
-if x<=W then S:set(x,H,(" "):rep(W-x+1),P.BAR_FG,P.BAR_BG)end
-end
-local docs,docIndex={},1
-local function diagText(i)
-if runErr and runErr.l==i then return runErr.msg,P.ERR end
-local d=diag[i]
-if d and d.err then return d.err,P.ERR end
-local miss=lineProblem(i)
-if miss then return"не заполнено: "..table.concat(miss,"; "),P.ERR end
-if d and d.warn then return d.warn,P.WARN end
-end
-local function drawStatus()
-local right=string.format("%d,%d",cy,cx)
-local ne,nw=0,0
-for _,d in pairs(diag)do
-if d.err then ne=ne+1 elseif d.warn then nw=nw+1 end
-end
-if runErr then ne=ne+1 end
-if ne+nw>0 then
-right=(ne>0 and(ne.." ош ")or"")..(nw>0 and(nw.." пред ")or"").." "..right
-end
-local l1,_,l2=selection()
-if l1 then
-right=string.format("выд %d  %s",l2-l1+1,right)
-elseif#clip>0 then
-right=string.format("#%d  %s",#clip,right)
-end
-right=right.." "
-local rw=unicode.wlen(right)
-local name=fs.name(filename)..(#docs>1 and string.format(" [%d/%d]",docIndex,#docs)or"")
-name=fit(name,math.max(1,W-rw-4))
-local mark=readonly and" [чтение]"or modified and" *"or""
-local mid
-if status then
-mid={{status,P.BAR_MSG}}
-elseif sigHelp then
-mid=sigHelp
-elseif ghost then
-mid={{"Tab → "..ghost.word..(ghost.more>0 and("   ещё "..ghost.more)or""),P.BAR_POS}}
-else
-local text,colour=diagText(cy)
-mid=text and{{text,colour}}or{{HELP,P.BAR_FG}}
-end
-local at=1+unicode.wlen(name)+unicode.wlen(mark)
-local room=W-rw-at-2
-local parts={{" ",P.BAR_FG},{name,P.BAR_NAME},{mark,P.BAR_MARK}}
-if room>0 then
-parts[#parts+1]={"  ",P.BAR_FG}
-for _,m in ipairs(mid)do
-if room<=0 then break end
-local piece=fit(m[1],room)
-parts[#parts+1]={piece,m[2]}
-room=room-unicode.wlen(piece)
-end
-parts[#parts+1]={(" "):rep(math.max(0,room)),P.BAR_FG}
-else
-parts[#parts+1]={(" "):rep(math.max(0,W-rw-at)),P.BAR_FG}
-end
-parts[#parts+1]={right,P.BAR_POS}
-bar(parts)
-end
-local lastCursorRow
-local function syncGutter()
-local w=#tostring(math.max(#buffer,1))+1
-if w~=GW then
-GW=w
-fullRedraw=true
-end
-end
-local OPEN={["("]=")",["["]="]",["{"]="}"}
-local CLOSE={[")"]="(",["]"]="[",["}"]="{"}
-local function findPair()
-local had=pair
-pair=nil
-local ch=unicode.sub(curLine(),cx,cx)
-local dir,want
-if OPEN[ch]then dir,want=1,OPEN[ch]
-elseif CLOSE[ch]then dir,want=-1,CLOSE[ch]
-else
-if had then fullRedraw=true end
-return
-end
-local depth,i,j=0,cy,cx
-while buffer[i]do
-local line=buffer[i]
-while j>=1 and j<=unicode.len(line)do
-local c=unicode.sub(line,j,j)
-if c==ch then depth=depth+1
-elseif c==want then
-depth=depth-1
-if depth==0 then
-pair={{cx,cy},{j,i}}
-fullRedraw=true
-return
-end
-end
-j=j+dir
-end
-i=i+dir
-if math.abs(i-cy)>400 then break end
-j=dir>0 and 1 or unicode.len(buffer[i]or"")
-end
-if had then fullRedraw=true end
-end
-local function hiddenBy(i)
-for s0,e0 in pairs(folds)do
-if i>s0 and i<=e0 then return s0 end
-end
-end
-local function stepLine(i,dir)
-i=i+dir
-while i>=1 and i<=#buffer do
-local s0=hiddenBy(i)
-if not s0 then return i end
-i=dir>0 and folds[s0]+1 or s0
-end
-end
-local function stepLines(i,n)
-local dir=n<0 and-1 or 1
-for _=1,math.abs(n)do i=stepLine(i,dir)or i end
-return i
-end
-local function clampScroll()
-local before=scrollX..":"..scrollY
-local s0=hiddenBy(cy)
-while s0 do
-folds[s0]=nil
-fullRedraw=true
-s0=hiddenBy(cy)
-end
-if cy<=scrollY then scrollY=cy-1 end
-local top=scrollY+1
-if hiddenBy(top)then top=hiddenBy(top)end
-local i,n=cy,1
-while i>top and n<=rows do
-i=stepLine(i,-1)or top
-n=n+1
-end
-if n>rows then top=stepLines(cy,-(rows-1))end
-scrollY=math.max(0,top-1)
-local col,TW=dispCol(curLine(),cx),textW()
-if col-scrollX<1 then scrollX=col-1 end
-if col-scrollX>TW then scrollX=col-TW end
-if scrollX<0 then scrollX=0 end
-if before~=(scrollX..":"..scrollY)then fullRedraw=true end
-view,rowOf={},{}
-i=scrollY+1
-for y=1,rows do
-view[y],rowOf[i]=i,y
-i=i<#buffer and(stepLine(i,1)or#buffer+1)or i+1
-end
-end
-local popupDraw=nil
-local function redraw()
-syncGutter()
-clampScroll()
-if fullRedraw or anchor then
-for y=1,rows do drawRow(view[y])end
-fullRedraw=false
-dirty={}
-else
-if lastCursorRow then dirty[lastCursorRow]=true end
-dirty[cy]=true
-for i in pairs(dirty)do drawRow(i)end
-dirty={}
-end
-lastCursorRow=cy
-drawStatus()
-if popupDraw then popupDraw()end
-S:present()
-end
-local function move(nx,ny,keep)
-if not keep then dropSelection()end
-setCursor(nx,ny)
-if anchor then fullRedraw=true end
-commit()
-end
-local function home(keep)move(1,cy,keep)end
-local function ende(keep)move(unicode.len(curLine())+1,cy,keep)end
-local function left(keep)
-if cx>1 then
-move(cx-1,cy,keep)
-return true
-elseif stepLine(cy,-1)then
-move(math.huge,stepLine(cy,-1),keep)
-return true
-end
-end
-local function right(keep)
-if cx<=unicode.len(curLine())then move(cx+1,cy,keep)
-elseif stepLine(cy,1)then move(1,stepLine(cy,1),keep)end
-end
-local function deleteSelection()
-local l1,c1,l2,c2=selection()
-if not l1 then return false end
-local head=unicode.sub(buffer[l1],1,c1-1)
-local tail=unicode.sub(buffer[l2],c2)
-anchor=nil
-cx,cy=c1,l1
-splice(l1,l2-l1+1,{head..tail})
-setCursor(c1,l1)
-fullRedraw=true
-return true
-end
-local function insert(value,kind)
-if not value or value==""then return end
-deleteSelection()
-local line=curLine()
-splice(cy,1,{unicode.sub(line,1,cx-1)..value..unicode.sub(line,cx)},kind or"type")
-setCursor(cx+unicode.len(value),cy)
-end
-local function indentFor(head)
-local ws=head:match("^[ \t]*")or""
-local body=head:gsub("%-%-[^%[].*$",""):gsub("%s+$","")
-if body:match("[%({]$")or body:match("[%w_%)\"']%s*then$")or body:sub(-4)=="then"
-or body:sub(-2)=="do"or body:sub(-4)=="else"or body:sub(-6)=="repeat"then
-ws=ws.."  "
-end
-return ws
-end
-local function enter()
-deleteSelection()
-local line=curLine()
-local head=unicode.sub(line,1,cx-1)
-local tail=unicode.sub(line,cx)
-local ws=lua and indentFor(head)or(head:match("^[ \t]*")or"")
-splice(cy,1,{head,ws..tail})
-setCursor(unicode.len(ws)+1,cy+1)
-commit()
-end
-local function delete(fullLine)
-if deleteSelection()then return end
-if fullLine then
-if#buffer>1 then splice(cy,1,{})else splice(1,1,{""})end
-setCursor(1,cy)
-return
-end
-local line=curLine()
-if cx<=unicode.len(line)then
-splice(cy,1,{unicode.sub(line,1,cx-1)..unicode.sub(line,cx+1)},"erase")
-elseif cy<#buffer then
-splice(cy,2,{line..buffer[cy+1]})
-end
-end
-local function readLine(label,init,complete)
-local buf=init or""
-while true do
-local room=W-unicode.wlen(label)-3
-local shown=buf
-while room>0 and unicode.wlen(shown)>room do shown=unicode.sub(shown,2)end
-bar({{" ",P.BAR_FG},{label,P.BAR_MARK},{shown,P.BAR_NAME},{" ",P.BAR_BG,P.BAR_POS}})
-S:present()
-local e,addr,char,code=event.pull()
-if e=="key_down"and addr==term.keyboard()then
-if code==keys.enter or code==keys.numpadenter then
-status=nil
-return buf
-elseif code==1 then
-status=nil
-return nil
-elseif code==keys.back then
-if buf==""then
-status=nil
-return nil
-end
-buf=unicode.sub(buf,1,-2)
-elseif code==keys.tab and complete then
-buf=complete(buf)or buf
-elseif char and not keyboard.isControl(char)then
-buf=buf..unicode.char(char)
-end
-elseif e=="clipboard"then
-buf=buf..tostring(char):gsub("\n.*","")
-end
-end
-end
-local function choice(question,letters)
-bar({{" ",P.BAR_FG},{question,P.BAR_MARK}})
-S:present()
-while true do
-local e,addr,char,code=event.pull()
-if e=="key_down"and addr==term.keyboard()then
-for l in letters:gmatch(".")do
-if code==keys[l]or char==l:byte()then return l end
-end
-if code==keys.c or code==keys.back or code==1 then return nil end
-end
-end
-end
-local function ask(question)
-local a=choice(question,"yn")
-if a then return a=="y"end
-end
-local find,replace
-do
-local findPat
-local function setFind(q)
-findText,findPat=q,q:match("^/(.+)$")
-if findPat then
-if not pcall(string.find,"",findPat)then
-findAt=nil
-status="плохой шаблон: "..findPat
-return false
-end
-findAt=function(line,from)return line:find(findPat,from)end
-elseif unicode.lower(q)~=q then
-findAt=function(line,from)return line:find(q,from,true)end
-else
-findAt=function(line,from)return unicode.lower(line):find(q,from,true)end
-end
-return true
-end
-local function showMatch(i,a,b)
-setCursor(unicode.len(buffer[i]:sub(1,a-1))+1,i)
-match={line=i,from=cx,len=unicode.len(buffer[i]:sub(a,b))}
-fullRedraw=true
-end
-local function searchFrom(bx,by,back)
-if not findAt then return end
-local n=#buffer
-for step=0,n do
-local i=back and((by-1-step)%n+1)or((by-1+step)%n+1)
-local line=buffer[i]
-local limit=#unicode.sub(line,1,bx-1)
-local from,best=(not back and step==0)and limit+1 or 1,nil
-while true do
-local a,b=findAt(line,from)
-if not a or b<a then break end
-if not back then
-showMatch(i,a,b)
-return true
-end
-if step==0 and a>limit then break end
-best={a,b}
-from=a+1
-end
-if best then
-showMatch(i,best[1],best[2])
-return true
-end
-end
-status="не найдено: "..findText
-end
-function find(again,back)
-if match then
-markDirty(match.line)
-match=nil
-fullRedraw=true
-end
-if again and findText~=""then
-if back then searchFrom(cx,cy,true)else searchFrom(cx+1,cy)end
-return
-end
-local q=readLine("Поиск: ")
-if q and q~=""and setFind(q)then searchFrom(cx,cy)end
-end
-local function replacement(piece,rep)
-if findPat then return(piece:gsub(findPat,rep,1))end
-return rep
-end
-local function replaceAll(rep)
-local first,last,count,new=nil,nil,0,{}
-for i,line in ipairs(buffer)do
-local out,from={},1
-while true do
-local a,b=findAt(line,from)
-if not a or b<a then break end
-out[#out+1]=line:sub(from,a-1)
-out[#out+1]=replacement(line:sub(a,b),rep)
-from=b+1
-count=count+1
-end
-if from>1 then
-out[#out+1]=line:sub(from)
-new[i]=table.concat(out)
-first,last=first or i,i
-end
-end
-if count>0 then
-local lines={}
-for i=first,last do lines[#lines+1]=new[i]or buffer[i]end
-splice(first,last-first+1,lines)
-commit()
-end
-return count
-end
-function replace()
-if readonly then return end
-local q=readLine("Заменить: ")
-if not q or q==""or not setFind(q)then return end
-local rep=readLine("Заменить \""..q.."\" на: ")
-if not rep then return end
-local count,startY,startX,wrapped=0,cy,cx,false
-local lastY,lastX=cy,cx
-searchFrom(cx,cy)
-while match do
-if match.line<lastY or(match.line==lastY and match.from<lastX)then wrapped=true end
-if wrapped and(match.line>startY or(match.line==startY and match.from>=startX))then break end
-lastY,lastX=match.line,match.from
-redraw()
-local answer=choice("Заменить? Y - да, N - дальше, A - все в файле, C - хватит","yna")
-local i=match.line
-if answer=="a"then
-match=nil
-count=count+replaceAll(rep)
-break
-elseif answer=="y"then
-local line=buffer[i]
-local at=#unicode.sub(line,1,match.from-1)+1
-local a,b=findAt(line,at)
-if a~=at then break end
-local piece=replacement(line:sub(a,b),rep)
-match=nil
-splice(i,1,{line:sub(1,a-1)..piece..line:sub(b+1)})
-commit()
-count=count+1
-setCursor(unicode.len(line:sub(1,a-1)..piece)+1,i)
-if i==startY and a<#unicode.sub(line,1,startX-1)then
-startX=startX+unicode.len(piece)-unicode.len(line:sub(a,b))
-end
-lastX=cx
-if not searchFrom(cx,cy)then break end
-elseif answer=="n"then
-if not searchFrom(match.from+1,i)then break end
-else
-break
-end
-end
-if match then markDirty(match.line)match=nil end
-fullRedraw=true
-status="заменено: "..count
-end
-end
-local chainBefore,aliases,updateGhost,updateSig,complete,autoPopup,wrapInto,pad,splitChain,resolve,popup,forgetCaches
-local replay=nil
-do
-function chainBefore()
-local upto=unicode.sub(curLine(),1,cx-1)
-return upto:match("[%a_][%w_%.:]*$")
-end
-local aliasCache,aliasRev,aliasAt,aliasSig=nil,-1,-2,""
-local problemCache={}
-function aliases()
-if aliasCache and(aliasRev==rev or computer.uptime()-aliasAt<1)then
-return aliasCache
-end
-local map={}
-for _,line in ipairs(buffer)do
-if line:find("local",1,true)then
-line=line:gsub("%-%-.*$","")
-local name,mod=line:match("local%s+([%a_][%w_]*)%s*=%s*require%s*%(?%s*[\"']([%w_%.]+)[\"']")
-if name then
-map[name]={mod}
-else
-name,mod=line:match("local%s+([%a_][%w_]*)%s*=%s*component%.proxy%s*%(%s*component%.list%s*%(%s*[\"']([%w_]+)[\"']")
-if name then
-map[name]={"component",mod}
-else
-local chain
-name,chain=line:match("local%s+([%a_][%w_]*)%s*=%s*([%a_][%w_%.]*)%s*;?%s*$")
-if name and chain~=name then
-local p={}
-for part in chain:gmatch("[^%.]+")do p[#p+1]=part end
-map[name]=p
-end
-end
-end
-end
-end
-local names={}
-for k,v in pairs(map)do names[#names+1]=k.."="..table.concat(v,".")end
-table.sort(names)
-local sig=table.concat(names," ")
-if sig~=aliasSig then
-aliasSig=sig
-problemCache={}
-end
-aliasCache,aliasRev,aliasAt=map,rev,computer.uptime()
-return map
-end
-function resolve(path,depth)
-local cur
-for i,name in ipairs(path)do
-if i==1 then
-cur=rawget(_G,name)or package.loaded[name]
-if cur==nil and(depth or 0)<3 then
-local a=aliases()[name]
-if a then cur=resolve(a,(depth or 0)+1)end
-end
-if cur==nil and fs.exists("/lib/"..name..".lua")then
-local ok,libtab=pcall(require,name)
-cur=ok and libtab or nil
-end
-else
-if type(cur)~="table"then return nil end
-local ok,v=pcall(function()return cur[name]end)
-cur=ok and v or nil
-end
-if cur==nil then return nil end
-end
-return cur
-end
-local function keysOf(t,out,seen)
-pcall(function()
-for k in pairs(t)do
-if type(k)=="string"and not seen[k]then
-seen[k]=true
-out[#out+1]=k
-end
-end
-end)
-end
-local wordCache,wordCacheRev,wordCacheAt=nil,-1,-2
-local memberCache={}
-local function wordList()
-if wordCache and(wordCacheRev==rev or computer.uptime()-wordCacheAt<1)then
-return wordCache
-end
-local all,seen={},{}
-for _,line in ipairs(buffer)do
-for word in line:gmatch("[%a_][%w_]*")do
-if not seen[word]then seen[word]=true all[#all+1]=word end
-end
-end
-for w in pairs(KEYWORD)do if not seen[w]then seen[w]=true all[#all+1]=w end end
-for w in pairs(BUILTIN)do if not seen[w]then seen[w]=true all[#all+1]=w end end
-keysOf(_G,all,seen)
-keysOf(package.loaded,all,seen)
-table.sort(all,function(a,b)return a:lower()<b:lower()end)
-wordCache,wordCacheRev,wordCacheAt=all,rev,computer.uptime()
-return all
-end
-function splitChain(chain)
-local path,frag={},chain
-local dot=chain:match("^(.*)[%.:][%w_]*$")
-if dot then
-frag=chain:match("[%.:]([%w_]*)$")or""
-for name in dot:gmatch("[^%.:]+")do path[#path+1]=name end
-end
-return path,frag
-end
-local function dictionary(path)
-if#path==0 then return wordList()end
-local key=table.concat(path,".")
-local live=path[1]=="component"
-local cached=memberCache[key]
-if cached~=nil and computer.uptime()-cached.at<(live and 1 or 3)then
-return cached.list or nil
-end
-local t=resolve(path)
-local all,seen={},{}
-if type(t)=="table"then
-keysOf(t,all,seen)
-if live and#path==1 then
-pcall(function()
-for _,kind in component.list()do
-if not seen[kind]then seen[kind]=true all[#all+1]=kind end
-end
-end)
-end
-table.sort(all,function(a,b)return a:lower()<b:lower()end)
-else
-all=false
-end
-memberCache[key]={list=all,at=computer.uptime()}
-return all or nil
-end
-local function lowerBound(list,low)
-local a,b=1,#list+1
-while a<b do
-local mid=math.floor((a+b)/2)
-if list[mid]:lower()<low then a=mid+1 else b=mid end
-end
-return a
-end
-local function candidates(chain)
-local path,frag=splitChain(chain)
-local list=dictionary(path)
-if not list then return nil end
-local low=frag:lower()
-local out={}
-for i=lowerBound(list,low),#list do
-local w=list[i]
-if w:lower():sub(1,#low)~=low then break end
-if w~=frag then out[#out+1]=w end
-if#out>300 then break end
-end
-table.sort(out,function(a,b)
-if#a~=#b then return#a<#b end
-return a<b
-end)
-return out,frag
-end
-function updateGhost()
-local was=ghost
-ghost=nil
-repeat
-if readonly or anchor then break end
-if cx<=unicode.len(curLine())then break end
-local chain=chainBefore()
-if not chain then break end
-local path,frag=splitChain(chain)
-if#path==0 and unicode.len(frag)<2 then break end
-local list=candidates(chain)
-if not list or#list==0 then break end
-local pick=list[1]
-if unicode.len(pick)<=unicode.len(frag)then break end
-ghost={
-word=pick,
-text=unicode.sub(pick,unicode.len(frag)+1),
-more=#list-1,
-}
-until true
-if was or ghost then markDirty(cy)end
-end
-local function replaceFrag(n,word)
-if n>0 then
-local line=curLine()
-splice(cy,1,{unicode.sub(line,1,cx-n-1)..unicode.sub(line,cx)})
-setCursor(cx-n,cy)
-end
-insert(word)
-commit()
-end
-local MODS={}
-for _,k in ipairs({"lshift","rshift","lcontrol","rcontrol","lmenu","rmenu"})do
-if keys[k]then MODS[keys[k]]=true end
-end
-local docCache={}
-local function docFor(owner,path,name)
-local key=table.concat(path,".").."."..name
-if docCache[key]~=nil then return docCache[key]or nil end
-local doc
-pcall(function()
-local root=path[1]=="component"and#path==1
-if type(owner)=="table"and type(rawget(owner,"address"))=="string"then
-doc=component.doc(owner.address,name)
-end
-if not doc and root then
-local addr=component.list(name,true)()
-if addr then doc="устройство "..name.." -- адрес "..addr end
-end
-if doc then return end
-local v
-if#path==0 then
-v=rawget(_G,name)
-if v==nil then v=package.loaded[name]end
-elseif type(owner)=="table"then
-if root then v=rawget(owner,name)else v=owner[name]end
-end
-local t=type(v)
-if t=="function"then
-doc="функция"
-elseif t=="table"then
-local n=0
-for _ in pairs(v)do n=n+1 end
-doc="таблица, полей "..n
-elseif t=="string"then
-doc="строка "..string.format("%q",v)
-elseif t=="number"or t=="boolean"then
-doc=(t=="number"and"число "or"")..tostring(v)
-end
-end)
-docCache[key]=doc or false
-return doc
-end
-function wrapInto(out,s,width,colour)
-local line=nil
-for word in s:gmatch("%S+")do
-while unicode.wlen(word)>width do
-if line then out[#out+1]={line,colour}line=nil end
-out[#out+1]={fit(word,width),colour}
-word=removePrefix(word,width)
-end
-if line and unicode.wlen(line)+1+unicode.wlen(word)<=width then
-line=line.." "..word
-else
-if line then out[#out+1]={line,colour}end
-line=word
-end
-end
-if line then out[#out+1]={line,colour}end
-end
-function pad(s,width)
-s=fit(s,width)
-return s..(" "):rep(width-unicode.wlen(s))
-end
-local sigCache={}
-local function sigOf(doc)
-if sigCache[doc]~=nil then return sigCache[doc]or nil end
-local inner,rest=doc:match("^function%((.-)%)(.*)$")
-local sig=false
-if inner then
-local ret=(rest:match("^(.-)%s*%-%-")or rest):gsub("%s+$","")
-sig={params={},ret=ret}
-local depth,cur,optional=0,"",false
-local function push()
-local t=cur:gsub("^%s+",""):gsub("%s+$","")
-if t~=""then
-sig.params[#sig.params+1]={
-text=t,name=t:match("^[^:]+"),
-optional=optional or t:sub(1,3)=="...",
-}
-end
-cur,optional="",false
-end
-for ch in inner:gmatch(".")do
-if ch=="["then depth=depth+1
-elseif ch=="]"then depth=depth-1
-elseif ch==","then push()
-else
-if cur:find("^%s*$")and ch:find("%S")then optional=depth>0 end
-cur=cur..ch
-end
-end
-push()
-end
-sigCache[doc]=sig
-return sig or nil
-end
-local function codeOf(i)
-local out={}
-for _,t in ipairs(tokensFor(i))do
-if t[2]==P.C_STR then out[#out+1]=("0"):rep(#t[1])
-elseif t[2]==P.C_CMT then out[#out+1]=(" "):rep(#t[1])
-else out[#out+1]=t[1]end
-end
-return table.concat(out)
-end
-local function callAt(code,open)
-local chain=code:sub(1,open-1):match("([%a_][%w_%.]*)%s*$")
-if not chain or chain:sub(-1)=="."then return nil end
-local path={}
-for part in chain:gmatch("[^%.]+")do path[#path+1]=part end
-if#path<2 then return nil end
-local name=table.remove(path)
-local owner=resolve(path)
-if type(owner)~="table"then return nil end
-local doc=docFor(owner,path,name)
-local sig=doc and sigOf(doc)
-if not sig then return nil end
-local args,depth,start,close={},0,open+1,nil
-for j=open+1,#code do
-local c=code:sub(j,j)
-if c=="("or c=="["or c=="{"then
-depth=depth+1
-elseif c==")"or c=="]"or c=="}"then
-if depth==0 then close=j break end
-depth=depth-1
-elseif c==","and depth==0 then
-args[#args+1]={start,j-1}
-start=j+1
-end
-end
-args[#args+1]={start,(close or#code+1)-1}
-return{name=name,sig=sig,args=args,close=close,code=code}
-end
-local function filled(call,k)
-local a=call.args[k]
-return a and call.code:sub(a[1],a[2]):find("%S")~=nil
-end
-local function missingOf(call)
-local out={}
-for k,p in ipairs(call.sig.params)do
-if not p.optional and not filled(call,k)then out[#out+1]=p.name end
-end
-return out
-end
-lineProblem=function(i)
-local line=buffer[i]
-if not lua or not line or not line:find("(",1,true)then return nil end
-local known=problemCache[line]
-if known~=nil then return known or nil end
-local code=codeOf(i)
-local miss
-for open in code:gmatch("()%(")do
-local call=callAt(code,open)
-if call and call.close then
-local m=missingOf(call)
-if#m>0 then
-miss=miss or{}
-miss[#miss+1]=call.name..": "..table.concat(m,", ")
-end
-end
-end
-problemCache[line]=miss or false
-return miss
-end
-local function callAround()
-if not lua then return nil end
-local code=codeOf(cy)
-local pos=#unicode.sub(curLine(),1,cx-1)
-local depth=0
-for j=pos,1,-1 do
-local c=code:sub(j,j)
-if c==")"or c=="]"or c=="}"then
-depth=depth+1
-elseif c=="("or c=="["or c=="{"then
-if depth>0 then
-depth=depth-1
-elseif c=="("then
-local call=callAt(code,j)
-if call then return call,pos+1 end
-end
-end
-end
-end
-function updateSig()
-sigHelp=nil
-local call,at=callAround()
-if not call then return end
-local k=#call.args
-for i,a in ipairs(call.args)do
-if at<=a[2]+1 then k=i break end
-end
-local out={{call.name.."(",P.BAR_NAME}}
-for i,p in ipairs(call.sig.params)do
-if i>1 then out[#out+1]={", ",P.BAR_FG}end
-local colour=P.BAR_FG
-if i==k then colour=P.BAR_MARK
-elseif not p.optional and not filled(call,i)then colour=P.ERR end
-out[#out+1]={p.optional and("["..p.text.."]")or p.text,colour}
-end
-out[#out+1]={")"..call.sig.ret,P.BAR_NAME}
-local miss=missingOf(call)
-if#miss>0 then
-out[#out+1]={"   не хватает: "..table.concat(miss,", "),P.ERR}
-end
-sigHelp=out
-end
-function popup(path)
-local list=dictionary(path)
-if not list or#list==0 then return false end
-local key=table.concat(path,".")
-local owner=#path>0 and resolve(path)or nil
-local sel,top=1,1
-ghost=nil
-local function close()
-popupDraw=nil
-holes={}
-status=nil
-fullRedraw=true
-end
-while true do
-local chain=chainBefore()or""
-local p,frag=splitChain(chain)
-if chain==""then p,frag={},""end
-if table.concat(p,".")~=key then return close()end
-local low=frag:lower()
-local shown={}
-for i=lowerBound(list,low),#list do
-local w=list[i]
-if w:lower():sub(1,#low)~=low then break end
-shown[#shown+1]=w
-end
-if#shown==0 then return close()end
-if sel>#shown then sel=#shown end
-local h=math.min(10,#shown,rows-1)
-if sel<top then top=sel end
-if sel>top+h-1 then top=sel-h+1 end
-local width=0
-for i=1,#shown do width=math.max(width,unicode.wlen(shown[i]))end
-width=math.min(width+3,W-4)
-local x=GW+dispCol(curLine(),cx-unicode.len(frag))-scrollX
-x=math.max(1,math.min(x,W-width))
-local below=cy-scrollY+h<=rows
-local y=below and(cy-scrollY+1)or math.max(1,cy-scrollY-h)
-local doc=docFor(owner,path,shown[sel])
-local dlines,dx,dw={},nil,nil
-if doc then
-local space=W-(x+width)
-if space>=24 then
-dx,dw=x+width,math.min(52,space)
-elseif x-1>=24 then
-dw=math.min(52,x-1)
-dx=x-dw
-end
-if dx then
-local sig,desc=doc:match("^(.-)%s*%-%-%s*(.*)$")
-wrapInto(dlines,sig or doc,dw-2,P.BAR_POS)
-if desc and desc~=""then wrapInto(dlines,desc,dw-2,P.POP_FG)end
-end
-end
-local dh=math.min(#dlines,math.max(h,6),rows-1)
-local dy=below and y or(y+h-dh)
-if below and dy+dh-1>rows then dy=rows-dh+1 end
-if dy<1 then dy=1 end
-for _,r in ipairs(holes)do
-for row=r.y1,r.y2 do markDirty(row+scrollY)end
-end
-holes={{x1=x,y1=y,x2=x+width-1,y2=y+h-1}}
-if dh>0 then holes[2]={x1=dx,y1=dy,x2=dx+dw-1,y2=dy+dh-1}end
-for _,r in ipairs(holes)do
-for row=r.y1,r.y2 do markDirty(row+scrollY)end
-end
-popupDraw=function()
-for i=0,h-1 do
-local mark=(i==0 and top>1)and"^"or(i==h-1 and top+h-1<#shown)and"v"or" "
-S:set(x,y+i," "..pad(shown[top+i],width-2)..mark,P.POP_FG,
-(top+i==sel)and P.POP_SEL or P.POP_BG)
-end
-for i=1,dh do
-local l=dlines[i]
-S:set(dx,dy+i-1," "..pad(l[1],dw-1),l[2],P.BAR_BG)
-end
-end
-status=string.format("%s%s: %d из %d   Enter - вставить",key,key~=""and"."or"",
-sel,#shown)
-if doc and not dx then status=doc end
-redraw()
-local ev=table.pack(event.pull())
-local e,addr,char,code=ev[1],ev[2],ev[3],ev[4]
-if e=="key_down"and addr==term.keyboard()then
-if code==keys.up then
-sel=sel>1 and sel-1 or#shown
-elseif code==keys.down then
-sel=sel<#shown and sel+1 or 1
-elseif code==keys.pageUp then
-sel=math.max(1,sel-h)
-elseif code==keys.pageDown then
-sel=math.min(#shown,sel+h)
-elseif code==keys.enter or code==keys.numpadenter or code==keys.tab then
-close()
-replaceFrag(unicode.len(frag),shown[sel])
-local sig=doc and doc:find("^function%(")and sigOf(doc)
-if sig and unicode.sub(curLine(),cx,cx)~="("then
-insert("()")
-if#sig.params>0 then setCursor(cx-1,cy)end
-commit()
-end
-return true
-elseif code==keys.back and frag~=""then
-local line=curLine()
-splice(cy,1,{unicode.sub(line,1,cx-2)..unicode.sub(line,cx)},"erase")
-setCursor(cx-1,cy)
-sel,top=1,1
-elseif char and char>32 and not keyboard.isControl(char)and unicode.char(char):match("[%w_]")
-and not keyboard.isControlDown(term.keyboard())then
-insert(unicode.char(char))
-sel,top=1,1
-elseif not MODS[code]then
-close()
-replay=ev
-return true
-end
-elseif e~="key_up"and e~="interrupted"then
-close()
-replay=ev
-return true
-end
-end
-end
-function complete()
-local chain=chainBefore()
-if not chain then return false end
-local list,frag=candidates(chain)
-if not list or#list==0 then
-status="нечем дополнить"
-return true
-end
-if#list==1 then
-replaceFrag(unicode.len(frag),list[1])
-else
-popup((splitChain(chain)))
-end
-return true
-end
-local function inCode()
-if not lua then return false end
-local at,pos=1,cx-1
-for _,t in ipairs(tokensFor(cy))do
-local len=unicode.len(t[1])
-if pos>=at and pos<at+len then return t[2]~=P.C_CMT and t[2]~=P.C_STR end
-at=at+len
-end
-return true
-end
-function autoPopup()
-local chain=chainBefore()
-if not chain or chain:sub(-1)~="."or chain:find("..",1,true)or not inCode()then return end
-popup((splitChain(chain)))
-end
-function forgetCaches()
-aliasCache,wordCache=nil,nil
-memberCache,problemCache={},{}
-end
-end
-local function indentSelection(back)
-local l1,_,l2=selection()
-if not l1 then
-if back then
-local line=curLine()
-local ws=line:match("^  ")and 2 or(line:match("^ ")and 1 or 0)
-if ws>0 then
-splice(cy,1,{unicode.sub(line,ws+1)})
-setCursor(math.max(1,cx-ws),cy)
-end
-else
-insert("  ")
-end
-return
-end
-local new={}
-for i=l1,l2 do
-local line=buffer[i]
-if back then
-local ws=line:match("^  ")and 2 or(line:match("^ ")and 1 or 0)
-new[#new+1]=unicode.sub(line,ws+1)
-else
-new[#new+1]="  "..line
-end
-end
-local keep=anchor
-splice(l1,l2-l1+1,new)
-anchor=keep
-fullRedraw=true
-end
-local function save()
-if readonly then return true end
-local new=not fs.exists(filename)
-if not new and stamp and fs.lastModified(filename)~=stamp then
-if not ask(fs.name(filename).." изменён на диске. Записать поверх? [Y/n, C - отмена]")then
-status=nil
-return false
-end
-end
-local backup
-if not new then
-backup=filename.."~"
-for i=1,math.huge do
-if not fs.exists(backup)then break end
-backup=filename.."~"..i
-end
-fs.copy(filename,backup)
-end
-if not fs.exists(parent)then fs.makeDirectory(parent)end
-local f,reason=io.open(filename,"w")
-if not f then
-status=tostring(reason)
-return false
-end
-local chars=0
-for i,line in ipairs(buffer)do
-f:write(i==1 and line or("\n"..line))
-chars=chars+unicode.len(line)
-end
-f:write("\n")
-f:close()
-commit()
-savedId=topId()
-modified=false
-stamp=fs.lastModified(filename)
-status=string.format(new and[["%s" [новый] %dL,%dC записано]]or[["%s" %dL,%dC записано]],
-fs.name(filename),#buffer,chars)
-if not new then fs.remove(backup)end
-return true
-end
-local stash,openDoc,switchDoc,closeDoc,checkDisk
-do
-function stash()
-docs[docIndex]={
-filename=filename,parent=parent,readonly=readonly,lua=lua,
-buffer=buffer,cx=cx,cy=cy,scrollX=scrollX,scrollY=scrollY,
-modified=modified,undoStack=undoStack,redoStack=redoStack,
-savedId=savedId,stamp=stamp,bps=bps,folds=folds,diag=diag,
-syntaxErr=syntaxErr,runErr=runErr,
-}
-end
-local function fresh()
-carry,carryTop={},1
-anchor,ghost,match,pair,sigHelp,pending=nil,nil,nil,nil,nil,nil
-scan,scanRev=nil,-1
-rev=rev+1
-forgetCaches()
-lastCursorRow=nil
-fullRedraw=true
-status=nil
-checkDue=computer.uptime()+0.1
-end
-local function restore(i)
-local d=docs[i]
-docIndex=i
-filename,parent,readonly,lua=d.filename,d.parent,d.readonly,d.lua
-buffer,cx,cy,scrollX,scrollY=d.buffer,d.cx,d.cy,d.scrollX,d.scrollY
-modified,undoStack,redoStack,savedId,stamp=d.modified,d.undoStack,d.redoStack,d.savedId,d.stamp
-bps,folds,diag,syntaxErr,runErr=d.bps,d.folds,d.diag,d.syntaxErr,d.runErr
-fresh()
-end
-local function readFile(path)
-local lines,chars={},0
-local f=io.open(path)
-if f then
-for line in f:lines()do
-lines[#lines+1]=line
-chars=chars+unicode.len(line)
-end
-f:close()
-end
-if#lines==0 then lines[1]=""end
-return lines,chars,f~=nil
-end
-function checkDisk()
-if not stamp or not fs.exists(filename)or fs.lastModified(filename)==stamp then return end
-local now=fs.lastModified(filename)
-if modified and not ask(fs.name(filename).." изменён на диске. Перечитать, потеряв правки? [Y/n]")then
-stamp=now
-status=nil
-return
-end
-local lines=readFile(filename)
-splice(1,#buffer,lines)
-commit()
-setCursor(cx,cy)
-savedId,modified,stamp=topId(),false,now
-fullRedraw=true
-status="перечитан с диска"
-end
-function openDoc(path,ro)
-for i,d in ipairs(docs)do
-if(i==docIndex and filename or d.filename)==path then
-switchDoc(i)
-return true
-end
-end
-if fs.isDirectory(path)then
-status="это каталог: "..path
-return false
-end
-local node=fs.get(path)
-local r=ro or node==nil or node.isReadOnly()
-if r and not fs.exists(path)then
-status="нет файла, а записать некуда: "..path
-return false
-end
-if#docs>0 then stash()end
-local lines,chars,exists=readFile(path)
-docIndex=#docs+1
-filename,parent,readonly,lua=path,fs.path(path),r,isLua(path)
-buffer,cx,cy,scrollX,scrollY=lines,1,1,0,0
-modified,undoStack,redoStack,savedId=false,{},{},0
-stamp=exists and fs.lastModified(path)or nil
-bps,folds,diag,syntaxErr,runErr={},{},{},nil,nil
-fresh()
-stash()
-if exists then
-status=string.format(readonly and[["%s" [только чтение] %dL,%dC]]or[["%s" %dL,%dC]],
-fs.name(path),#buffer,chars)
-else
-status=string.format([==["%s" [новый файл]]==],fs.name(path))
-end
-return true
-end
-function switchDoc(i)
-if i==docIndex or not docs[i]then return end
-stash()
-restore(i)
-checkDisk()
-end
-function closeDoc()
-if modified and not readonly then
-local answer=ask(fs.name(filename).." изменён. Сохранить перед закрытием? [Y/n, C - остаться]")
-if answer==nil then
-status=nil
-return
-end
-if answer and not save()then return end
-end
-table.remove(docs,docIndex)
-if#docs==0 then
-running=false
-return
-end
-restore(math.min(docIndex,#docs))
-checkDisk()
-end
-end
-local ensureScan,runChecks
-do
-local function known(name)return _ENV[name]~=nil end
-function ensureScan(name)
-if not lua then return nil end
-if scanRev~=rev or not scan or(name and scan.name~=name)then
-local src=table.concat(buffer,"\n")
-scan,scanRev=nil,rev
-if computer.freeMemory()>#src*3+65536 then
-local ok,r=pcall(luascan.analyze,src,{known=known,name=name})
-if ok then
-scan=r
-r.name=name
-end
-end
-end
-return scan
-end
-function runChecks()
-checkDue=nil
-diag,syntaxErr={},nil
-if lua then
-local fn,err=load(table.concat(buffer,"\n"),"="..fs.name(filename),"t",{})
-if not fn then
-err=tostring(err)
-local l,msg=err:match(":(%d+): (.*)$")
-l=math.min(tonumber(l)or#buffer,#buffer)
-syntaxErr={l=l,msg=msg or err}
-diag[l]={err="синтаксис: "..syntaxErr.msg}
-local open=tonumber(syntaxErr.msg:match("at line (%d+)"))
-if open and not diag[open]then diag[open]={err="не закрыто, см. строку "..l}end
-else
-local r=ensureScan()
-for _,d in ipairs(r and r.diags or{})do
-local e=diag[d.l]or{marks={}}
-diag[d.l]=e
-e.warn=e.warn and(e.warn.."; "..d.msg)or d.msg
-e.marks[#e.marks+1]={d.c,d.len}
-end
-end
-end
-fullRedraw=true
-end
-end
-local panelX,panelY=1,1
-local function relayout()
-S:close()
-gpu=tty.gpu()
-SW,SH=gpu.getResolution()
-if panelH>0 then panelH=math.max(6,math.floor(SH/3))end
-S=gfx.surface(gpu,{h=SH-panelH})
-W,H=S.w,S.h
-rows=H-1
-holes={}
-lastCursorRow=nil
-fullRedraw=true
-end
-local function showPanel(on)
-if on==(panelH>0)then return end
-panelH=on and 1 or 0
-relayout()
-if on then
-if gpu.setActiveBuffer then gpu.setActiveBuffer(0)end
-gpu.setBackground(0x000000)
-gpu.setForeground(0xFFFFFF)
-gpu.fill(1,SH-panelH+1,SW,panelH," ")
-panelX,panelY=1,1
-end
-end
-local function inPanel(fn)
-showPanel(true)
-redraw()
-if gpu.setActiveBuffer then gpu.setActiveBuffer(0)end
-local window=tty.window
-local vw,vh,vdx,vdy,vx,vy=tty.getViewport()
-local full=window.fullscreen
-window.fullscreen=false
-tty.setViewport(SW,panelH,0,SH-panelH,panelX,panelY)
-gpu.setBackground(0x000000)
-gpu.setForeground(0xFFFFFF)
-term.setCursorBlink(true)
-local ok,err=xpcall(fn,debug.traceback)
-if not ok then io.stderr:write(tostring(err),"\n")end
-term.setCursorBlink(false)
-panelX,panelY=tty.getCursor()
-tty.setViewport(vw,vh,vdx,vdy,vx,vy)
-window.fullscreen=full
-relayout()
-forgetCaches()
-checkDisk()
-end
-local runFile,shellHere,debugRun
-do
-local function capture(fn)
-local real=io.stderr
-while type(rawget(real,"fd"))=="table"and rawget(real,"_closed")~=nil do
-real=rawget(real,"fd")
-end
-local was,method,got=rawget(real,"write"),real.write,{}
-rawset(real,"write",function(self,...)
-for i=1,select("#",...)do got[#got+1]=tostring((select(i,...)))end
-return method(self,...)
-end)
-local ok,err=pcall(fn)
-rawset(real,"write",was)
-if not ok then io.stderr:write(tostring(err),"\n")end
-return table.concat(got)
-end
-local function runIn(path)
-local out=""
-inPanel(function()
-if tty.getCursor()>1 then io.write("\n")end
-io.write("\27[33m> "..fs.name(filename).."\27[37m\n")
-out=capture(function()
-local sh=require("sh")
-local ok,reason=sh.execute(_ENV,'"'..path..'"')
-if not ok and reason then io.stderr:write(tostring(reason),"\n")end
-end)
-end)
-return out
-end
-local function report(out,path)
-runErr=nil
-local esc=path:gsub("%p","%%%0")
-local head=out:sub(1,(out:find("stack traceback:",1,true)or#out+1)-1)
-local msg=head:match("([^\n]+)\n*$")or""
-local l=msg:match(esc..":(%d+):")
-if not l then
-l=out:match(esc..":(%d+):")
-end
-if not l then return end
-msg=msg:gsub("^"..esc..":%d+: ",""):gsub(":$","")
-runErr={l=math.min(tonumber(l),#buffer),msg="ошибка: "..msg}
-dropSelection()
-setCursor(1,runErr.l)
-fullRedraw=true
-return runErr
-end
-function runFile()
-if modified and not readonly and not save()then return end
-status="работает "..fs.name(filename)
-local out=runIn(filename)
-status=not report(out,filename)and"вывод внизу, ^O скрыть панель"or nil
-end
-function shellHere()
-if modified and not readonly then save()end
-local hello="оболочка внизу, exit - обратно в редактор"
-status=hello
-inPanel(function()
-local sh=require("sh")
-local hint={hint=sh.hintHandler}
-while true do
-if tty.getCursor()>1 then io.write("\n")end
-io.write(sh.expand(os.getenv("PS1")or"$ "))
-tty.window.cursor=hint
-local command=io.stdin:readLine(false)
-tty.window.cursor=nil
-if command==nil then return end
-if command then
-command=text.trim(command)
-if command=="exit"then return end
-if command~=""then
-local ok,reason=sh.execute(_ENV,command)
-if not ok and reason then io.stderr:write(tostring(reason),"\n")end
-end
-end
-end
-end)
-if status==hello then status=nil end
-end
-local dbg=nil
-local function depthNow()
-local n=3
-while debug.getinfo(n,"l")do n=n+1 end
 return n
 end
-local function short(v,deep)
-local t=type(v)
-if t=="string"then
-local s=string.format("%q",v):gsub("\\\n","\\n")
-return s
-elseif t=="table"then
-if deep then return"{..}"end
-local parts,n={},0
-pcall(function()
-for k,x in pairs(v)do
-n=n+1
-if#parts<5 then
-parts[#parts+1]=(type(k)=="number"and""or(tostring(k).."="))..short(x,true)
+local function _(l,n)
+if n<1 then return""end
+return a.wlen(l)>n and a.wtrunc(l,n+1)or l
+end
+local function S(l)
+if ab>l then ab=l end
+end
+local function n(l)
+l=math.min(l,#e)
+while ab<=l do
+local l,l=v(e[ab]or"",aR[ab])
+aR[ab+1]=l
+ab=ab+1
 end
 end
-end)
-return"{"..table.concat(parts,", ")..(n>#parts and", .."or"").."}"..
-(n>0 and("  #"..n)or"")
-elseif t=="function"then
-local ok,info=pcall(debug.getinfo,v,"S")
-local at=ok and info and info.linedefined or 0
-return"функция"..(at>0 and(" стр "..at)or"")
+local function a6(l)
+if not K then return{{e[l]or"",c.FG}}end
+n(l-1)
+return(v(e[l]or"",aR[l]))
 end
-return tostring(v)
+local function ad(l)Z[l]=true end
+local function O()
+if not o then return nil end
+local l,u,n,v=o[2],o[1],b,d
+if l>n or(l==n and u>v)then
+l,u,n,v=n,v,l,u
 end
-local function treeOf(vars,open)
-local out={}
-local function add(depth,key,v,path)
-out[#out+1]={depth=depth,key=key,v=v,path=path}
-if type(v)~="table"or not open[path]or depth>6 or#out>400 then return end
-local keys={}
-pcall(function()for k in pairs(v)do keys[#keys+1]=k end end)
-table.sort(keys,function(a,b)
-local na,nb=type(a)=="number",type(b)=="number"
-if na~=nb then return na end
-if na then return a<b end
-return tostring(a)<tostring(b)
-end)
-for i=1,math.min(#keys,200)do
-local k=keys[i]
-local ok,x=pcall(function()return v[k]end)
-add(depth+1,type(k)=="string"and k or("["..tostring(k).."]"),ok and x or nil,
-path.."\0"..tostring(k))
+if l==n and u==v then return nil end
+return l,u,n,v
+end
+local function a7()
+local l,v,u,w=O()
+if not l then return nil end
+if l==u then
+return{a.sub(e[l],v,w-1)}
+end
+local n={a.sub(e[l],v)}
+for v=l+1,u-1 do n[#n+1]=e[v]end
+n[#n+1]=a.sub(e[u],1,w-1)
+return n
+end
+local function X()
+if o then
+i=true
+o=nil
 end
 end
-for _,x in ipairs(vars)do add(0,x[1],x[2],x[1])end
-return out
+local R,ay={},{}
+local ae=nil
+local Y=120
+local I=0
+local function aX()
+local l=R[#R]
+return l and l.id or 0
 end
-local function pauseView(info)
-dbgLine=info.line
-dropSelection()
-setCursor(1,info.line)
-local open,sel,top,focus,answer={},1,1,false,nil
-while not answer do
-local list=treeOf(info.vars,open)
-if sel>#list then sel=math.max(1,#list)end
-local bw=math.max(26,math.min(60,math.floor(W*0.45)))
-local bx=W-bw+1
-local head={}
-wrapInto(head,info.title,bw-2,P.BAR_MARK)
-if info.err then wrapInto(head,info.err,bw-2,P.ERR)end
-if info.stack and info.stack~=""then wrapInto(head,"стек: "..info.stack,bw-2,P.BAR_FG)end
-head[#head+1]={#list>0 and(focus and"переменные (Tab - к коду)"or"переменные (Tab - выбрать)")
-or"local здесь не видно",P.BAR_POS}
-local lh=math.max(1,rows-#head)
-if sel<top then top=sel end
-if sel>top+lh-1 then top=sel-lh+1 end
-holes={{x1=bx,y1=1,x2=W,y2=rows}}
-popupDraw=function()
-for i=1,rows do
-local s,fg,bg="",P.POP_FG,P.POP_BG
-if head[i]then
-s,fg,bg=head[i][1],head[i][2],P.BAR_BG
+local function P(u,l,G)
+local M,v=u+l-1,G-l
+local l={}
+for n in pairs(B)do
+if n<u then l[#l+1]=n
+elseif n>M then l[#l+1]=n+v
+elseif n-u<G then l[#l+1]=n end
+end
+for n in pairs(B)do B[n]=nil end
+for n,n in ipairs(l)do B[n]=true end
+local n={}
+for l,w in pairs(C)do
+if M<l then n[l+v]=w+v
+elseif u>w then n[l]=w
+elseif u==l and M==l and G>0 then n[l]=w+v end
+end
+for l in pairs(C)do C[l]=nil end
+for l,u in pairs(n)do if u>l then C[l]=u end end
+end
+local function T(l,v,n)
+P(l,v,#n)
+local u={}
+for w=l+v,#e do u[#u+1]=e[w]end
+for v=#e,l,-1 do e[v]=nil end
+for v=1,#n do e[l+v-1]=n[v]end
+for v=1,#u do e[l+#n+v-1]=u[v]end
+if#e==0 then e[1]=""end
+end
+local function w()ae=nil end
+local function l(n,u)
+b=math.max(1,math.min(#e,math.floor(u)))
+d=math.max(1,math.min(a.len(e[b]or"")+1,math.floor(n)))
+end
+local function u(n,G,v,M)
+local P={}
+for aa=n,n+G-1 do P[#P+1]=e[aa]or""end
+local aa=ae and M and ae.kind==M and ae.at==n
+and#ae.new==1 and G==1 and#v==1
+if aa then
+ae.new=v
 else
-local r=list[top+i-#head-1]
-if r then
-local mark=type(r.v)=="table"and(open[r.path]and"- "or"+ ")or"  "
-s=("  "):rep(r.depth)..mark..r.key.." = "..short(r.v)
-if focus and top+i-#head-1==sel then bg=P.POP_SEL end
-if type(r.v)=="string"then fg=P.C_STR
-elseif type(r.v)=="number"then fg=P.C_NUM
-elseif r.v==nil or type(r.v)=="boolean"then fg=P.C_BLT end
+I=I+1
+ae={at=n,old=P,new=v,kind=M,cx=d,cy=b,id=I}
+R[#R+1]=ae
+if#R>Y then table.remove(R,1)end
+ay={}
+end
+T(n,G,v)
+N=N+1
+L=aX()~=ao
+aj=J.uptime()+0.5
+if A then A=nil i=true end
+f=nil
+if m then ad(m.line)m=nil end
+S(n)
+if G~=#v then i=true else ad(n)end
+end
+local function bj(G,v)
+local n=table.remove(G)
+if not n then
+f="нечего отменять"
+return
+end
+T(n.at,#n.new,n.old)
+n.old,n.new=n.new,n.old
+local G,I=n.cx,n.cy
+n.cx,n.cy=d,b
+v[#v+1]=n
+w()
+o=nil
+l(G,I)
+S(n.at)
+N=N+1
+L=aX()~=ao
+aj=J.uptime()+0.5
+i=true
+end
+local S={}
+local function M(v,G,I,P,T)
+if I==""then return end
+local Y=a.wlen(I)
+for n,n in ipairs(S)do
+if G>=n.y1 and G<=n.y2 and v<=n.x2 and v+Y-1>=n.x1 then
+if v<n.x1 then M(v,G,_(I,n.x1-v),P,T)end
+if v+Y-1>n.x2 then M(n.x2+1,G,aE(I,n.x2-v+1),P,T)end
+return
 end
 end
-S:set(bx,i," "..pad(s,bw-1),fg,bg)
+y:set(v,G,I,P,T)
+end
+local am=""
+local P
+local function ag(v)
+local n,T={},1
+while P and#n<40 do
+local G,I=P(v,T)
+if not G or I<G then break end
+n[#n+1]={a.len(v:sub(1,G-1))+1,a.len(v:sub(1,I))+1}
+T=I+1
+end
+return n
+end
+local function aC(v)
+local Y=al[v]
+if not Y then return end
+local aa=e[v]
+if not aa then
+M(1,Y,(" "):rep(t),c.FG,c.BG)
+return
+end
+local T=tostring(v)
+local I=D[v]
+local n,G=c.GUT,c.BG
+if(I and I.err)or(A and A.l==v)or aU(v)then n=c.ERR
+elseif I and I.warn then n=c.WARN
+elseif v==b then n=c.GUT_CUR end
+if B[v]then n,G=0xFFFFFF,c.BP_BG end
+if aV==v then n,G=0x000000,c.WARN end
+M(1,Y,(" "):rep(V-1-#T)..T.." ",n,G)
+local ap=aV==v and c.DBG_BG or c.BG
+local n={}
+local G,ak,af,az=O()
+local T,aq
+if G and v>=G and v<=af then
+T=(v==G)and ak or 1
+aq=(v==af)and az or math.huge
+n[#n+1],n[#n+2]=T,aq
+end
+local af,az
+if m and m.line==v then
+af,az=m.from,m.from+m.len
+n[#n+1],n[#n+2]=af,az
+end
+local aD=m and ag(aa)or{}
+for G,G in ipairs(aD)do n[#n+1],n[#n+2]=G[1],G[2]end
+local aA={}
+if I and I.marks then
+for G,G in ipairs(I.marks)do
+local ag=a.len(aa:sub(1,G[1]-1))+1
+local ak=ag+a.len(aa:sub(G[1],G[1]+G[2]-1))
+aA[#aA+1]={ag,ak}
+n[#n+1],n[#n+2]=ag,ak
 end
 end
-status=info.final and"F5 или Enter - закрыть"or
+local aH={}
+if aw then
+for G,G in ipairs(aw)do
+if G[2]==v then
+aH[G[1]]=true
+n[#n+1],n[#n+2]=G[1],G[1]+1
+end
+end
+end
+local ag=(v==b)and d or nil
+if ag then n[#n+1],n[#n+2]=d,d+1 end
+table.sort(n)
+local function aI(G,ak)
+if G==ag then return c.BG,k and 0x88AAFF or c.CUR end
+if aH[G]then return 0xFFFFFF,c.PAIR end
+if af and G>=af and G<az then return c.BG,c.FIND end
+for af,af in ipairs(aA)do
+if G>=af[1]and G<af[2]then ak=I.err and c.ERR or c.WARN end
+end
+if T and G>=T and G<aq then return ak,c.SEL end
+for I,I in ipairs(aD)do
+if G>=I[1]and G<I[2]then return ak,c.FIND_ALL end
+end
+return ak,ap
+end
+local aq,I,af=aB(),1,V
+local function ak(G,aA,aD)
+local az=a.wlen(G)
+if I+az-1>z and I<=z+aq then
+local T=I-z
+if T<1 then
+G=aE(G,z-I+1)
+T=1
+end
+G=_(G,aq-T+1)
+if G~=""then
+M(V+T,Y,G,aA,aD)
+af=V+T+a.wlen(G)-1
+end
+end
+I=I+az
+end
+local az,T=1,1
+for G,I in ipairs(a6(v))do
+local G,aA=I[1],I[2]
+local I=az
+while G~=""do
+while n[T]and n[T]<=I do T=T+1 end
+local aq=n[T]and(n[T]-I)or math.huge
+local n=G
+if aq<a.len(G)then
+n=a.sub(G,1,aq)
+G=a.sub(G,aq+1)
+else
+G=""
+end
+local G,T=aI(I,aA)
+if n=="\t"and I==ag then n=" "end
+ak(n,G,T)
+I=I+a.len(n)
+end
+az=I
+end
+if ag and d>a.len(aa)then
+local n=F and F.text or""
+local G=a.sub(n,1,1)
+ak(G~=""and G or" ",aI(d,c.FG))
+if a.len(n)>1 then ak(a.sub(n,2),c.GUT,c.BG)end
+end
+if C[v]then ak(" ... ещё "..(C[v]-v).." стр.",c.GUT,ap)end
+if af<t then M(af+1,Y,(" "):rep(t-af),c.FG,ap)end
+end
+local function af()
+local G={}
+local function n(ag,v)
+local I=type(au.keybinds)=="table"and au.keybinds[v]
+if type(I)~="table"or type(I[1])~="table"then return end
+local T,Y,aa,M
+for v,v in ipairs(I[1])do
+if v=="alt"then T=true
+elseif v=="control"then Y=true
+elseif v=="shift"then aa=true
+else M=v end
+end
+if not M then return end
+G[#G+1]=(Y and"^"or T and"M-"or aa and"S-"or"")..
+a.upper(M).." "..ag
+end
+n("сохранить","save")
+n("выход","close")
+n("запуск","run")
+n("оболочка","shell")
+n("отладка","debug")
+n("поиск","find")
+n("клавиши","help")
+return table.concat(G,"  ")
+end
+local ak=af()
+local function af(v)
+local n=1
+for G,G in ipairs(v)do
+local v=G[1]
+if v~=""and n<=t then
+v=_(v,t-n+1)
+y:set(n,aF,v,G[2],G[3]or c.BAR_BG)
+n=n+a.wlen(v)
+end
+end
+if n<=t then y:set(n,aF,(" "):rep(t-n+1),c.BAR_FG,c.BAR_BG)end
+end
+local I,T={},1
+local function ap(v)
+if A and A.l==v then return A.msg,c.ERR end
+local n=D[v]
+if n and n.err then return n.err,c.ERR end
+local G=aU(v)
+if G then return"не заполнено: "..table.concat(G,"; "),c.ERR end
+if n and n.warn then return n.warn,c.WARN end
+end
+local function aq()
+local v=string.format("%d,%d",b,d)
+local n,G=0,0
+for M,M in pairs(D)do
+if M.err then n=n+1 elseif M.warn then G=G+1 end
+end
+if A then n=n+1 end
+if n+G>0 then
+v=(n>0 and(n.." ош ")or"")..(G>0 and(G.." пред ")or"").." "..v
+end
+local n,G,G=O()
+if n then
+v=string.format("выд %d  %s",G-n+1,v)
+elseif#q>0 then
+v=string.format("#%d  %s",#q,v)
+end
+v=v.." "
+local aa=a.wlen(v)
+local Y=g.name(j)..(#I>1 and string.format(" [%d/%d]",T,#I)or"")
+Y=_(Y,math.max(1,t-aa-4))
+local ag=k and" [чтение]"or L and" *"or""
+local M
+if f then
+M={{f,c.BAR_MSG}}
+elseif aG then
+M=aG
+elseif F then
+M={{"Tab → "..F.word..(F.more>0 and("   ещё "..F.more)or""),c.BAR_POS}}
+else
+local n,G=ap(b)
+M=n and{{n,G}}or{{ak,c.BAR_FG}}
+end
+local ak=1+a.wlen(Y)+a.wlen(ag)
+local G=t-aa-ak-2
+local n={{" ",c.BAR_FG},{Y,c.BAR_NAME},{ag,c.BAR_MARK}}
+if G>0 then
+n[#n+1]={"  ",c.BAR_FG}
+for Y,Y in ipairs(M)do
+if G<=0 then break end
+local M=_(Y[1],G)
+n[#n+1]={M,Y[2]}
+G=G-a.wlen(M)
+end
+n[#n+1]={(" "):rep(math.max(0,G)),c.BAR_FG}
+else
+n[#n+1]={(" "):rep(math.max(0,t-aa-ak)),c.BAR_FG}
+end
+n[#n+1]={v,c.BAR_POS}
+af(n)
+end
+local aH
+local function aA()
+local n=#tostring(math.max(#e,1))+1
+if n~=V then
+V=n
+i=true
+end
+end
+local aI={["("]=")",["["]="]",["{"]="}"}
+local a8={[")"]="(",["]"]="[",["}"]="{"}
+local function bk()
+local ag=aw
+aw=nil
+local G=a.sub(p(),d,d)
+local M,aa
+if aI[G]then M,aa=1,aI[G]
+elseif a8[G]then M,aa=-1,a8[G]
+else
+if ag then i=true end
+return
+end
+local Y,v,n=0,b,d
+while e[v]do
+local ak=e[v]
+while n>=1 and n<=a.len(ak)do
+local ap=a.sub(ak,n,n)
+if ap==G then Y=Y+1
+elseif ap==aa then
+Y=Y-1
+if Y==0 then
+aw={{d,b},{n,v}}
+i=true
+return
+end
+end
+n=n+M
+end
+v=v+M
+if math.abs(v-b)>400 then break end
+n=M>0 and 1 or a.len(e[v]or"")
+end
+if ag then i=true end
+end
+local function ap(n)
+for v,G in pairs(C)do
+if n>v and n<=G then return v end
+end
+end
+local function Y(n,G)
+n=n+G
+while n>=1 and n<=#e do
+local v=ap(n)
+if not v then return n end
+n=G>0 and C[v]+1 or v
+end
+end
+local function az(n,v)
+local G=v<0 and-1 or 1
+for M=1,math.abs(v)do n=Y(n,G)or n end
+return n
+end
+local function aa()
+local M=z..":"..E
+local n=ap(b)
+while n do
+C[n]=nil
+i=true
+n=ap(b)
+end
+if b<=E then E=b-1 end
+local v=E+1
+if ap(v)then v=ap(v)end
+local n,G=b,1
+while n>v and G<=x do
+n=Y(n,-1)or v
+G=G+1
+end
+if G>x then v=az(b,-(x-1))end
+E=math.max(0,v-1)
+local v,G=aN(p(),d),aB()
+if v-z<1 then z=v-1 end
+if v-z>G then z=v-G end
+if z<0 then z=0 end
+if M~=(z..":"..E)then i=true end
+aW,al={},{}
+n=E+1
+for v=1,x do
+aW[v],al[n]=n,v
+n=n<#e and(Y(n,1)or#e+1)or n+1
+end
+end
+local ak=nil
+local function M()
+aA()
+aa()
+if i or o then
+for n=1,x do aC(aW[n])end
+i=false
+Z={}
+else
+if aH then Z[aH]=true end
+Z[b]=true
+for n in pairs(Z)do aC(n)end
+Z={}
+end
+aH=b
+aq()
+if ak then ak()end
+y:present()
+end
+local function G(n,v,Z)
+if not Z then X()end
+l(n,v)
+if o then i=true end
+w()
+end
+local function bl(n)G(1,b,n)end
+local function bu(n)G(a.len(p())+1,b,n)end
+local function bm(n)
+if d>1 then
+G(d-1,b,n)
+return true
+elseif Y(b,-1)then
+G(math.huge,Y(b,-1),n)
+return true
+end
+end
+local function bv(n)
+if d<=a.len(p())then G(d+1,b,n)
+elseif Y(b,1)then G(1,Y(b,1),n)end
+end
+local function al()
+local n,v,Z,aa=O()
+if not n then return false end
+local ag=a.sub(e[n],1,v-1)
+local aq=a.sub(e[Z],aa)
+o=nil
+d,b=v,n
+u(n,Z-n+1,{ag..aq})
+l(v,n)
+i=true
+return true
+end
+local function Z(n,aa)
+if not n or n==""then return end
+al()
+local v=p()
+u(b,1,{a.sub(v,1,d-1)..n..a.sub(v,d)},aa or"type")
+l(d+a.len(n),b)
+end
+local function ag(aa)
+local v=aa:match("^[ \t]*")or""
+local n=aa:gsub("%-%-[^%[].*$",""):gsub("%s+$","")
+if n:match("[%({]$")or n:match("[%w_%)\"']%s*then$")or n:sub(-4)=="then"
+or n:sub(-2)=="do"or n:sub(-4)=="else"or n:sub(-6)=="repeat"then
+v=v.."  "
+end
+return v
+end
+local function bw()
+al()
+local v=p()
+local n=a.sub(v,1,d-1)
+local aa=a.sub(v,d)
+local v=K and ag(n)or(n:match("^[ \t]*")or"")
+u(b,1,{n,v..aa})
+l(a.len(v)+1,b+1)
+w()
+end
+local function aY(n)
+if al()then return end
+if n then
+if#e>1 then u(b,1,{})else u(1,1,{""})end
+l(1,b)
+return
+end
+local n=p()
+if d<=a.len(n)then
+u(b,1,{a.sub(n,1,d-1)..a.sub(n,d+1)},"erase")
+elseif b<#e then
+u(b,2,{n..e[b+1]})
+end
+end
+local function aA(aa,v,ag)
+local n=v or""
+while true do
+local aq=t-a.wlen(aa)-3
+local v=n
+while aq>0 and a.wlen(v)>aq do v=a.sub(v,2)end
+af({{" ",c.BAR_FG},{aa,c.BAR_MARK},{v,c.BAR_NAME},{" ",c.BAR_BG,c.BAR_POS}})
+y:present()
+local aq,aB,aa,v=at.pull()
+if aq=="key_down"and aB==s.keyboard()then
+if v==h.enter or v==h.numpadenter then
+f=nil
+return n
+elseif v==1 then
+f=nil
+return nil
+elseif v==h.back then
+if n==""then
+f=nil
+return nil
+end
+n=a.sub(n,1,-2)
+elseif v==h.tab and ag then
+n=ag(n)or n
+elseif aa and not H.isControl(aa)then
+n=n..a.char(aa)
+end
+elseif aq=="clipboard"then
+n=n..tostring(aa):gsub("\n.*","")
+end
+end
+end
+local function aJ(n,aa)
+af({{" ",c.BAR_FG},{n,c.BAR_MARK}})
+y:present()
+while true do
+local v,af,ag,n=at.pull()
+if v=="key_down"and af==s.keyboard()then
+for v in aa:gmatch(".")do
+if n==h[v]or ag==v:byte()then return v end
+end
+if n==h.c or n==h.back or n==1 then return nil end
+end
+end
+end
+local function a9(v)
+local n=aJ(v,"yn")
+if n then return n=="y"end
+end
+local aZ,bn
+do
+local n
+local function aK(v)
+am,n=v,v:match("^/(.+)$")
+if n then
+if not pcall(string.find,"",n)then
+P=nil
+f="плохой шаблон: "..n
+return false
+end
+P=function(aa,af)return aa:find(n,af)end
+elseif a.lower(v)~=v then
+P=function(aa,af)return aa:find(v,af,true)end
+else
+P=function(aa,af)return a.lower(aa):find(v,af,true)end
+end
+return true
+end
+local function aD(v,aa,af)
+l(a.len(e[v]:sub(1,aa-1))+1,v)
+m={line=v,from=d,len=a.len(e[v]:sub(aa,af))}
+i=true
+end
+local function v(aC,ag,aq)
+if not P then return end
+local aa=#e
+for af=0,aa do
+local aB=aq and((ag-1-af)%aa+1)or((ag-1+af)%aa+1)
+local aL=e[aB]
+local aM=#a.sub(aL,1,aC-1)
+local aO,ag=(not aq and af==0)and aM+1 or 1,nil
+while true do
+local aa,aC=P(aL,aO)
+if not aa or aC<aa then break end
+if not aq then
+aD(aB,aa,aC)
+return true
+end
+if af==0 and aa>aM then break end
+ag={aa,aC}
+aO=aa+1
+end
+if ag then
+aD(aB,ag[1],ag[2])
+return true
+end
+end
+f="не найдено: "..am
+end
+function aZ(aa,af)
+if m then
+ad(m.line)
+m=nil
+i=true
+end
+if aa and am~=""then
+if af then v(d,b,true)else v(d+1,b)end
+return
+end
+local aa=aA("Поиск: ")
+if aa and aa~=""and aK(aa)then v(d,b)end
+end
+local function aL(af,aa)
+if n then return(af:gsub(n,aa,1))end
+return aa
+end
+local function aO(a_)
+local aa,aB,ag,aM=nil,nil,0,{}
+for aC,am in ipairs(e)do
+local n,af={},1
+while true do
+local aq,aD=P(am,af)
+if not aq or aD<aq then break end
+n[#n+1]=am:sub(af,aq-1)
+n[#n+1]=aL(am:sub(aq,aD),a_)
+af=aD+1
+ag=ag+1
+end
+if af>1 then
+n[#n+1]=am:sub(af)
+aM[aC]=table.concat(n)
+aa,aB=aa or aC,aC
+end
+end
+if ag>0 then
+local n={}
+for af=aa,aB do n[#n+1]=aM[af]or e[af]end
+u(aa,aB-aa+1,n)
+w()
+end
+return ag
+end
+function bn()
+if k then return end
+local n=aA("Заменить: ")
+if not n or n==""or not aK(n)then return end
+local aq=aA("Заменить \""..n.."\" на: ")
+if not aq then return end
+local af,aB,am,aa=0,b,d,false
+local n,aC=b,d
+v(d,b)
+while m do
+if m.line<n or(m.line==n and m.from<aC)then aa=true end
+if aa and(m.line>aB or(m.line==aB and m.from>=am))then break end
+n,aC=m.line,m.from
+M()
+local aD=aJ("Заменить? Y - да, N - дальше, A - все в файле, C - хватит","yna")
+local ag=m.line
+if aD=="a"then
+m=nil
+af=af+aO(aq)
+break
+elseif aD=="y"then
+local n=e[ag]
+local aK=#a.sub(n,1,m.from-1)+1
+local aa,aJ=P(n,aK)
+if aa~=aK then break end
+local P=aL(n:sub(aa,aJ),aq)
+m=nil
+u(ag,1,{n:sub(1,aa-1)..P..n:sub(aJ+1)})
+w()
+af=af+1
+l(a.len(n:sub(1,aa-1)..P)+1,ag)
+if ag==aB and aa<#a.sub(n,1,am-1)then
+am=am+a.len(P)-a.len(n:sub(aa,aJ))
+end
+aC=d
+if not v(d,b)then break end
+elseif aD=="n"then
+if not v(m.from+1,ag)then break end
+else
+break
+end
+end
+if m then ad(m.line)m=nil end
+i=true
+f="заменено: "..af
+end
+end
+local aB,ba,aJ,a_,bb,bo,aC,af,aD,ag,bc,bd
+local aK=nil
+do
+function aB()
+local n=a.sub(p(),1,d-1)
+return n:match("[%a_][%w_%.:]*$")
+end
+local a0,am,aq,aL=nil,-1,-2,""
+local a1={}
+function ba()
+if a0 and(am==N or J.uptime()-aq<1)then
+return a0
+end
+local v={}
+for n,P in ipairs(e)do
+if P:find("local",1,true)then
+P=P:gsub("%-%-.*$","")
+local n,aa=P:match("local%s+([%a_][%w_]*)%s*=%s*require%s*%(?%s*[\"']([%w_%.]+)[\"']")
+if n then
+v[n]={aa}
+else
+n,aa=P:match("local%s+([%a_][%w_]*)%s*=%s*component%.proxy%s*%(%s*component%.list%s*%(%s*[\"']([%w_]+)[\"']")
+if n then
+v[n]={"component",aa}
+else
+local aa
+n,aa=P:match("local%s+([%a_][%w_]*)%s*=%s*([%a_][%w_%.]*)%s*;?%s*$")
+if n and aa~=n then
+local P={}
+for aM in aa:gmatch("[^%.]+")do P[#P+1]=aM end
+v[n]=P
+end
+end
+end
+end
+end
+local n={}
+for P,aa in pairs(v)do n[#n+1]=P.."="..table.concat(aa,".")end
+table.sort(n)
+local P=table.concat(n," ")
+if P~=aL then
+aL=P
+a1={}
+end
+a0,am,aq=v,N,J.uptime()
+return v
+end
+function ag(aa,P)
+local n
+for am,v in ipairs(aa)do
+if am==1 then
+n=rawget(_G,v)or package.loaded[v]
+if n==nil and(P or 0)<3 then
+local aa=ba()[v]
+if aa then n=ag(aa,(P or 0)+1)end
+end
+if n==nil and g.exists("/lib/"..v..".lua")then
+local P,aa=pcall(require,v)
+n=P and aa or nil
+end
+else
+if type(n)~="table"then return nil end
+local P,aa=pcall(function()return n[v]end)
+n=P and aa or nil
+end
+if n==nil then return nil end
+end
+return n
+end
+local function P(am,v,aa)
+pcall(function()
+for n in pairs(am)do
+if type(n)=="string"and not aa[n]then
+aa[n]=true
+v[#v+1]=n
+end
+end
+end)
+end
+local a2,am,aq=nil,-1,-2
+local be={}
+local function aM()
+if a2 and(am==N or J.uptime()-aq<1)then
+return a2
+end
+local n,v={},{}
+for aa,aL in ipairs(e)do
+for aa in aL:gmatch("[%a_][%w_]*")do
+if not v[aa]then v[aa]=true n[#n+1]=aa end
+end
+end
+for aa in pairs(aP)do if not v[aa]then v[aa]=true n[#n+1]=aa end end
+for aa in pairs(as)do if not v[aa]then v[aa]=true n[#n+1]=aa end end
+P(_G,n,v)
+P(package.loaded,n,v)
+table.sort(n,function(v,aa)return v:lower()<aa:lower()end)
+a2,am,aq=n,N,J.uptime()
+return n
+end
+function aD(n)
+local v,aa={},n
+local am=n:match("^(.*)[%.:][%w_]*$")
+if am then
+aa=n:match("[%.:]([%w_]*)$")or""
+for n in am:gmatch("[^%.:]+")do v[#v+1]=n end
+end
+return v,aa
+end
+local function aL(v)
+if#v==0 then return aM()end
+local am=table.concat(v,".")
+local aq=v[1]=="component"
+local n=be[am]
+if n~=nil and J.uptime()-n.at<(aq and 1 or 3)then
+return n.list or nil
+end
+local as=ag(v)
+local n,aa={},{}
+if type(as)=="table"then
+P(as,n,aa)
+if aq and#v==1 then
+pcall(function()
+for v,v in ar.list()do
+if not aa[v]then aa[v]=true n[#n+1]=v end
+end
+end)
+end
+table.sort(n,function(v,P)return v:lower()<P:lower()end)
+else
+n=false
+end
+be[am]={list=n,at=J.uptime()}
+return n or nil
+end
+local function aO(aa,am)
+local n,v=1,#aa+1
+while n<v do
+local P=math.floor((n+v)/2)
+if aa[P]:lower()<am then n=P+1 else v=P end
+end
+return n
+end
+local function bp(n)
+local aa,P=aD(n)
+local v=aL(aa)
+if not v then return nil end
+local aa=P:lower()
+local n={}
+for aq=aO(v,aa),#v do
+local am=v[aq]
+if am:lower():sub(1,#aa)~=aa then break end
+if am~=P then n[#n+1]=am end
+if#n>300 then break end
+end
+table.sort(n,function(v,aa)
+if#v~=#aa then return#v<#aa end
+return v<aa
+end)
+return n,P
+end
+function aJ()
+local aa=F
+F=nil
+repeat
+if k or o then break end
+if d<=a.len(p())then break end
+local v=aB()
+if not v then break end
+local n,P=aD(v)
+if#n==0 and a.len(P)<2 then break end
+local n=bp(v)
+if not n or#n==0 then break end
+local v=n[1]
+if a.len(v)<=a.len(P)then break end
+F={
+word=v,
+text=a.sub(v,a.len(P)+1),
+more=#n-1,
+}
+until true
+if aa or F then ad(b)end
+end
+local function bq(n,P)
+if n>0 then
+local v=p()
+u(b,1,{a.sub(v,1,d-n-1)..a.sub(v,d)})
+l(d-n,b)
+end
+Z(P)
+w()
+end
+local br={}
+for n,n in ipairs({"lshift","rshift","lcontrol","rcontrol","lmenu","rmenu"})do
+if h[n]then br[h[n]]=true end
+end
+local aq={}
+local function a3(aa,am,P)
+local as=table.concat(am,".").."."..P
+if aq[as]~=nil then return aq[as]or nil end
+local n
+pcall(function()
+local aM=am[1]=="component"and#am==1
+if type(aa)=="table"and type(rawget(aa,"address"))=="string"then
+n=ar.doc(aa.address,P)
+end
+if not n and aM then
+local v=ar.list(P,true)()
+if v then n="устройство "..P.." -- адрес "..v end
+end
+if n then return end
+local v
+if#am==0 then
+v=rawget(_G,P)
+if v==nil then v=package.loaded[P]end
+elseif type(aa)=="table"then
+if aM then v=rawget(aa,P)else v=aa[P]end
+end
+local P=type(v)
+if P=="function"then
+n="функция"
+elseif P=="table"then
+local aa=0
+for am in pairs(v)do aa=aa+1 end
+n="таблица, полей "..aa
+elseif P=="string"then
+n="строка "..string.format("%q",v)
+elseif P=="number"or P=="boolean"then
+n=(P=="number"and"число "or"")..tostring(v)
+end
+end)
+aq[as]=n or false
+return n
+end
+function aC(v,aq,aa,am)
+local n=nil
+for P in aq:gmatch("%S+")do
+while a.wlen(P)>aa do
+if n then v[#v+1]={n,am}n=nil end
+v[#v+1]={_(P,aa),am}
+P=aE(P,aa)
+end
+if n and a.wlen(n)+1+a.wlen(P)<=aa then
+n=n.." "..P
+else
+if n then v[#v+1]={n,am}end
+n=P
+end
+end
+if n then v[#v+1]={n,am}end
+end
+function af(n,v)
+n=_(n,v)
+return n..(" "):rep(v-a.wlen(n))
+end
+local am={}
+local function bs(aa)
+if am[aa]~=nil then return am[aa]or nil end
+local ar,v=aa:match("^function%((.-)%)(.*)$")
+local n=false
+if ar then
+local P=(v:match("^(.-)%s*%-%-")or v):gsub("%s+$","")
+n={params={},ret=P}
+local v,P,aq=0,"",false
+local function as()
+local _=P:gsub("^%s+",""):gsub("%s+$","")
+if _~=""then
+n.params[#n.params+1]={
+text=_,name=_:match("^[^:]+"),
+optional=aq or _:sub(1,3)=="...",
+}
+end
+P,aq="",false
+end
+for _ in ar:gmatch(".")do
+if _=="["then v=v+1
+elseif _=="]"then v=v-1
+elseif _==","then as()
+else
+if P:find("^%s*$")and _:find("%S")then aq=v>0 end
+P=P.._
+end
+end
+as()
+end
+am[aa]=n
+return n or nil
+end
+local function as(P)
+local n={}
+for v,v in ipairs(a6(P))do
+if v[2]==c.C_STR then n[#n+1]=("0"):rep(#v[1])
+elseif v[2]==c.C_CMT then n[#n+1]=(" "):rep(#v[1])
+else n[#n+1]=v[1]end
+end
+return table.concat(n)
+end
+local function aE(P,am)
+local v=P:sub(1,am-1):match("([%a_][%w_%.]*)%s*$")
+if not v or v:sub(-1)=="."then return nil end
+local n={}
+for _ in v:gmatch("[^%.]+")do n[#n+1]=_ end
+if#n<2 then return nil end
+local aM=table.remove(n)
+local v=ag(n)
+if type(v)~="table"then return nil end
+local _=a3(v,n,aM)
+local bf=_ and bs(_)
+if not bf then return nil end
+local _,v,aq,ar={},0,am+1,nil
+for aa=am+1,#P do
+local n=P:sub(aa,aa)
+if n=="("or n=="["or n=="{"then
+v=v+1
+elseif n==")"or n=="]"or n=="}"then
+if v==0 then ar=aa break end
+v=v-1
+elseif n==","and v==0 then
+_[#_+1]={aq,aa-1}
+aq=aa+1
+end
+end
+_[#_+1]={aq,(ar or#P+1)-1}
+return{name=aM,sig=bf,args=_,close=ar,code=P}
+end
+local function am(v,P)
+local n=v.args[P]
+return n and v.code:sub(n[1],n[2]):find("%S")~=nil
+end
+local function aq(v)
+local n={}
+for _,P in ipairs(v.sig.params)do
+if not P.optional and not am(v,_)then n[#n+1]=P.name end
+end
+return n
+end
+aU=function(n)
+local v=e[n]
+if not K or not v or not v:find("(",1,true)then return nil end
+local P=a1[v]
+if P~=nil then return P or nil end
+local _=as(n)
+local n
+for aa in _:gmatch("()%(")do
+local P=aE(_,aa)
+if P and P.close then
+local _=aq(P)
+if#_>0 then
+n=n or{}
+n[#n+1]=P.name..": "..table.concat(_,", ")
+end
+end
+end
+a1[v]=n or false
+return n
+end
+local function ar()
+if not K then return nil end
+local _=as(b)
+local aa=#a.sub(p(),1,d-1)
+local v=0
+for P=aa,1,-1 do
+local n=_:sub(P,P)
+if n==")"or n=="]"or n=="}"then
+v=v+1
+elseif n=="("or n=="["or n=="{"then
+if v>0 then
+v=v-1
+elseif n=="("then
+local n=aE(_,P)
+if n then return n,aa+1 end
+end
+end
+end
+end
+function a_()
+aG=nil
+local v,n=ar()
+if not v then return end
+local ar=#v.args
+for P,_ in ipairs(v.args)do
+if n<=_[2]+1 then ar=P break end
+end
+local n={{v.name.."(",c.BAR_NAME}}
+for _,P in ipairs(v.sig.params)do
+if _>1 then n[#n+1]={", ",c.BAR_FG}end
+local aa=c.BAR_FG
+if _==ar then aa=c.BAR_MARK
+elseif not P.optional and not am(v,_)then aa=c.ERR end
+n[#n+1]={P.optional and("["..P.text.."]")or P.text,aa}
+end
+n[#n+1]={")"..v.sig.ret,c.BAR_NAME}
+local P=aq(v)
+if#P>0 then
+n[#n+1]={"   не хватает: "..table.concat(P,", "),c.ERR}
+end
+aG=n
+end
+function bc(aq)
+local P=aL(aq)
+if not P or#P==0 then return false end
+local bf=table.concat(aq,".")
+local ar=#aq>0 and ag(aq)or nil
+local n,_=1,1
+F=nil
+local function aL()
+ak=nil
+S={}
+f=nil
+i=true
+end
+while true do
+local v=aB()or""
+local aa,aM=aD(v)
+if v==""then aa,aM={},""end
+if table.concat(aa,".")~=bf then return aL()end
+local aa=aM:lower()
+local v={}
+for am=aO(P,aa),#P do
+local ag=P[am]
+if ag:lower():sub(1,#aa)~=aa then break end
+v[#v+1]=ag
+end
+if#v==0 then return aL()end
+if n>#v then n=#v end
+local P=math.min(10,#v,x-1)
+if n<_ then _=n end
+if n>_+P-1 then _=n-P+1 end
+local ag=0
+for aa=1,#v do ag=math.max(ag,a.wlen(v[aa]))end
+ag=math.min(ag+3,t-4)
+local aa=V+aN(p(),d-a.len(aM))-z
+aa=math.max(1,math.min(aa,t-ag))
+local aO=b-E+P<=x
+local aN=aO and(b-E+1)or math.max(1,b-E-P)
+local am=a3(ar,aq,v[n])
+local a3,aq,ar={},nil,nil
+if am then
+local as=t-(aa+ag)
+if as>=24 then
+aq,ar=aa+ag,math.min(52,as)
+elseif aa-1>=24 then
+ar=math.min(52,aa-1)
+aq=aa-ar
+end
+if aq then
+local aE,as=am:match("^(.-)%s*%-%-%s*(.*)$")
+aC(a3,aE or am,ar-2,c.BAR_POS)
+if as and as~=""then aC(a3,as,ar-2,c.POP_FG)end
+end
+end
+local aE=math.min(#a3,math.max(P,6),x-1)
+local as=aO and aN or(aN+P-aE)
+if aO and as+aE-1>x then as=x-aE+1 end
+if as<1 then as=1 end
+for aO,aO in ipairs(S)do
+for bx=aO.y1,aO.y2 do ad(bx+E)end
+end
+S={{x1=aa,y1=aN,x2=aa+ag-1,y2=aN+P-1}}
+if aE>0 then S[2]={x1=aq,y1=as,x2=aq+ar-1,y2=as+aE-1}end
+for aO,aO in ipairs(S)do
+for bx=aO.y1,aO.y2 do ad(bx+E)end
+end
+ak=function()
+for aO=0,P-1 do
+local bx=(aO==0 and _>1)and"^"or(aO==P-1 and _+P-1<#v)and"v"or" "
+y:set(aa,aN+aO," "..af(v[_+aO],ag-2)..bx,c.POP_FG,
+(_+aO==n)and c.POP_SEL or c.POP_BG)
+end
+for aa=1,aE do
+local ag=a3[aa]
+y:set(aq,as+aa-1," "..af(ag[1],ar-1),ag[2],c.BAR_BG)
+end
+end
+f=string.format("%s%s: %d из %d   Enter - вставить",bf,bf~=""and"."or"",
+n,#v)
+if am and not aq then f=am end
+M()
+local ag=table.pack(at.pull())
+local ar,as,aq,aa=ag[1],ag[2],ag[3],ag[4]
+if ar=="key_down"and as==s.keyboard()then
+if aa==h.up then
+n=n>1 and n-1 or#v
+elseif aa==h.down then
+n=n<#v and n+1 or 1
+elseif aa==h.pageUp then
+n=math.max(1,n-P)
+elseif aa==h.pageDown then
+n=math.min(#v,n+P)
+elseif aa==h.enter or aa==h.numpadenter or aa==h.tab then
+aL()
+bq(a.len(aM),v[n])
+local v=am and am:find("^function%(")and bs(am)
+if v and a.sub(p(),d,d)~="("then
+Z("()")
+if#v.params>0 then l(d-1,b)end
+w()
+end
+return true
+elseif aa==h.back and aM~=""then
+local v=p()
+u(b,1,{a.sub(v,1,d-2)..a.sub(v,d)},"erase")
+l(d-1,b)
+n,_=1,1
+elseif aq and aq>32 and not H.isControl(aq)and a.char(aq):match("[%w_]")
+and not H.isControlDown(s.keyboard())then
+Z(a.char(aq))
+n,_=1,1
+elseif not br[aa]then
+aL()
+aK=ag
+return true
+end
+elseif ar~="key_up"and ar~="interrupted"then
+aL()
+aK=ag
+return true
+end
+end
+end
+function bb()
+local v=aB()
+if not v then return false end
+local n,P=bp(v)
+if not n or#n==0 then
+f="нечем дополнить"
+return true
+end
+if#n==1 then
+bq(a.len(P),n[1])
+else
+bc((aD(v)))
+end
+return true
+end
+local function aa()
+if not K then return false end
+local n,P=1,d-1
+for v,v in ipairs(a6(b))do
+local _=a.len(v[1])
+if P>=n and P<n+_ then return v[2]~=c.C_CMT and v[2]~=c.C_STR end
+n=n+_
+end
+return true
+end
+function bo()
+local n=aB()
+if not n or n:sub(-1)~="."or n:find("..",1,true)or not aa()then return end
+bc((aD(n)))
+end
+function bd()
+a0,a2=nil,nil
+be,a1={},{}
+end
+end
+local function aD(_)
+local v,n,aa=O()
+if not v then
+if _ then
+local n=p()
+local P=n:match("^  ")and 2 or(n:match("^ ")and 1 or 0)
+if P>0 then
+u(b,1,{a.sub(n,P+1)})
+l(math.max(1,d-P),b)
+end
+else
+Z("  ")
+end
+return
+end
+local n={}
+for ag=v,aa do
+local P=e[ag]
+if _ then
+local _=P:match("^  ")and 2 or(P:match("^ ")and 1 or 0)
+n[#n+1]=a.sub(P,_+1)
+else
+n[#n+1]="  "..P
+end
+end
+local P=o
+u(v,aa-v+1,n)
+o=P
+i=true
+end
+local function ag()
+if k then return true end
+local v=not g.exists(j)
+if not v and W and g.lastModified(j)~=W then
+if not a9(g.name(j).." изменён на диске. Записать поверх? [Y/n, C - отмена]")then
+f=nil
+return false
+end
+end
+local n
+if not v then
+n=j.."~"
+for P=1,math.huge do
+if not g.exists(n)then break end
+n=j.."~"..P
+end
+g.copy(j,n)
+end
+if not g.exists(ai)then g.makeDirectory(ai)end
+local P,_=io.open(j,"w")
+if not P then
+f=tostring(_)
+return false
+end
+local _=0
+for am,aa in ipairs(e)do
+P:write(am==1 and aa or("\n"..aa))
+_=_+a.len(aa)
+end
+P:write("\n")
+P:close()
+w()
+ao=aX()
+L=false
+W=g.lastModified(j)
+f=string.format(v and[["%s" [новый] %dL,%dC записано]]or[["%s" %dL,%dC записано]],
+g.name(j),#e,_)
+if not v then g.remove(n)end
+return true
+end
+local am,aq,ar,aE,v
+do
+function am()
+I[T]={
+filename=j,parent=ai,readonly=k,lua=K,
+buffer=e,cx=d,cy=b,scrollX=z,scrollY=E,
+modified=L,undoStack=R,redoStack=ay,
+savedId=ao,stamp=W,bps=B,folds=C,diag=D,
+syntaxErr=ac,runErr=A,
+}
+end
+local function _()
+aR,ab={},1
+o,F,m,aw,aG,ae=nil,nil,nil,nil,nil,nil
+ax,a5=nil,-1
+N=N+1
+bd()
+aH=nil
+i=true
+f=nil
+aj=J.uptime()+0.1
+end
+local function aa(n)
+local m=I[n]
+T=n
+j,ai,k,K=m.filename,m.parent,m.readonly,m.lua
+e,d,b,z,E=m.buffer,m.cx,m.cy,m.scrollX,m.scrollY
+L,R,ay,ao,W=m.modified,m.undoStack,m.redoStack,m.savedId,m.stamp
+B,C,D,ac,A=m.bps,m.folds,m.diag,m.syntaxErr,m.runErr
+_()
+end
+local function ab(ae)
+local m,P={},0
+local n=io.open(ae)
+if n then
+for ae in n:lines()do
+m[#m+1]=ae
+P=P+a.len(ae)
+end
+n:close()
+end
+if#m==0 then m[1]=""end
+return m,P,n~=nil
+end
+function v()
+if not W or not g.exists(j)or g.lastModified(j)==W then return end
+local m=g.lastModified(j)
+if L and not a9(g.name(j).." изменён на диске. Перечитать, потеряв правки? [Y/n]")then
+W=m
+f=nil
+return
+end
+local n=ab(j)
+u(1,#e,n)
+w()
+l(d,b)
+ao,L,W=aX(),false,m
+i=true
+f="перечитан с диска"
+end
+function aq(m,ae)
+for n,P in ipairs(I)do
+if(n==T and j or P.filename)==m then
+ar(n)
+return true
+end
+end
+if g.isDirectory(m)then
+f="это каталог: "..m
+return false
+end
+local n=g.get(m)
+local P=ae or n==nil or n.isReadOnly()
+if P and not g.exists(m)then
+f="нет файла, а записать некуда: "..m
+return false
+end
+if#I>0 then am()end
+local ae,as,n=ab(m)
+T=#I+1
+j,ai,k,K=m,g.path(m),P,bi(m)
+e,d,b,z,E=ae,1,1,0,0
+L,R,ay,ao=false,{},{},0
+W=n and g.lastModified(m)or nil
+B,C,D,ac,A={},{},{},nil,nil
+_()
+am()
+if n then
+f=string.format(k and[["%s" [только чтение] %dL,%dC]]or[["%s" %dL,%dC]],
+g.name(m),#e,as)
+else
+f=string.format([==["%s" [новый файл]]==],g.name(m))
+end
+return true
+end
+function ar(m)
+if m==T or not I[m]then return end
+am()
+aa(m)
+v()
+end
+function aE()
+if L and not k then
+local m=a9(g.name(j).." изменён. Сохранить перед закрытием? [Y/n, C - остаться]")
+if m==nil then
+f=nil
+return
+end
+if m and not ag()then return end
+end
+table.remove(I,T)
+if#I==0 then
+aS=false
+return
+end
+aa(math.min(T,#I))
+v()
+end
+end
+local P,ao
+do
+local function W(m)return _ENV[m]~=nil end
+function P(m)
+if not K then return nil end
+if a5~=N or not ax or(m and ax.name~=m)then
+local n=table.concat(e,"\n")
+ax,a5=nil,N
+if J.freeMemory()>#n*3+65536 then
+local N,E=pcall(ah.analyze,n,{known=W,name=m})
+if N then
+ax=E
+E.name=m
+end
+end
+end
+return ax
+end
+function ao()
+aj=nil
+D,ac={},nil
+if K then
+local m,n=load(table.concat(e,"\n"),"="..g.name(j),"t",{})
+if not m then
+n=tostring(n)
+local m,E=n:match(":(%d+): (.*)$")
+m=math.min(tonumber(m)or#e,#e)
+ac={l=m,msg=E or n}
+D[m]={err="синтаксис: "..ac.msg}
+local n=tonumber(ac.msg:match("at line (%d+)"))
+if n and not D[n]then D[n]={err="не закрыто, см. строку "..m}end
+else
+local n=P()
+for m,m in ipairs(n and n.diags or{})do
+local n=D[m.l]or{marks={}}
+D[m.l]=n
+n.warn=n.warn and(n.warn.."; "..m.msg)or m.msg
+n.marks[#n.marks+1]={m.c,m.len}
+end
+end
+end
+i=true
+end
+end
+local m,n=1,1
+local function as()
+y:close()
+r=Q.gpu()
+aQ,an=r.getResolution()
+if U>0 then U=math.max(6,math.floor(an/3))end
+y=bg.surface(r,{h=an-U})
+t,aF=y.w,y.h
+x=aF-1
+S={}
+aH=nil
+i=true
+end
+local function aF(E)
+if E==(U>0)then return end
+U=E and 1 or 0
+as()
+if E then
+if r.setActiveBuffer then r.setActiveBuffer(0)end
+r.setBackground(0x000000)
+r.setForeground(0xFFFFFF)
+r.fill(1,an-U+1,aQ,U," ")
+m,n=1,1
+end
+end
+local function N(W)
+aF(true)
+M()
+if r.setActiveBuffer then r.setActiveBuffer(0)end
+local E=Q.window
+local _,aa,ab,ae,ai,aw=Q.getViewport()
+local ax=E.fullscreen
+E.fullscreen=false
+Q.setViewport(aQ,U,0,an-U,m,n)
+r.setBackground(0x000000)
+r.setForeground(0xFFFFFF)
+s.setCursorBlink(true)
+local aG,aH=xpcall(W,debug.traceback)
+if not aG then io.stderr:write(tostring(aH),"\n")end
+s.setCursorBlink(false)
+m,n=Q.getCursor()
+Q.setViewport(_,aa,ab,ae,ai,aw)
+E.fullscreen=ax
+as()
+bd()
+v()
+end
+local aG,aH,aL
+do
+local function v(E)
+local m=io.stderr
+while type(rawget(m,"fd"))=="table"and rawget(m,"_closed")~=nil do
+m=rawget(m,"fd")
+end
+local W,_,n=rawget(m,"write"),m.write,{}
+rawset(m,"write",function(aa,...)
+for ab=1,select("#",...)do n[#n+1]=tostring((select(ab,...)))end
+return _(aa,...)
+end)
+local _,aa=pcall(E)
+rawset(m,"write",W)
+if not _ then io.stderr:write(tostring(aa),"\n")end
+return table.concat(n)
+end
+local function aM(E)
+local m=""
+N(function()
+if Q.getCursor()>1 then io.write("\n")end
+io.write("\27[33m> "..g.name(j).."\27[37m\n")
+m=v(function()
+local v=require("sh")
+local W,n=v.execute(_ENV,'"'..E..'"')
+if not W and n then io.stderr:write(tostring(n),"\n")end
+end)
+end)
+return m
+end
+local function aN(m,n)
+A=nil
+local E=n:gsub("%p","%%%0")
+local v=m:sub(1,(m:find("stack traceback:",1,true)or#m+1)-1)
+local n=v:match("([^\n]+)\n*$")or""
+local v=n:match(E..":(%d+):")
+if not v then
+v=m:match(E..":(%d+):")
+end
+if not v then return end
+n=n:gsub("^"..E..":%d+: ",""):gsub(":$","")
+A={l=math.min(tonumber(v),#e),msg="ошибка: "..n}
+X()
+l(1,A.l)
+i=true
+return A
+end
+function aG()
+if L and not k and not ag()then return end
+f="работает "..g.name(j)
+local m=aM(j)
+f=not aN(m,j)and"вывод внизу, ^O скрыть панель"or nil
+end
+function aH()
+if L and not k then ag()end
+local v="оболочка внизу, exit - обратно в редактор"
+f=v
+N(function()
+local n=require("sh")
+local m={hint=n.hintHandler}
+while true do
+if Q.getCursor()>1 then io.write("\n")end
+io.write(n.expand(os.getenv("PS1")or"$ "))
+Q.window.cursor=m
+local m=io.stdin:readLine(false)
+Q.window.cursor=nil
+if m==nil then return end
+if m then
+m=a4.trim(m)
+if m=="exit"then return end
+if m~=""then
+local N,E=n.execute(_ENV,m)
+if not N and E then io.stderr:write(tostring(E),"\n")end
+end
+end
+end
+end)
+if f==v then f=nil end
+end
+local E=nil
+local function aO()
+local m=3
+while debug.getinfo(m,"l")do m=m+1 end
+return m
+end
+local function aR(m,n)
+local N=type(m)
+if N=="string"then
+local v=string.format("%q",m):gsub("\\\n","\\n")
+return v
+elseif N=="table"then
+if n then return"{..}"end
+local n,v={},0
+pcall(function()
+for Q,W in pairs(m)do
+v=v+1
+if#n<5 then
+n[#n+1]=(type(Q)=="number"and""or(tostring(Q).."="))..aR(W,true)
+end
+end
+end)
+return"{"..table.concat(n,", ")..(v>#n and", .."or"").."}"..
+(v>0 and("  #"..v)or"")
+elseif N=="function"then
+local N,n=pcall(debug.getinfo,m,"S")
+local v=N and n and n.linedefined or 0
+return"функция"..(v>0 and(" стр "..v)or"")
+end
+return tostring(m)
+end
+local function ae(ai,m)
+local v={}
+local function ab(Q,n,N,W)
+v[#v+1]={depth=Q,key=n,v=N,path=W}
+if type(N)~="table"or not m[W]or Q>6 or#v>400 then return end
+local m={}
+pcall(function()for n in pairs(N)do m[#m+1]=n end end)
+table.sort(m,function(n,_)
+local aa,aw=type(n)=="number",type(_)=="number"
+if aa~=aw then return aa end
+if aa then return n<_ end
+return tostring(n)<tostring(_)
+end)
+for _=1,math.min(#m,200)do
+local n=m[_]
+local m,_=pcall(function()return N[n]end)
+ab(Q+1,type(n)=="string"and n or("["..tostring(n).."]"),m and _ or nil,
+W.."\0"..tostring(n))
+end
+end
+for m,m in ipairs(ai)do ab(0,m[1],m[2],m[1])end
+return v
+end
+local function aX(n)
+aV=n.line
+X()
+l(1,n.line)
+local aw,v,aa,Q,W={},1,1,false,nil
+while not W do
+local _=ae(n.vars,aw)
+if v>#_ then v=math.max(1,#_)end
+local ae=math.max(26,math.min(60,math.floor(t*0.45)))
+local a0=t-ae+1
+local m={}
+aC(m,n.title,ae-2,c.BAR_MARK)
+if n.err then aC(m,n.err,ae-2,c.ERR)end
+if n.stack and n.stack~=""then aC(m,"стек: "..n.stack,ae-2,c.BAR_FG)end
+m[#m+1]={#_>0 and(Q and"переменные (Tab - к коду)"or"переменные (Tab - выбрать)")
+or"local здесь не видно",c.BAR_POS}
+local N=math.max(1,x-#m)
+if v<aa then aa=v end
+if v>aa+N-1 then aa=v-N+1 end
+S={{x1=a0,y1=1,x2=t,y2=x}}
+ak=function()
+for ab=1,x do
+local ax,ai,aC="",c.POP_FG,c.POP_BG
+if m[ab]then
+ax,ai,aC=m[ab][1],m[ab][2],c.BAR_BG
+else
+local N=_[aa+ab-#m-1]
+if N then
+local a1=type(N.v)=="table"and(aw[N.path]and"- "or"+ ")or"  "
+ax=("  "):rep(N.depth)..a1..N.key.." = "..aR(N.v)
+if Q and aa+ab-#m-1==v then aC=c.POP_SEL end
+if type(N.v)=="string"then ai=c.C_STR
+elseif type(N.v)=="number"then ai=c.C_NUM
+elseif N.v==nil or type(N.v)=="boolean"then ai=c.C_BLT end
+end
+end
+y:set(a0,ab," "..af(ax,ae-1),ai,aC)
+end
+end
+f=n.final and"F5 или Enter - закрыть"or
 "F5 дальше  F10 шаг  F11 внутрь  S-F11 наружу  F4 стоп  F9 точка"..
 "  (или C N S O Q)"
-fullRedraw=true
-redraw()
-local ev=table.pack(event.pull())
-local e,addr,char,code=ev[1],ev[2],ev[3],ev[4]
-if e=="key_down"and addr==term.keyboard()then
-if pressed("stepGo",code)or(info.final and(code==keys.enter or code==keys.back))then
-answer="run"
-elseif not info.final and pressed("stepOver",code)then answer="over"
-elseif not info.final and pressed("stepOut",code)then answer="out"
-elseif not info.final and pressed("stepInto",code)then answer="into"
-elseif not info.final and pressed("stepStop",code)then answer="stop"
-elseif pressed("breakpoint",code)then bps[cy]=not bps[cy]or nil
-elseif code==keys.tab then focus=not focus and#list>0
-elseif focus and code==keys.up then sel=math.max(1,sel-1)
-elseif focus and code==keys.down then sel=math.min(#list,sel+1)
-elseif focus and(code==keys.enter or code==keys.right or code==keys.left)then
-local r=list[sel]
-if r and type(r.v)=="table"then open[r.path]=code~=keys.left or nil end
-elseif code==keys.up or code==keys.down then
-move(cx,stepLine(cy,code==keys.up and-1 or 1)or cy)
-elseif code==keys.pageUp or code==keys.pageDown then
-move(cx,stepLines(cy,(code==keys.pageUp and-1 or 1)*(rows-1)))
+i=true
+M()
+local aa=table.pack(at.pull())
+local N,ab,m,m=aa[1],aa[2],aa[3],aa[4]
+if N=="key_down"and ab==s.keyboard()then
+if av("stepGo",m)or(n.final and(m==h.enter or m==h.back))then
+W="run"
+elseif not n.final and av("stepOver",m)then W="over"
+elseif not n.final and av("stepOut",m)then W="out"
+elseif not n.final and av("stepInto",m)then W="into"
+elseif not n.final and av("stepStop",m)then W="stop"
+elseif av("breakpoint",m)then B[b]=not B[b]or nil
+elseif m==h.tab then Q=not Q and#_>0
+elseif Q and m==h.up then v=math.max(1,v-1)
+elseif Q and m==h.down then v=math.min(#_,v+1)
+elseif Q and(m==h.enter or m==h.right or m==h.left)then
+local n=_[v]
+if n and type(n.v)=="table"then aw[n.path]=m~=h.left or nil end
+elseif m==h.up or m==h.down then
+G(d,Y(b,m==h.up and-1 or 1)or b)
+elseif m==h.pageUp or m==h.pageDown then
+G(d,az(b,(m==h.pageUp and-1 or 1)*(x-1)))
 end
-elseif e=="scroll"then
-move(cx,stepLines(cy,-(ev[5]or 0)*3))
-elseif dbg and e~="key_up"and e~="key_down"and e~="touch"and e~="drag"
-and e~="drop"and e~="clipboard"and e~="interrupted"then
-dbg.queue[#dbg.queue+1]=ev
-end
-end
-holes,popupDraw,dbgLine,status={},nil,nil,nil
-fullRedraw=true
-redraw()
-return answer
-end
-local function varsOf(l,f)
-local vars,names={},dbg.names[l]or{}
-if f then
-local vals=table.pack(pcall(f))
-for i,nm in ipairs(names)do vars[#vars+1]={nm,vals[1]and vals[i+1]or nil}end
-end
-return vars
-end
-local function hook(l,f)
-local d=dbg
-if not d then return end
-if d.stop then error("остановлено отладчиком",0)end
-d.lastL,d.lastF=l,f
-local depth
-local want=bps[l]~=nil
-if not want and d.mode~="run"then
-depth=depthNow()
-want=d.mode=="into"or(d.mode=="over"and depth<=d.depth)or(d.mode=="out"and depth<d.depth)
-end
-if not want then return end
-depth=depth or depthNow()
-local stack={}
-for lv=3,40 do
-local ok,inf=pcall(debug.getinfo,lv,"Sln")
-if not ok or not inf then break end
-if inf.source=="="..d.tmp and(inf.currentline or 0)>0 then
-stack[#stack+1]=(inf.name or"main")..":"..inf.currentline
+elseif N=="scroll"then
+G(d,az(b,-(aa[5]or 0)*3))
+elseif E and N~="key_up"and N~="key_down"and N~="touch"and N~="drag"
+and N~="drop"and N~="clipboard"and N~="interrupted"then
+E.queue[#E.queue+1]=aa
 end
 end
-local fg,bg=gpu.getForeground(),gpu.getBackground()
-local buf=gpu.getActiveBuffer and gpu.getActiveBuffer()
-local w,h=gpu.getResolution()
-if w~=SW or h~=SH then relayout()end
-if buf and buf~=0 then gpu.setActiveBuffer(0)end
-term.setCursorBlink(false)
-local answer=pauseView({line=l,vars=varsOf(l,f),stack=table.concat(stack," < "),
-title="пауза, строка "..l})
-term.setCursorBlink(true)
-if buf and buf~=0 then gpu.setActiveBuffer(buf)end
-gpu.setForeground(fg)
-gpu.setBackground(bg)
-local queue=d.queue
-d.queue={}
-for _,ev in ipairs(queue)do computer.pushSignal(table.unpack(ev,1,ev.n))end
-d.mode,d.depth=answer,depth
-if answer=="stop"then
-d.stop=true
+S,ak,aV,f={},nil,nil,nil
+i=true
+M()
+return W
+end
+local function W(v,n)
+local m,N={},E.names[v]or{}
+if n then
+local v=table.pack(pcall(n))
+for n,Q in ipairs(N)do m[#m+1]={Q,v[1]and v[n+1]or nil}end
+end
+return m
+end
+local function ab(v,_)
+local m=E
+if not m then return end
+if m.stop then error("остановлено отладчиком",0)end
+m.lastL,m.lastF=v,_
+local n
+local N=B[v]~=nil
+if not N and m.mode~="run"then
+n=aO()
+N=m.mode=="into"or(m.mode=="over"and n<=m.depth)or(m.mode=="out"and n<m.depth)
+end
+if not N then return end
+n=n or aO()
+local Q={}
+for aa=3,40 do
+local ae,N=pcall(debug.getinfo,aa,"Sln")
+if not ae or not N then break end
+if N.source=="="..m.tmp and(N.currentline or 0)>0 then
+Q[#Q+1]=(N.name or"main")..":"..N.currentline
+end
+end
+local ae,ai=r.getForeground(),r.getBackground()
+local N=r.getActiveBuffer and r.getActiveBuffer()
+local aa,av=r.getResolution()
+if aa~=aQ or av~=an then as()end
+if N and N~=0 then r.setActiveBuffer(0)end
+s.setCursorBlink(false)
+local aa=aX({line=v,vars=W(v,_),stack=table.concat(Q," < "),
+title="пауза, строка "..v})
+s.setCursorBlink(true)
+if N and N~=0 then r.setActiveBuffer(N)end
+r.setForeground(ae)
+r.setBackground(ai)
+local v=m.queue
+m.queue={}
+for r,r in ipairs(v)do J.pushSignal(table.unpack(r,1,r.n))end
+m.mode,m.depth=aa,n
+if aa=="stop"then
+m.stop=true
 error("остановлено отладчиком",0)
 end
 end
-function debugRun()
-if not lua then
-status="отладка - только для .lua"
+function aL()
+if not K then
+f="отладка - только для .lua"
 return
 end
-if modified and not readonly and not save()then return end
-runChecks()
-if syntaxErr then
-dropSelection()
-setCursor(1,syntaxErr.l)
+if L and not k and not ag()then return end
+ao()
+if ac then
+X()
+l(1,ac.l)
 return
 end
-local R=luascan.analyze(table.concat(buffer,"\n"),{hooks=true})
-local lines,names,hooked={},{},{}
-for i,line in ipairs(buffer)do lines[i]=line end
-for l,h in pairs(R.hooks)do
-local nm=luascan.names(h.at)
-local call="__dwdbg("..l..(#nm>0 and(",function()return "..table.concat(nm,",").." end")or"")..");"
-lines[l]=lines[l]:sub(1,h.c-1)..call..lines[l]:sub(h.c)
-names[l],hooked[l]=nm,true
+local N=ah.analyze(table.concat(e,"\n"),{hooks=true})
+local n,v,r={},{},{}
+for m,L in ipairs(e)do n[m]=L end
+for m,L in pairs(N.hooks)do
+local N=ah.names(L.at)
+local Q="__dwdbg("..m..(#N>0 and(",function()return "..table.concat(N,",").." end")or"")..");"
+n[m]=n[m]:sub(1,L.c-1)..Q..n[m]:sub(L.c)
+v[m],r[m]=N,true
 end
-local ok
-for _=1,60 do
-local fn,e=load(table.concat(lines,"\n"),"=x","t",{})
-if fn then ok=true break end
-local bad=tonumber(tostring(e):match(":(%d+):"))or 0
-while bad>0 and not hooked[bad]do bad=bad-1 end
-if bad==0 then break end
-lines[bad],hooked[bad],names[bad]=buffer[bad],nil,nil
+local L
+for m=1,60 do
+local m,N=load(table.concat(n,"\n"),"=x","t",{})
+if m then L=true break end
+local m=tonumber(tostring(N):match(":(%d+):"))or 0
+while m>0 and not r[m]do m=m-1 end
+if m==0 then break end
+n[m],r[m],v[m]=e[m],nil,nil
 end
-if not ok then
-status="не вышло подготовить файл к отладке"
+if not L then
+f="не вышло подготовить файл к отладке"
 return
 end
-local tmp="/tmp/dwdbg/"..fs.name(filename)
-fs.makeDirectory("/tmp/dwdbg")
-local f=io.open(tmp,"w")
-if not f then
-status="некуда положить копию для отладки"
+local r="/tmp/dwdbg/"..g.name(j)
+g.makeDirectory("/tmp/dwdbg")
+local m=io.open(r,"w")
+if not m then
+f="некуда положить копию для отладки"
 return
 end
-f:write(table.concat(lines,"\n"),"\n")
-f:close()
-dbg={mode=next(bps)and"run"or"into",depth=0,names=names,tmp=tmp,queue={}}
-_ENV.__dwdbg=hook
-status="отладка "..fs.name(filename)
-local out=runIn(tmp)
+m:write(table.concat(n,"\n"),"\n")
+m:close()
+E={mode=next(B)and"run"or"into",depth=0,names=v,tmp=r,queue={}}
+_ENV.__dwdbg=ab
+f="отладка "..g.name(j)
+local v=aM(r)
 _ENV.__dwdbg=nil
-local d=dbg
-dbg=nil
-fs.remove(tmp)
-if d.stop then
-status="отладка остановлена"
+local m=E
+E=nil
+g.remove(r)
+if m.stop then
+f="отладка остановлена"
 return
 end
-local err=report(out,tmp)
-if err then
-local vars={}
-if d.lastF then
-dbg=d
-vars=varsOf(d.lastL,d.lastF)
-dbg=nil
+local n=aN(v,r)
+if n then
+local r={}
+if m.lastF then
+E=m
+r=W(m.lastL,m.lastF)
+E=nil
 end
-pauseView({line=err.l,vars=vars,final=true,err=err.msg,
-title="упала на строке "..err.l..(d.lastL and d.lastL~=err.l and
-(", переменные строки "..d.lastL)or"")})
-status=err.msg
+aX({line=n.l,vars=r,final=true,err=n.msg,
+title="упала на строке "..n.l..(m.lastL and m.lastL~=n.l and
+(", переменные строки "..m.lastL)or"")})
+f=n.msg
 else
-status="отладка закончена"
+f="отладка закончена"
 end
 end
 end
-local chooseFrom,goBack,goDefinition,showUsages,renameVar,showOutline,nextProblem,openPrompt
+local Q,aw,ax,aC,aM,aN,ai,aO
 do
-local jumps={}
-local function pushJump()
-jumps[#jumps+1]={filename,cx,cy}
-if#jumps>50 then table.remove(jumps,1)end
+local W={}
+local function v()
+W[#W+1]={j,d,b}
+if#W>50 then table.remove(W,1)end
 end
-local function charCol(l,c)return unicode.len((buffer[l]or""):sub(1,c-1))+1 end
-local function cursorByte()return#unicode.sub(curLine(),1,cx-1)+1 end
-local function wordHere()
-local line,ws=curLine(),cursorByte()
-while ws>1 and line:sub(ws-1,ws-1):match("[%w_]")do ws=ws-1 end
-return line:match("^[%a_][%w_]*",ws),ws
+local function E(m,n)return a.len((e[m]or""):sub(1,n-1))+1 end
+local function ab()return#a.sub(p(),1,d-1)+1 end
+local function an()
+local n,m=p(),ab()
+while m>1 and n:sub(m-1,m-1):match("[%w_]")do m=m-1 end
+return n:match("^[%a_][%w_]*",m),m
 end
-local function jumpTo(l,c)
-dropSelection()
-setCursor(c and charCol(l,c)or 1,l)
-fullRedraw=true
+local function r(m,n)
+X()
+l(n and E(m,n)or 1,m)
+i=true
 end
-function chooseFrom(title,items,want)
-local filter,top,result,lastH,sel="",1,nil,nil,1
+function Q(av,aQ,N)
+local E,L,aR,as,m="",1,nil,nil,1
 while true do
-local shown={}
-local low=unicode.lower(filter)
-for i,it in ipairs(items)do
-if low==""or unicode.lower(it.text):find(low,1,true)then shown[#shown+1]=i end
+local n={}
+local _=a.lower(E)
+for aa,ac in ipairs(aQ)do
+if _==""or a.lower(ac.text):find(_,1,true)then n[#n+1]=aa end
 end
-if want then
-for k,i in ipairs(shown)do if i==want then sel=k end end
-want=nil
+if N then
+for _,aa in ipairs(n)do if aa==N then m=_ end end
+N=nil
 end
-if sel>#shown then sel=math.max(1,#shown)end
-local bw=math.min(W-2,76)
-local bh=math.max(3,math.min(rows-2,#shown+1))
-local bx,by,lh=math.floor((W-bw)/2)+1,2,bh-1
-if sel<top then top=sel end
-if sel>top+lh-1 then top=sel-lh+1 end
-holes={{x1=bx,y1=by,x2=bx+bw-1,y2=by+bh-1}}
-if bh~=lastH then fullRedraw=true end
-lastH=bh
-popupDraw=function()
-S:set(bx,by," "..pad(title..(filter~=""and("   фильтр: "..filter)or""),bw-1),
-P.BAR_MARK,P.BAR_BG)
-for r=1,lh do
-local idx=shown[top+r-1]
-local it=idx and items[idx]
-local hint=it and it.hint or""
-local body=it and pad(" "..it.text,bw-unicode.wlen(hint)-1)..hint.." "or""
-S:set(bx,by+r,pad(body,bw),it and it.colour or P.POP_FG,
-(idx and top+r-1==sel)and P.POP_SEL or P.POP_BG)
+if m>#n then m=math.max(1,#n)end
+local _=math.min(t-2,76)
+local N=math.max(3,math.min(x-2,#n+1))
+local ac,ae,aa=math.floor((t-_)/2)+1,2,N-1
+if m<L then L=m end
+if m>L+aa-1 then L=m-aa+1 end
+S={{x1=ac,y1=ae,x2=ac+_-1,y2=ae+N-1}}
+if N~=as then i=true end
+as=N
+ak=function()
+y:set(ac,ae," "..af(av..(E~=""and("   фильтр: "..E)or""),_-1),
+c.BAR_MARK,c.BAR_BG)
+for as=1,aa do
+local av=n[L+as-1]
+local N=av and aQ[av]
+local aQ=N and N.hint or""
+local aV=N and af(" "..N.text,_-a.wlen(aQ)-1)..aQ.." "or""
+y:set(ac,ae+as,af(aV,_),N and N.colour or c.POP_FG,
+(av and L+as-1==m)and c.POP_SEL or c.POP_BG)
 end
 end
-redraw()
-local e,addr,char,code=event.pull()
-if e=="key_down"and addr==term.keyboard()then
-if code==keys.up then sel=sel>1 and sel-1 or#shown
-elseif code==keys.down then sel=sel<#shown and sel+1 or 1
-elseif code==keys.pageUp then sel=math.max(1,sel-lh)
-elseif code==keys.pageDown then sel=math.min(#shown,sel+lh)
-elseif code==keys.enter or code==keys.numpadenter then
-result=shown[sel]
+M()
+local _,ac,N,c=at.pull()
+if _=="key_down"and ac==s.keyboard()then
+if c==h.up then m=m>1 and m-1 or#n
+elseif c==h.down then m=m<#n and m+1 or 1
+elseif c==h.pageUp then m=math.max(1,m-aa)
+elseif c==h.pageDown then m=math.min(#n,m+aa)
+elseif c==h.enter or c==h.numpadenter then
+aR=n[m]
 break
-elseif code==keys.back then
-if filter==""then break end
-filter,sel,top=unicode.sub(filter,1,-2),1,1
-elseif code==1 then
+elseif c==h.back then
+if E==""then break end
+E,m,L=a.sub(E,1,-2),1,1
+elseif c==1 then
 break
-elseif char and char>=32 and not keyboard.isControl(char)
-and not keyboard.isControlDown(term.keyboard())then
-filter,sel,top=filter..unicode.char(char),1,1
+elseif N and N>=32 and not H.isControl(N)
+and not H.isControlDown(s.keyboard())then
+E,m,L=E..a.char(N),1,1
 end
 end
 end
-holes,popupDraw={},nil
-fullRedraw=true
-return result
+S,ak={},nil
+i=true
+return aR
 end
-function goBack()
-local j=table.remove(jumps)
-if not j then
-status="назад некуда"
+function aw()
+local c=table.remove(W)
+if not c then
+f="назад некуда"
 return
 end
-if j[1]~=filename and not openDoc(j[1])then return end
-dropSelection()
-setCursor(j[2],j[3])
-fullRedraw=true
+if c[1]~=j and not aq(c[1])then return end
+X()
+l(c[2],c[3])
+i=true
 end
-local function openModule(mod,field)
-local path=package.searchpath(mod,package.path)
-if not path then
-status="модуль не найден: "..mod
+local function E(m,c)
+local n=package.searchpath(m,package.path)
+if not n then
+f="модуль не найден: "..m
 return
 end
-pushJump()
-if not openDoc(path)then return end
-if not field then return end
-local R=ensureScan()
-for _,f in ipairs(R and R.funcs or{})do
-if f.name==field or f.name=="local "..field or f.name:match("[%.:]"..field.."$")then
-return jumpTo(f.l)
+v()
+if not aq(n)then return end
+if not c then return end
+local L=P()
+for m,m in ipairs(L and L.funcs or{})do
+if m.name==c or m.name=="local "..c or m.name:match("[%.:]"..c.."$")then
+return r(m.l)
 end
 end
-for i,line in ipairs(buffer)do
-local at=line:find("[%.:]"..field.."%s*=")
-if at then return jumpTo(i,at+1)end
+for L,N in ipairs(e)do
+local m=N:find("[%.:]"..c.."%s*=")
+if m then return r(L,m+1)end
 end
-status=field.." в "..fs.name(path).." не нашёл"
+f=c.." в "..g.name(n).." не нашёл"
 end
-function goDefinition()
-local line,b=curLine(),cursorByte()
-for s0,mod,e0 in line:gmatch("()require%s*%(?%s*[\"']([^\"']+)[\"']%s*%)?()")do
-if b>=s0 and b<=e0 then return openModule(mod)end
+function ax()
+local N,L=p(),ab()
+for c,m,n in N:gmatch("()require%s*%(?%s*[\"']([^\"']+)[\"']%s*%)?()")do
+if L>=c and L<=n then return E(m)end
 end
-local word,ws=wordHere()
-local R=ensureScan(word)
-if not R then
-status="переход к определению - только в .lua"
+local c,S=an()
+local n=P(c)
+if not n then
+f="переход к определению - только в .lua"
 return
 end
-if not word then
-status="под курсором нет имени"
+if not c then
+f="под курсором нет имени"
 return
 end
-local base=line:sub(1,ws-1):match("([%a_][%w_%.]*)[%.:]$")
-if base then
-for _,f in ipairs(R.funcs)do
-if f.name==base.."."..word or f.name==base..":"..word then
-pushJump()
-return jumpTo(f.l)
+local m=N:sub(1,S-1):match("([%a_][%w_%.]*)[%.:]$")
+if m then
+for N,N in ipairs(n.funcs)do
+if N.name==m.."."..c or N.name==m..":"..c then
+v()
+return r(N.l)
 end
 end
-local a=aliases()[base]
-if a and#a==1 then return openModule(a[1],word)end
-if package.searchpath(base,package.path)and not base:find("%.")then return openModule(base,word)end
-for _,f in ipairs(R.funcs)do
-if f.name:match("[%.:]"..word.."$")then
-pushJump()
-return jumpTo(f.l)
+local N=ba()[m]
+if N and#N==1 then return E(N[1],c)end
+if package.searchpath(m,package.path)and not m:find("%.")then return E(m,c)end
+for N,N in ipairs(n.funcs)do
+if N.name:match("[%.:]"..c.."$")then
+v()
+return r(N.l)
 end
 end
-status="не нашёл, где задано "..base.."."..word
+f="не нашёл, где задано "..m.."."..c
 return
 end
-local ref=luascan.refAt(R,cy,b)
-if ref and ref.decl then
-pushJump()
-return jumpTo(ref.decl.l,ref.decl.c)
+local m=ah.refAt(n,b,L)
+if m and m.decl then
+v()
+return r(m.decl.l,m.decl.c)
 end
-local g=R.globals[word]
-if g then
-pushJump()
-return jumpTo(g.l,g.c)
+local m=n.globals[c]
+if m then
+v()
+return r(m.l,m.c)
 end
-if package.searchpath(word,package.path)then return openModule(word)end
-status="определение "..word.." не найдено"
+if package.searchpath(c,package.path)then return E(c)end
+f="определение "..c.." не найдено"
 end
-function showUsages()
-local R=ensureScan((wordHere()))
-local ref=R and luascan.refAt(R,cy,cursorByte())
-if not ref then
-status="под курсором нет переменной"
+function aC()
+local E=P((an()))
+local n=E and ah.refAt(E,b,ab())
+if not n then
+f="под курсором нет переменной"
 return
 end
-local items,sel={},1
-for _,o in ipairs(luascan.occurrences(R,ref))do
-items[#items+1]={text=string.format("%4d  %s",o.l,text.trim(buffer[o.l]or"")),l=o.l,c=o.c}
-if o.l==cy then sel=#items end
+local c,L={},1
+for m,m in ipairs(ah.occurrences(E,n))do
+c[#c+1]={text=string.format("%4d  %s",m.l,a4.trim(e[m.l]or"")),l=m.l,c=m.c}
+if m.l==b then L=#c end
 end
-local i=chooseFrom(ref.name..(ref.decl and""or" (глобальная)")..": мест "..#items,items,sel)
-if i then
-pushJump()
-jumpTo(items[i].l,items[i].c)
+local m=Q(n.name..(n.decl and""or" (глобальная)")..": мест "..#c,c,L)
+if m then
+v()
+r(c[m].l,c[m].c)
 end
 end
-function renameVar()
-if readonly then return end
-local R=ensureScan((wordHere()))
-local ref=R and luascan.refAt(R,cy,cursorByte())
-if not ref then
-status="под курсором нет переменной"
+function aM()
+if k then return end
+local E=P((an()))
+local n=E and ah.refAt(E,b,ab())
+if not n then
+f="под курсором нет переменной"
 return
 end
-local new=readLine("Новое имя для "..ref.name..": ",ref.name)
-if not new or new==ref.name then return end
-if not new:match("^[%a_][%w_]*$")or KEYWORD[new]then
-status="не годится в имена: "..new
+local c=aA("Новое имя для "..n.name..": ",n.name)
+if not c or c==n.name then return end
+if not c:match("^[%a_][%w_]*$")or aP[c]then
+f="не годится в имена: "..c
 return
 end
-local occ=luascan.occurrences(R,ref)
-local first,last=occ[1].l,occ[#occ].l
-local lines={}
-for i=first,last do lines[#lines+1]=buffer[i]end
-for k=#occ,1,-1 do
-local o=occ[k]
-local s0=lines[o.l-first+1]
-lines[o.l-first+1]=s0:sub(1,o.c-1)..new..s0:sub(o.c+o.len)
+local m=ah.occurrences(E,n)
+local n,N=m[1].l,m[#m].l
+local E={}
+for L=n,N do E[#E+1]=e[L]end
+for S=#m,1,-1 do
+local L=m[S]
+local S=E[L.l-n+1]
+E[L.l-n+1]=S:sub(1,L.c-1)..c..S:sub(L.c+L.len)
 end
-local x,y=cx,cy
-splice(first,last-first+1,lines)
-commit()
-setCursor(x,y)
-fullRedraw=true
-status="переименовано мест: "..#occ
+local c,L=d,b
+u(n,N-n+1,E)
+w()
+l(c,L)
+i=true
+f="переименовано мест: "..#m
 end
-function showOutline()
-local R=ensureScan()
-if not R or#R.funcs==0 then
-status="функций не нашёл"
+function aN()
+local n=P()
+if not n or#n.funcs==0 then
+f="функций не нашёл"
 return
 end
-local items,sel={},1
-for _,f in ipairs(R.funcs)do
-items[#items+1]={text=("  "):rep(f.depth)..f.name,hint=tostring(f.l),l=f.l}
-if f.l<=cy then sel=#items end
+local c,E={},1
+for m,m in ipairs(n.funcs)do
+c[#c+1]={text=("  "):rep(m.depth)..m.name,hint=tostring(m.l),l=m.l}
+if m.l<=b then E=#c end
 end
-local i=chooseFrom("Функции файла",items,sel)
-if i then
-pushJump()
-jumpTo(items[i].l)
+local m=Q("Функции файла",c,E)
+if m then
+v()
+r(c[m].l)
 end
 end
-function nextProblem(back)
-local lines,seen={},{}
-local function add(l)if not seen[l]then seen[l]=true lines[#lines+1]=l end end
-for l in pairs(diag)do add(l)end
-if runErr then add(runErr.l)end
-for i=1,#buffer do
-if buffer[i]:find("(",1,true)and lineProblem(i)then add(i)end
+function ai(n)
+local c,L={},{}
+local function m(E)if not L[E]then L[E]=true c[#c+1]=E end end
+for E in pairs(D)do m(E)end
+if A then m(A.l)end
+for A=1,#e do
+if e[A]:find("(",1,true)and aU(A)then m(A)end
 end
-if#lines==0 then
-status="замечаний нет"
+if#c==0 then
+f="замечаний нет"
 return
 end
-table.sort(lines)
-local target=back and lines[#lines]or lines[1]
-for k=1,#lines do
-local l=back and lines[#lines-k+1]or lines[k]
-if(back and l<cy)or(not back and l>cy)then target=l break end
+table.sort(c)
+local m=n and c[#c]or c[1]
+for E=1,#c do
+local A=n and c[#c-E+1]or c[E]
+if(n and A<b)or(not n and A>b)then m=A break end
 end
-local m=diag[target]and diag[target].marks and diag[target].marks[1]
-jumpTo(target,m and m[1])
+local c=D[m]and D[m].marks and D[m].marks[1]
+r(m,c and c[1])
 end
-local function completePath(buf)
-local dir,part=buf:match("^(.-)([^/]*)$")
-local base=dir:sub(1,1)=="/"and dir or fs.concat(fs.path(filename),dir)
-local hits={}
-local list=fs.list(base)
-if not list then return end
-for name in list do
-if name:sub(1,#part)==part then hits[#hits+1]=name end
+local function D(c)
+local n,m=c:match("^(.-)([^/]*)$")
+local A=n:sub(1,1)=="/"and n or g.concat(g.path(j),n)
+local c={}
+local r=g.list(A)
+if not r then return end
+for A in r do
+if A:sub(1,#m)==m then c[#c+1]=A end
 end
-if#hits==0 then return end
-local common=hits[1]
-for _,h in ipairs(hits)do
-while h:sub(1,#common)~=common do common=common:sub(1,-2)end
+if#c==0 then return end
+local m=c[1]
+for r,r in ipairs(c)do
+while r:sub(1,#m)~=m do m=m:sub(1,-2)end
 end
-return dir..common
+return n..m
 end
-function openPrompt()
-local path=readLine("Открыть (Tab - дописать, пусто - открытые): ",nil,completePath)
-if not path then return end
-if path==""then
-stash()
-local items={}
-for _,d in ipairs(docs)do
-items[#items+1]={text=fs.name(d.filename)..(d.modified and" *"or""),hint=d.parent}
+function aO()
+local c=aA("Открыть (Tab - дописать, пусто - открытые): ",nil,D)
+if not c then return end
+if c==""then
+am()
+local m={}
+for n,n in ipairs(I)do
+m[#m+1]={text=g.name(n.filename)..(n.modified and" *"or""),hint=n.parent}
 end
-local i=chooseFrom("Открытые файлы",items,docIndex)
-if i then switchDoc(i)end
+local n=Q("Открытые файлы",m,T)
+if n then ar(n)end
 return
 end
-if path:sub(1,1)~="/"then path=fs.concat(fs.path(filename),path)end
-pushJump()
-openDoc(fs.canonical(path))
+if c:sub(1,1)~="/"then c=g.concat(g.path(j),c)end
+v()
+aq(g.canonical(c))
 end
 end
-local toggleComment,duplicateLines,moveLines,toggleFold
+local E,L,r,N
 do
-local function lineRange()
-local l1,_,l2,c2=selection()
-if not l1 then return cy,cy end
-if c2==1 and l2>l1 then l2=l2-1 end
-return l1,l2
+local function v()
+local g,c,c,m=O()
+if not g then return b,b end
+if m==1 and c>g then c=c-1 end
+return g,c
 end
-function toggleComment()
-if readonly then return end
-local l1,l2=lineRange()
-local all,ind=true,math.huge
-for i=l1,l2 do
-local line=buffer[i]
-if line:find("%S")then
-if not line:match("^%s*%-%-")then all=false end
-ind=math.min(ind,#line:match("^%s*"))
+function E()
+if k then return end
+local n,A=v()
+local D,g=true,math.huge
+for m=n,A do
+local c=e[m]
+if c:find("%S")then
+if not c:match("^%s*%-%-")then D=false end
+g=math.min(g,#c:match("^%s*"))
 end
 end
-if ind==math.huge then return end
-local new={}
-for i=l1,l2 do
-local line=buffer[i]
-if not line:find("%S")then new[#new+1]=line
-elseif all then new[#new+1]=(line:gsub("^(%s*)%-%- ?","%1",1))
-else new[#new+1]=line:sub(1,ind).."-- "..line:sub(ind+1)end
+if g==math.huge then return end
+local c={}
+for S=n,A do
+local m=e[S]
+if not m:find("%S")then c[#c+1]=m
+elseif D then c[#c+1]=(m:gsub("^(%s*)%-%- ?","%1",1))
+else c[#c+1]=m:sub(1,g).."-- "..m:sub(g+1)end
 end
-local keep,x=anchor,cx
-splice(l1,l2-l1+1,new)
-commit()
-anchor=keep
-setCursor(math.max(1,x+(all and-3 or 3)),cy)
-fullRedraw=true
+local g,m=o,d
+u(n,A-n+1,c)
+w()
+o=g
+l(math.max(1,m+(D and-3 or 3)),b)
+i=true
 end
-function duplicateLines()
-if readonly then return end
-local l1,l2=lineRange()
-local new,n={},l2-l1+1
-for i=l1,l2 do new[#new+1]=buffer[i]end
-for i=l1,l2 do new[#new+1]=buffer[i]end
-local keep,x,y=anchor,cx,cy
-splice(l1,n,new)
-commit()
-if keep then anchor={keep[1],keep[2]+n}end
-setCursor(x,y+n)
-fullRedraw=true
+function L()
+if k then return end
+local g,m=v()
+local c,n={},m-g+1
+for A=g,m do c[#c+1]=e[A]end
+for A=g,m do c[#c+1]=e[A]end
+local m,A,D=o,d,b
+u(g,n,c)
+w()
+if m then o={m[1],m[2]+n}end
+l(A,D+n)
+i=true
 end
-function moveLines(dir)
-if readonly then return end
-local l1,l2=lineRange()
-if(dir<0 and l1==1)or(dir>0 and l2==#buffer)then return end
-local new={}
-if dir>0 then new[1]=buffer[l2+1]end
-for i=l1,l2 do new[#new+1]=buffer[i]end
-if dir<0 then new[#new+1]=buffer[l1-1]end
-local keep,x,y=anchor,cx,cy
-splice(math.min(l1,l1+dir),l2-l1+2,new)
-commit()
-if keep then anchor={keep[1],keep[2]+dir}end
-setCursor(x,y+dir)
-fullRedraw=true
+function r(c)
+if k then return end
+local g,n=v()
+if(c<0 and g==1)or(c>0 and n==#e)then return end
+local m={}
+if c>0 then m[1]=e[n+1]end
+for v=g,n do m[#m+1]=e[v]end
+if c<0 then m[#m+1]=e[g-1]end
+local v,A,D=o,d,b
+u(math.min(g,g+c),n-g+2,m)
+w()
+if v then o={v[1],v[2]+c}end
+l(A,D+c)
+i=true
 end
-function toggleFold()
-if folds[cy]then
-folds[cy]=nil
-fullRedraw=true
+function N()
+if C[b]then
+C[b]=nil
+i=true
 return
 end
-local first,last
-local R=ensureScan()
-if R then
-for _,b in ipairs(R.blocks)do
-if b.first==cy and(not last or b.last>last)then first,last=b.first,b.last end
+local c,g
+local n=P()
+if n then
+for m,m in ipairs(n.blocks)do
+if m.first==b and(not g or m.last>g)then c,g=m.first,m.last end
 end
-if not first then
-for _,b in ipairs(R.blocks)do
-if b.first<cy and b.last>=cy and(not first or b.first>first)then first,last=b.first,b.last end
+if not c then
+for m,m in ipairs(n.blocks)do
+if m.first<b and m.last>=b and(not c or m.first>c)then c,g=m.first,m.last end
 end
 end
 else
-local ind=#curLine():match("^%s*")
-local i=cy+1
-while buffer[i]and(not buffer[i]:find("%S")or#buffer[i]:match("^%s*")>ind)do
-if buffer[i]:find("%S")then last=i end
-i=i+1
+local n=#p():match("^%s*")
+local m=b+1
+while e[m]and(not e[m]:find("%S")or#e[m]:match("^%s*")>n)do
+if e[m]:find("%S")then g=m end
+m=m+1
 end
-if last then first=cy end
+if g then c=b end
 end
-if not first then
-status="здесь нечего сворачивать"
+if not c then
+f="здесь нечего сворачивать"
 return
 end
-dropSelection()
-folds[first]=last
-setCursor(cx,first)
-fullRedraw=true
+X()
+C[c]=g
+l(d,c)
+i=true
 end
 end
-local handlers={
-left=function(k)left(k)end,
-right=function(k)right(k)end,
-up=function(k)move(cx,stepLine(cy,-1)or cy,k)end,
-down=function(k)move(cx,stepLine(cy,1)or cy,k)end,
-home=function(k)home(k)end,
-eol=function(k)ende(k)end,
-pageUp=function(k)move(cx,stepLines(cy,-(rows-1)),k)end,
-pageDown=function(k)move(cx,stepLines(cy,rows-1),k)end,
+local n={
+left=function(c)bm(c)end,
+right=function(c)bv(c)end,
+up=function(c)G(d,Y(b,-1)or b,c)end,
+down=function(c)G(d,Y(b,1)or b,c)end,
+home=function(c)bl(c)end,
+eol=function(c)bu(c)end,
+pageUp=function(c)G(d,az(b,-(x-1)),c)end,
+pageDown=function(c)G(d,az(b,x-1),c)end,
 backspace=function()
-if readonly then return end
-if deleteSelection()then return end
-local line=curLine()
-local before,after=unicode.sub(line,cx-1,cx-1),unicode.sub(line,cx,cx)
-if cx>1 and after~=""and(OPEN[before]==after or((before=='"'or before=="'")and after==before))then
-splice(cy,1,{unicode.sub(line,1,cx-2)..unicode.sub(line,cx+1)},"erase")
-setCursor(cx-1,cy)
+if k then return end
+if al()then return end
+local c=p()
+local g,m=a.sub(c,d-1,d-1),a.sub(c,d,d)
+if d>1 and m~=""and(aI[g]==m or((g=='"'or g=="'")and m==g))then
+u(b,1,{a.sub(c,1,d-2)..a.sub(c,d+1)},"erase")
+l(d-1,b)
 return
 end
-if cx==1 and hiddenBy(cy-1)then
-folds[hiddenBy(cy-1)]=nil
-fullRedraw=true
+if d==1 and ap(b-1)then
+C[ap(b-1)]=nil
+i=true
 end
-if left()then delete()end
+if bm()then aY()end
 end,
-delete=function()if not readonly then delete()end end,
-deleteLine=function()if not readonly then delete(true)end end,
-newline=function()if not readonly then enter()end end,
-save=save,
-close=closeDoc,
-find=function()find(false)end,
-findnext=function()find(true)end,
-findprev=function()find(true,true)end,
-replace=replace,
+delete=function()if not k then aY()end end,
+deleteLine=function()if not k then aY(true)end end,
+newline=function()if not k then bw()end end,
+save=ag,
+close=aE,
+find=function()aZ(false)end,
+findnext=function()aZ(true)end,
+findprev=function()aZ(true,true)end,
+replace=bn,
 cut=function()
-if readonly then return end
-if selection()then
-clip=selectedText()
-deleteSelection()
-status="вырезано строк: "..#clip
+if k then return end
+if O()then
+q=a7()
+al()
+f="вырезано строк: "..#q
 return
 end
-if not cutting then clip={}end
-clip[#clip+1]=curLine()
-cutting=true
-delete(true)
-home()
+if not aT then q={}end
+q[#q+1]=p()
+aT=true
+aY(true)
+bl()
 end,
 cutSelection=function()
-if readonly or not selection()then return end
-clip=selectedText()
-deleteSelection()
-status="вырезано строк: "..#clip
+if k or not O()then return end
+q=a7()
+al()
+f="вырезано строк: "..#q
 end,
 copy=function()
-local sel=selectedText()
-if sel then
-clip=sel
-status="скопировано строк: "..#clip
+local c=a7()
+if c then
+q=c
+f="скопировано строк: "..#q
 else
-clip={curLine()}
-status="скопирована строка"
+q={p()}
+f="скопирована строка"
 end
-dropSelection()
+X()
 end,
 uncut=function()
-if readonly or#clip==0 then return end
-deleteSelection()
-local line=curLine()
-local head,tail=unicode.sub(line,1,cx-1),unicode.sub(line,cx)
-if#clip==1 then
-splice(cy,1,{head..clip[1]..tail})
-setCursor(cx+unicode.len(clip[1]),cy)
+if k or#q==0 then return end
+al()
+local c=p()
+local g,m=a.sub(c,1,d-1),a.sub(c,d)
+if#q==1 then
+u(b,1,{g..q[1]..m})
+l(d+a.len(q[1]),b)
 else
-local new={head..clip[1]}
-for i=2,#clip-1 do new[#new+1]=clip[i]end
-new[#new+1]=clip[#clip]..tail
-splice(cy,1,new)
-setCursor(unicode.len(clip[#clip])+1,cy+#clip-1)
+local c={g..q[1]}
+for g=2,#q-1 do c[#c+1]=q[g]end
+c[#c+1]=q[#q]..m
+u(b,1,c)
+l(a.len(q[#q])+1,b+#q-1)
 end
-commit()
+w()
 end,
 selectAll=function()
-anchor={1,1}
-setCursor(unicode.len(buffer[#buffer])+1,#buffer)
-fullRedraw=true
+o={1,1}
+l(a.len(e[#e])+1,#e)
+i=true
 end,
-undo=function()if not readonly then undoStep(undoStack,redoStack)end end,
-redo=function()if not readonly then undoStep(redoStack,undoStack)end end,
+undo=function()if not k then bj(R,ay)end end,
+redo=function()if not k then bj(ay,R)end end,
 complete=function()
-if readonly then return end
-if selection()then
-indentSelection(false)
-elseif ghost and not(chainBefore()or""):match("[%.:]$")then
-insert(ghost.text)
-commit()
-ghost=nil
-elseif not complete()then
-insert("  ")
+if k then return end
+if O()then
+aD(false)
+elseif F and not(aB()or""):match("[%.:]$")then
+Z(F.text)
+w()
+F=nil
+elseif not bb()then
+Z("  ")
 end
 end,
 completeList=function()
-if not readonly then complete()end
+if not k then bb()end
 end,
-unindent=function()if not readonly then indentSelection(true)end end,
-run=runFile,
-shell=shellHere,
-panel=function()showPanel(panelH==0)end,
-debug=debugRun,
+unindent=function()if not k then aD(true)end end,
+run=aG,
+shell=aH,
+panel=function()aF(U==0)end,
+debug=aL,
 breakpoint=function()
-bps[cy]=not bps[cy]or nil
-markDirty(cy)
+B[b]=not B[b]or nil
+ad(b)
 end,
-open=openPrompt,
-nextDoc=function()switchDoc(docIndex%#docs+1)end,
-prevDoc=function()switchDoc((docIndex-2)%#docs+1)end,
-outline=showOutline,
-definition=goDefinition,
-usages=showUsages,
-back=goBack,
-rename=renameVar,
-problem=function()nextProblem(false)end,
-problemPrev=function()nextProblem(true)end,
-comment=toggleComment,
-duplicate=duplicateLines,
-moveUp=function()moveLines(-1)end,
-moveDown=function()moveLines(1)end,
-fold=toggleFold,
+open=aO,
+nextDoc=function()ar(T%#I+1)end,
+prevDoc=function()ar((T-2)%#I+1)end,
+outline=aN,
+definition=ax,
+usages=aC,
+back=aw,
+rename=aM,
+problem=function()ai(false)end,
+problemPrev=function()ai(true)end,
+comment=E,
+duplicate=L,
+moveUp=function()r(-1)end,
+moveDown=function()r(1)end,
+fold=N,
 goto_line=function()
-local s=readLine("Строка: ")
-local n=tonumber(s)
-if n then
-dropSelection()
-setCursor(1,n)
-fullRedraw=true
+local g=aA("Строка: ")
+local c=tonumber(g)
+if c then
+X()
+l(1,c)
+i=true
 end
 end,
 }
-handlers.help=function()
-local list={
+n.help=function()
+local g={
 {"save","сохранить"},{"close","закрыть файл (последний - выйти)"},
 {"open","открыть файл; пусто - список открытых"},
 {"nextDoc","следующий открытый файл"},{"prevDoc","предыдущий открытый файл"},
@@ -2735,189 +2735,189 @@ local list={
 {"selectAll","выделить всё"},{"copy","копировать"},{"cutSelection","вырезать выделенное"},
 {"cut","вырезать строку"},{"uncut","вставить"},{"deleteLine","удалить строку"},
 }
-local items={}
-for _,it in ipairs(list)do
-local kb=config.keybinds[it[1]]
-local names={}
-for _,bind in ipairs(type(kb)=="table"and kb or{})do
-if type(bind)=="table"then
-local parts={}
-for _,v in ipairs(bind)do
-parts[#parts+1]=v=="control"and"Ctrl"or v=="shift"and"Shift"or v=="alt"and"Alt"
-or(unicode.upper(v:sub(1,1))..v:sub(2))
+local c={}
+for m,r in ipairs(g)do
+local g=au.keybinds[r[1]]
+local m={}
+for q,v in ipairs(type(g)=="table"and g or{})do
+if type(v)=="table"then
+local q={}
+for g,g in ipairs(v)do
+q[#q+1]=g=="control"and"Ctrl"or g=="shift"and"Shift"or g=="alt"and"Alt"
+or(a.upper(g:sub(1,1))..g:sub(2))
 end
-names[#names+1]=table.concat(parts,"+")
+m[#m+1]=table.concat(q,"+")
 end
 end
-if#names>0 then items[#items+1]={text=pad(table.concat(names,", "),26)..it[2]}end
+if#m>0 then c[#c+1]={text=af(table.concat(m,", "),26)..r[2]}end
 end
-items[#items+1]={text=pad("Tab",26).."отладчик: переменные, Enter - раскрыть"}
-chooseFrom("Клавиши (буквы - фильтр, Backspace - выйти)",items)
+c[#c+1]={text=af("Tab",26).."отладчик: переменные, Enter - раскрыть"}
+Q("Клавиши (буквы - фильтр, Backspace - выйти)",c)
 end
-local MOVES={
+local m={
 left=true,right=true,up=true,down=true,
 home=true,eol=true,pageUp=true,pageDown=true,
 }
-local function bindFor(code)
-local result,weight=nil,0
-local kbd=term.keyboard()
-local shift=not not keyboard.isShiftDown(kbd)
-local control=not not keyboard.isControlDown(kbd)
-local alt=not not keyboard.isAltDown(kbd)
-for command,binds in pairs(config.keybinds)do
-if type(binds)=="table"and handlers[command]then
-local w=bindWeight(command,code,shift,control,alt)
-if w>weight then weight,result=w,command end
+local function E(q)
+local c,r=nil,0
+local g=s.keyboard()
+local v=not not H.isShiftDown(g)
+local A=not not H.isControlDown(g)
+local C=not not H.isAltDown(g)
+for g,D in pairs(au.keybinds)do
+if type(D)=="table"and n[g]then
+local D=bh(g,q,v,A,C)
+if D>r then r,c=D,g end
 end
 end
-if not result and shift and not control and not alt then
-for command,binds in pairs(config.keybinds)do
-if MOVES[command]and type(binds)=="table"then
-for _,bind in ipairs(binds)do
-if#bind==1 and code==keys[bind[1]]then result=command end
+if not c and v and not A and not C then
+for g,r in pairs(au.keybinds)do
+if m[g]and type(r)=="table"then
+for v,v in ipairs(r)do
+if#v==1 and q==h[v[1]]then c=g end
 end
 end
 end
 end
-return result and handlers[result],result
+return c and n[c],c
 end
-local function onKeyDown(char,code)
-status=nil
-local handler,name=bindFor(code)
-local shift=not not keyboard.isShiftDown(term.keyboard())
-if handler then
-if MOVES[name]then
-if shift and not anchor then anchor={cx,cy}end
-handler(shift)
+local function r(g,n)
+f=nil
+local c,f=E(n)
+local q=not not H.isShiftDown(s.keyboard())
+if c then
+if m[f]then
+if q and not o then o={d,b}end
+c(q)
 else
-handler()
+c()
 end
-if name~="cut"then cutting=false end
-elseif readonly and code==keys.q then
-running=false
-elseif not readonly and char and not keyboard.isControl(char)then
-local ch=unicode.char(char)
-local nextCh=unicode.sub(curLine(),cx,cx)
-if(CLOSE[ch]or ch=='"'or ch=="'")and nextCh==ch then
-move(cx+1,cy)
-elseif lua and OPEN[ch]and not selection()then
-insert(ch..OPEN[ch])
-setCursor(cx-1,cy)
-commit()
-elseif lua and(ch=='"'or ch=="'")and not nextCh:match("[%w_]")and not selection()then
-insert(ch..ch)
-setCursor(cx-1,cy)
-commit()
+if f~="cut"then aT=false end
+elseif k and n==h.q then
+aS=false
+elseif not k and g and not H.isControl(g)then
+local c=a.char(g)
+local f=a.sub(p(),d,d)
+if(a8[c]or c=='"'or c=="'")and f==c then
+G(d+1,b)
+elseif K and aI[c]and not O()then
+Z(c..aI[c])
+l(d-1,b)
+w()
+elseif K and(c=='"'or c=="'")and not f:match("[%w_]")and not O()then
+Z(c..c)
+l(d-1,b)
+w()
 else
-insert(ch)
-if ch=="."and not selection()then autoPopup()end
+Z(c)
+if c=="."and not O()then bo()end
 end
-cutting=false
+aT=false
 end
 end
-local function onClipboard(value)
-if readonly then return end
-deleteSelection()
-value=value:gsub("\r\n","\n"):gsub("\r","\n")
-local parts={}
-for piece in(value.."\n"):gmatch("(.-)\n")do
-parts[#parts+1]=text.detab(piece,2)
+local function q(f)
+if k then return end
+al()
+f=f:gsub("\r\n","\n"):gsub("\r","\n")
+local c={}
+for g in(f.."\n"):gmatch("(.-)\n")do
+c[#c+1]=a4.detab(g,2)
 end
-if#parts==1 then
-insert(parts[1],"paste")
-commit()
+if#c==1 then
+Z(c[1],"paste")
+w()
 return
 end
-local line=curLine()
-local head=unicode.sub(line,1,cx-1)
-local ws=head:match("^ *")
-local common
-for i,p in ipairs(parts)do
-local lead=#p:match("^ *")
-if p:find("%S")and(i>1 or lead>0)and(not common or lead<common)then
-common=lead
+local h=p()
+local m=a.sub(h,1,d-1)
+local p=m:match("^ *")
+local g
+for v,n in ipairs(c)do
+local f=#n:match("^ *")
+if n:find("%S")and(v>1 or f>0)and(not g or f<g)then
+g=f
 end
 end
-common=common or 0
-for i,p in ipairs(parts)do
-local lead=#p:match("^ *")
-p=p:sub(math.min(lead,common)+1)
-if i>1 and p~=""then p=ws..p end
-parts[i]=p
+g=g or 0
+for n,f in ipairs(c)do
+local v=#f:match("^ *")
+f=f:sub(math.min(v,g)+1)
+if n>1 and f~=""then f=p..f end
+c[n]=f
 end
-local last=parts[#parts]
-local new={head..parts[1]}
-for i=2,#parts-1 do new[#new+1]=parts[i]end
-new[#new+1]=last..unicode.sub(line,cx)
-splice(cy,1,new)
-setCursor(unicode.len(last)+1,cy+#parts-1)
-commit()
+local g=c[#c]
+local f={m..c[1]}
+for m=2,#c-1 do f[#f+1]=c[m]end
+f[#f+1]=g..a.sub(h,d)
+u(b,1,f)
+l(a.len(g)+1,b+#c-1)
+w()
 end
-openDoc(filename,readonly)
-local function dispatch(e,addr,a,b,c)
-if e=="interrupted"or(addr~=term.keyboard()and addr~=term.screen())then return end
-if e=="key_down"then
-onKeyDown(a,b)
-updateGhost()
-findPair()
-updateSig()
-redraw()
-elseif e=="clipboard"then
-onClipboard(a)
-updateGhost()
-findPair()
-updateSig()
-redraw()
-elseif e=="touch"or e=="drag"then
-local gx,gy=term.getGlobalArea()
-local col,row=a-gx+1,b-gy+1
-if col>=1 and row>=1 and col<=W and row<=rows then
-local line=math.min(view[row]or#buffer,#buffer)
-if e=="touch"and col<GW then
-bps[line]=not bps[line]or nil
-markDirty(line)
-redraw()
+aq(j,k)
+local function h(a,f,c,j,k)
+if a=="interrupted"or(f~=s.keyboard()and f~=s.screen())then return end
+if a=="key_down"then
+r(c,j)
+aJ()
+bk()
+a_()
+M()
+elseif a=="clipboard"then
+q(c)
+aJ()
+bk()
+a_()
+M()
+elseif a=="touch"or a=="drag"then
+local m,n=s.getGlobalArea()
+local f,g=c-m+1,j-n+1
+if f>=1 and g>=1 and f<=t and g<=x then
+local c=math.min(aW[g]or#e,#e)
+if a=="touch"and f<V then
+B[c]=not B[c]or nil
+ad(c)
+M()
 return
 end
-if e=="touch"then
-dropSelection()
-elseif not anchor then
-anchor={cx,cy}
+if a=="touch"then
+X()
+elseif not o then
+o={d,b}
 end
-setCursor(charAt(buffer[line]or"",math.max(1,col-GW+scrollX)),line)
-commit()
-updateGhost()
-updateSig()
-if anchor then fullRedraw=true end
-redraw()
+l(bt(e[c]or"",math.max(1,f-V+z)),c)
+w()
+aJ()
+a_()
+if o then i=true end
+M()
 end
-elseif e=="scroll"then
-move(cx,stepLines(cy,-(c or 0)*12))
-updateGhost()
-fullRedraw=true
-redraw()
-end
-end
-local function loop()
-redraw()
-while running do
-local wait=checkDue and math.max(0.05,checkDue-computer.uptime())
-local ev=table.pack(event.pull(wait))
-if ev[1]then
-dispatch(table.unpack(ev,1,ev.n))
-elseif checkDue and computer.uptime()>=checkDue then
-runChecks()
-redraw()
-end
-while replay and running do
-local r=replay
-replay=nil
-dispatch(table.unpack(r,1,r.n or#r))
+elseif a=="scroll"then
+G(d,az(b,-(k or 0)*12))
+aJ()
+i=true
+M()
 end
 end
+local function b()
+M()
+while aS do
+local c=aj and math.max(0.05,aj-J.uptime())
+local a=table.pack(at.pull(c))
+if a[1]then
+h(table.unpack(a,1,a.n))
+elseif aj and J.uptime()>=aj then
+ao()
+M()
 end
-local ok,err=xpcall(loop,debug.traceback)
-S:close()
-term.setCursorBlink(true)
-term.clear()
-if not ok then error(err,0)end
+while aK and aS do
+local a=aK
+aK=nil
+h(table.unpack(a,1,a.n or#a))
+end
+end
+end
+local a,c=xpcall(b,debug.traceback)
+y:close()
+s.setCursorBlink(true)
+s.clear()
+if not a then error(c,0)end

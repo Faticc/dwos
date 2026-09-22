@@ -1,126 +1,126 @@
-local serialization={}
-local function local_pairs(tbl)
-local mt=getmetatable(tbl)
-return(mt and mt.__pairs or pairs)(tbl)
+local j={}
+local function o(a)
+local b=getmetatable(a)
+return(b and b.__pairs or pairs)(a)
 end
-local KEYWORDS={}
-for kw in("and break do else elseif end false for function goto if in local nil not or repeat return then true until while"):gmatch("%a+")do
-KEYWORDS[kw]=true
+local p={}
+for a in("and break do else elseif end false for function goto if in local nil not or repeat return then true until while"):gmatch("%a+")do
+p[a]=true
 end
-function serialization.serialize(value,pretty)
-local ts={}
-local out={}
-local function emit(s)out[#out+1]=s end
-local function recurse(v,depth)
-local t=type(v)
-if t=="number"then
-if v~=v then
-emit("0/0")
-elseif v==math.huge then
-emit("math.huge")
-elseif v==-math.huge then
-emit("-math.huge")
+function j.serialize(q,d)
+local k={}
+local l={}
+local function a(b)l[#l+1]=b end
+local function g(b,h)
+local e=type(b)
+if e=="number"then
+if b~=b then
+a("0/0")
+elseif b==math.huge then
+a("math.huge")
+elseif b==-math.huge then
+a("-math.huge")
 else
-emit(tostring(v))
+a(tostring(b))
 end
-elseif t=="string"then
-emit((string.format("%q",v):gsub("\\\n","\\n")))
-elseif t=="nil"or t=="boolean"or pretty and(t~="table"or(getmetatable(v)or{}).__tostring)then
-emit(tostring(v))
-elseif t=="table"then
-if ts[v]then
-if pretty then
-emit("recursion")
+elseif e=="string"then
+a((string.format("%q",b):gsub("\\\n","\\n")))
+elseif e=="nil"or e=="boolean"or d and(e~="table"or(getmetatable(b)or{}).__tostring)then
+a(tostring(b))
+elseif e=="table"then
+if k[b]then
+if d then
+a("recursion")
 return
 end
 error("tables with cycles are not supported")
 end
-ts[v]=true
-local f
-if pretty then
-local ks,sks,oks={},{},{}
-for k in local_pairs(v)do
-if type(k)=="number"then
-ks[#ks+1]=k
-elseif type(k)=="string"then
-sks[#sks+1]=k
+k[b]=true
+local m
+if d then
+local c,i,n={},{},{}
+for f in o(b)do
+if type(f)=="number"then
+c[#c+1]=f
+elseif type(f)=="string"then
+i[#i+1]=f
 else
-oks[#oks+1]=k
+n[#n+1]=f
 end
 end
-table.sort(ks)
-table.sort(sks)
-for _,k in ipairs(sks)do ks[#ks+1]=k end
-for _,k in ipairs(oks)do ks[#ks+1]=k end
-local n=0
-f=table.pack(function()
-n=n+1
-local k=ks[n]
-if k~=nil then
-return k,v[k]
+table.sort(c)
+table.sort(i)
+for f,f in ipairs(i)do c[#c+1]=f end
+for f,f in ipairs(n)do c[#c+1]=f end
+local f=0
+m=table.pack(function()
+f=f+1
+local i=c[f]
+if i~=nil then
+return i,b[i]
 end
 end)
 else
-f=table.pack(local_pairs(v))
+m=table.pack(o(b))
 end
-local i=1
-local first=true
-emit("{")
-for k,val in table.unpack(f)do
-if not first then
-emit(",")
-if pretty then
-emit("\n"..string.rep(" ",depth))
+local f=1
+local i=true
+a("{")
+for c,n in table.unpack(m)do
+if not i then
+a(",")
+if d then
+a("\n"..string.rep(" ",h))
 end
 end
-first=nil
-local tk=type(k)
-if tk=="number"and k==i then
-i=i+1
-recurse(val,depth+1)
+i=nil
+local i=type(c)
+if i=="number"and c==f then
+f=f+1
+g(n,h+1)
 else
-if tk=="string"and not KEYWORDS[k]and k:match("^[%a_][%w_]*$")then
-emit(k)
+if i=="string"and not p[c]and c:match("^[%a_][%w_]*$")then
+a(c)
 else
-emit("[")
-recurse(k,depth+1)
-emit("]")
+a("[")
+g(c,h+1)
+a("]")
 end
-emit("=")
-recurse(val,depth+1)
+a("=")
+g(n,h+1)
 end
 end
-ts[v]=nil
-emit("}")
+k[b]=nil
+a("}")
 else
-error("unsupported type: "..t)
+error("unsupported type: "..e)
 end
 end
-recurse(value,1)
-local result=table.concat(out)
-if pretty then
-local limit=type(pretty)=="number"and pretty or 10
-local truncate=0
-while limit>0 and truncate do
-truncate=string.find(result,"\n",truncate+1,true)
-limit=limit-1
+g(q,1)
+local b=table.concat(l)
+if d then
+local c=type(d)=="number"and d or 10
+local a=0
+while c>0 and a do
+a=string.find(b,"\n",a+1,true)
+c=c-1
 end
-if truncate then
-return result:sub(1,truncate).."..."
+if a then
+return b:sub(1,a).."..."
 end
 end
-return result
+return b
 end
-function serialization.unserialize(data)
-checkArg(1,data,"string")
-local result,reason=load("return "..data,"=data",nil,{math={huge=math.huge}})
-if not result then
-return nil,reason
+function j.unserialize(a)
+checkArg(1,a,"string")
+local b,c=load("return "..a,"=data",nil,{math={huge=math.huge}})
+if not b then
+return nil,c
 end
-local ok,output=pcall(result)
-if not ok then
-return nil,output
+local c,a=pcall(b)
+if not c then
+return nil,a
 end
-return output
+return a
 end
-return serialization
+return j

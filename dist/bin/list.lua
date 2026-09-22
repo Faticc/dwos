@@ -1,7 +1,7 @@
-local fs=require("filesystem")
-local shell=require("shell")
-local args,ops=shell.parse(...)
-if ops.help then
+local a=require("filesystem")
+local d=require("shell")
+local b,c=d.parse(...)
+if c.help then
 io.write([[Usage: list [path]
   path:
     optional argument (defaults to ./)
@@ -10,15 +10,15 @@ io.write([[Usage: list [path]
 ]])
 return 0
 end
-local arg=args[1]or"."
-local real,why=fs.realPath(shell.resolve(arg))
-if real and not fs.exists(real)then
-why="no such file or directory"
+local e=b[1]or"."
+local b,c=a.realPath(d.resolve(e))
+if b and not a.exists(b)then
+c="no such file or directory"
 end
-if why then
-io.stderr:write(string.format("cannot access '%s': %s",arg,tostring(why)))
+if c then
+io.stderr:write(string.format("cannot access '%s': %s",e,tostring(c)))
 return 1
 end
-for item in fs.list(real)do
-io.write(item,"\n")
+for c in a.list(b)do
+io.write(c,"\n")
 end

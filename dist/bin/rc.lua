@@ -1,133 +1,133 @@
-local rc=require("rc")
-local fs=require("filesystem")
-local function loadConfig()
-local env={}
-local result,reason=loadfile("/etc/rc.cfg","t",env)
-if result then
-result,reason=xpcall(result,debug.traceback)
-if result then
-return env
+local a=require("rc")
+local e=require("filesystem")
+local function g()
+local c={}
+local b,d=loadfile("/etc/rc.cfg","t",c)
+if b then
+b,d=xpcall(b,debug.traceback)
+if b then
+return c
 end
 end
-return nil,reason
+return nil,d
 end
-local function saveConfig(conf)
-local file,reason=io.open("/etc/rc.cfg","w")
-if not file then
-return nil,reason
+local function h(c)
+local b,d=io.open("/etc/rc.cfg","w")
+if not b then
+return nil,d
 end
-local ser=require("serialization")
-for key,value in pairs(conf)do
-file:write(tostring(key).." = "..ser.serialize(value).."\n")
+local d=require("serialization")
+for f,i in pairs(c)do
+b:write(tostring(f).." = "..d.serialize(i).."\n")
 end
-file:close()
+b:close()
 return true
 end
-local function load(name,args)
-if rc.loaded[name]then
-return rc.loaded[name]
+local function i(b,c)
+if a.loaded[b]then
+return a.loaded[b]
 end
-local fileName=fs.concat("/etc/rc.d/",name..".lua")
-local env=setmetatable({args=args},{__index=_G})
-local result,reason=loadfile(fileName,"t",env)
-if not result then
-return nil,string.format("%s failed to load: %s",fileName,reason)
+local d=e.concat("/etc/rc.d/",b..".lua")
+local e=setmetatable({args=c},{__index=_G})
+local c,f=loadfile(d,"t",e)
+if not c then
+return nil,string.format("%s failed to load: %s",d,f)
 end
-result,reason=xpcall(result,debug.traceback)
-if not result then
-return nil,string.format("%s failed to start: %s",fileName,reason)
+c,f=xpcall(c,debug.traceback)
+if not c then
+return nil,string.format("%s failed to start: %s",d,f)
 end
-rc.loaded[name]=env
-return env
+a.loaded[b]=e
+return e
 end
-function rc.unload(name)
-rc.loaded[name]=nil
+function a.unload(b)
+a.loaded[b]=nil
 end
-local function rawRunCommand(conf,name,cmd,args,...)
-local result,what=load(name,args)
-if not result then
-return nil,what
+local function f(a,d,c,e,...)
+local b,j=i(d,e)
+if not b then
+return nil,j
 end
-if not cmd then
-io.output():write("Commands for service "..name.."\n")
-for command,val in pairs(result)do
-if type(val)=="function"then
-io.output():write(tostring(command).." ")
+if not c then
+io.output():write("Commands for service "..d.."\n")
+for e,i in pairs(b)do
+if type(i)=="function"then
+io.output():write(tostring(e).." ")
 end
 end
 return true
-elseif type(result[cmd])=="function"then
-local ok,why=xpcall(result[cmd],debug.traceback,...)
-if ok then return true end
-return nil,why
-elseif cmd=="restart"and type(result.stop)=="function"and type(result.start)=="function"then
-local ok,why=xpcall(result.stop,debug.traceback,...)
-if ok then
-ok,why=xpcall(result.start,debug.traceback,...)
-if ok then return true end
+elseif type(b[c])=="function"then
+local e,i=xpcall(b[c],debug.traceback,...)
+if e then return true end
+return nil,i
+elseif c=="restart"and type(b.stop)=="function"and type(b.start)=="function"then
+local e,i=xpcall(b.stop,debug.traceback,...)
+if e then
+e,i=xpcall(b.start,debug.traceback,...)
+if e then return true end
 end
-return nil,why
-elseif cmd=="enable"then
-conf.enabled=conf.enabled or{}
-for _,other in ipairs(conf.enabled)do
-if name==other then
+return nil,i
+elseif c=="enable"then
+a.enabled=a.enabled or{}
+for b,b in ipairs(a.enabled)do
+if d==b then
 return nil,"Service already enabled"
 end
 end
-conf.enabled[#conf.enabled+1]=name
-return saveConfig(conf)
-elseif cmd=="disable"then
-conf.enabled=conf.enabled or{}
-for n=#conf.enabled,1,-1 do
-if conf.enabled[n]==name then
-table.remove(conf.enabled,n)
+a.enabled[#a.enabled+1]=d
+return h(a)
+elseif c=="disable"then
+a.enabled=a.enabled or{}
+for b=#a.enabled,1,-1 do
+if a.enabled[b]==d then
+table.remove(a.enabled,b)
 end
 end
-return saveConfig(conf)
+return h(a)
 end
-return nil,"Command '"..cmd.."' not found in daemon '"..name.."'"
+return nil,"Command '"..c.."' not found in daemon '"..d.."'"
 end
-local function runCommand(name,cmd,...)
-local conf,reason=loadConfig()
-if not conf then
-return nil,reason
+local function d(b,c,...)
+local a,e=g()
+if not a then
+return nil,e
 end
-return rawRunCommand(conf,name,cmd,conf[name],...)
+return f(a,b,c,a[b],...)
 end
-local function allRunCommand(cmd,...)
-local conf,reason=loadConfig()
-if not conf then
-return nil,reason
+local function e(h,...)
+local a,b=g()
+if not a then
+return nil,b
 end
-local results={}
-for _,name in ipairs(conf.enabled or{})do
-results[name]=table.pack(rawRunCommand(conf,name,cmd,conf[name],...))
+local c={}
+for b,b in ipairs(a.enabled or{})do
+c[b]=table.pack(f(a,b,h,a[b],...))
 end
-return results
+return c
 end
-local stream=io.stderr
-local write=stream.write
+local a=io.stderr
+local b=a.write
 if select("#",...)==0 then
 if _G.runlevel=="S"then
-write=function(_,msg)
-require("event").onError(msg)
+b=function(c,c)
+require("event").onError(c)
 end
 end
-local results,reason=allRunCommand("start")
-if not results then
-write(stream,"rc failed to start:"..tostring(reason),"\n")
+local c,f=e("start")
+if not c then
+b(a,"rc failed to start:"..tostring(f),"\n")
 return
 end
-for _,result in pairs(results)do
-local ok,why=table.unpack(result)
-if not ok then
-write(stream,why,"\n")
+for e,e in pairs(c)do
+local c,f=table.unpack(e)
+if not c then
+b(a,f,"\n")
 end
 end
 else
-local result,reason=runCommand(...)
-if not result then
-write(stream,reason,"\n")
+local c,e=d(...)
+if not c then
+b(a,e,"\n")
 return 1
 end
 end

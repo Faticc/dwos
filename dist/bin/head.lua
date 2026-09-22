@@ -1,112 +1,112 @@
-local shell=require("shell")
-local args,options=shell.parse(...)
-local error_code=0
-local function pop(key,convert)
-local result=options[key]
-options[key]=nil
-if result and convert then
-local c=tonumber(result)
-if not c then
-io.stderr:write(string.format("use --%s=n where n is a number\n",key))
-options.help=true
-error_code=1
+local a=require("shell")
+local c,b=a.parse(...)
+local e=0
+local function a(f,g)
+local d=b[f]
+b[f]=nil
+if d and g then
+local g=tonumber(d)
+if not g then
+io.stderr:write(string.format("use --%s=n where n is a number\n",f))
+b.help=true
+e=1
 end
-result=c
+d=g
 end
-return result
+return d
 end
-local bytes=pop("bytes",true)
-local lines=pop("lines",true)
-local q1,q2,q3=pop("q"),pop("quiet"),pop("silent")
-local quiet=q1 or q2 or q3
-local v1,v2=pop("v"),pop("verbose")
-local verbose=v1 or v2
-local help=pop("help")
-if help or next(options)then
-local invalid_key=next(options)
-if invalid_key then
-invalid_key=string.format("invalid option: %s\n",invalid_key)
-error_code=1
+local d=a("bytes",true)
+local f=a("lines",true)
+local h,i,j=a("q"),a("quiet"),a("silent")
+local g=h or i or j
+local i,j=a("v"),a("verbose")
+local h=i or j
+local i=a("help")
+if i or next(b)then
+local a=next(b)
+if a then
+a=string.format("invalid option: %s\n",a)
+e=1
 else
-invalid_key=""
+a=""
 end
-print(invalid_key..[[Usage: head [--lines=n] file
+print(a..[[Usage: head [--lines=n] file
 Print the first 10 lines of each FILE to stdout.
 For more info run: man head]])
-os.exit(error_code)
+os.exit(e)
 end
-if#args==0 then
-args={"-"}
+if#c==0 then
+c={"-"}
 end
-if quiet and verbose then
-quiet=false
+if g and h then
+g=false
 end
-local function new_stream()
+local function e()
 return{
 open=true,
-capacity=math.abs(lines or bytes or 10),
-bytes=bytes,
-buffer=(lines and lines<0 and{})or(bytes and bytes<0 and""),
+capacity=math.abs(f or d or 10),
+bytes=d,
+buffer=(f and f<0 and{})or(d and d<0 and""),
 }
 end
-local function close(stream)
-if stream.buffer then
-if type(stream.buffer)=="table"then
-stream.buffer=table.concat(stream.buffer)
+local function d(a)
+if a.buffer then
+if type(a.buffer)=="table"then
+a.buffer=table.concat(a.buffer)
 end
-io.stdout:write(stream.buffer)
-stream.buffer=nil
+io.stdout:write(a.buffer)
+a.buffer=nil
 end
-stream.open=false
+a.open=false
 end
-local function push(stream,line)
-if not line then
-return close(stream)
+local function f(a,b)
+if not b then
+return d(a)
 end
-local cost=stream.bytes and line:len()or 1
-stream.capacity=stream.capacity-cost
-if not stream.buffer then
-if stream.bytes and stream.capacity<0 then
-line=line:sub(1,stream.capacity-1)
+local g=a.bytes and b:len()or 1
+a.capacity=a.capacity-g
+if not a.buffer then
+if a.bytes and a.capacity<0 then
+b=b:sub(1,a.capacity-1)
 end
-io.write(line)
-if stream.capacity<=0 then
-return close(stream)
+io.write(b)
+if a.capacity<=0 then
+return d(a)
 end
-elseif type(stream.buffer)=="table"then
-stream.buffer[#stream.buffer+1]=line
-if stream.capacity<0 then
-table.remove(stream.buffer,1)
-stream.capacity=0
+elseif type(a.buffer)=="table"then
+a.buffer[#a.buffer+1]=b
+if a.capacity<0 then
+table.remove(a.buffer,1)
+a.capacity=0
 end
 else
-stream.buffer=stream.buffer..line
-if stream.capacity<0 then
-stream.buffer=stream.buffer:sub(-stream.capacity+1)
-stream.capacity=0
+a.buffer=a.buffer..b
+if a.capacity<0 then
+a.buffer=a.buffer:sub(-a.capacity+1)
+a.capacity=0
 end
 end
 end
-for i=1,#args do
-local arg=args[i]
-local file,reason
-if arg=="-"then
-arg="standard input"
-file=io.stdin
+for a=1,#c do
+local b=c[a]
+local a,d
+if b=="-"then
+b="standard input"
+a=io.stdin
 else
-file,reason=io.open(arg,"r")
-if not file then
-io.stderr:write(string.format([[head: cannot open '%s' for reading: %s]],arg,reason))
+a,d=io.open(b,"r")
+if not a then
+io.stderr:write(string.format([[head: cannot open '%s' for reading: %s]],b,d))
 end
 end
-if file then
-if verbose or#args>1 then
-io.write(string.format("==> %s <==\n",arg))
+if a then
+if h or#c>1 then
+io.write(string.format("==> %s <==\n",b))
 end
-local stream=new_stream()
-while stream.open do
-push(stream,file:read("*L"))
+local b=e()
+while b.open do
+f(b,a:read("*L"))
 end
-file:close()
+a:close()
 end
 end

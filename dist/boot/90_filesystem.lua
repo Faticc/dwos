@@ -1,45 +1,45 @@
-local event=require("event")
-local fs=require("filesystem")
-local shell=require("shell")
-local tmp=require("computer").tmpAddress()
-local pendingAutoruns={}
-local function onComponentAdded(_,address,componentType)
-if componentType~="filesystem"or tmp==address then return end
-local proxy=fs.proxy(address)
-if not proxy then return end
-local name=address:sub(1,3)
-while fs.exists(fs.concat("/mnt",name))and name:len()<address:len()do
-name=address:sub(1,name:len()+1)
+local d=require("event")
+local a=require("filesystem")
+local c=require("shell")
+local b=require("computer").tmpAddress()
+local e={}
+local function h(f,f,g)
+if g~="filesystem"or b==f then return end
+local g=a.proxy(f)
+if not g then return end
+local b=f:sub(1,3)
+while a.exists(a.concat("/mnt",b))and b:len()<f:len()do
+b=f:sub(1,b:len()+1)
 end
-name=fs.concat("/mnt",name)
-fs.mount(proxy,name)
-if not fs.exists("/etc/filesystem.cfg")or fs.isAutorunEnabled()then
-local file=shell.resolve(fs.concat(name,"autorun"),"lua")or
-shell.resolve(fs.concat(name,".autorun"),"lua")
-if file then
-local run={file,_ENV,proxy}
-if pendingAutoruns then
-pendingAutoruns[#pendingAutoruns+1]=run
+b=a.concat("/mnt",b)
+a.mount(g,b)
+if not a.exists("/etc/filesystem.cfg")or a.isAutorunEnabled()then
+local f=c.resolve(a.concat(b,"autorun"),"lua")or
+c.resolve(a.concat(b,".autorun"),"lua")
+if f then
+local b={f,_ENV,g}
+if e then
+e[#e+1]=b
 else
-xpcall(shell.execute,event.onError,table.unpack(run))
+xpcall(c.execute,d.onError,table.unpack(b))
 end
 end
 end
 end
-local function onComponentRemoved(_,address,componentType)
-if componentType=="filesystem"then
-if fs.get(shell.getWorkingDirectory()).address==address then
-shell.setWorkingDirectory("/")
+local function f(b,b,g)
+if g=="filesystem"then
+if a.get(c.getWorkingDirectory()).address==b then
+c.setWorkingDirectory("/")
 end
-fs.umount(address)
+a.umount(b)
 end
 end
-event.listen("init",function()
-for _,run in ipairs(pendingAutoruns)do
-xpcall(shell.execute,event.onError,table.unpack(run))
+d.listen("init",function()
+for a,a in ipairs(e)do
+xpcall(c.execute,d.onError,table.unpack(a))
 end
-pendingAutoruns=nil
+e=nil
 return false
 end)
-event.listen("component_added",onComponentAdded)
-event.listen("component_removed",onComponentRemoved)
+d.listen("component_added",h)
+d.listen("component_removed",f)

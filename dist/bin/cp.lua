@@ -1,8 +1,8 @@
-local shell=require("shell")
-local transfer=require("tools/transfer")
-local args,options=shell.parse(...)
-options.h=options.h or options.help
-if#args<2 or options.h then
+local c=require("shell")
+local d=require("tools/transfer")
+local b,a=c.parse(...)
+a.h=a.h or a.help
+if#b<2 or a.h then
 io.write([[Usage: cp [OPTIONS] <from...> <to>
  -i: prompt before overwrite (overrides -n option).
  -n: do not overwrite an existing file.
@@ -14,11 +14,11 @@ io.write([[Usage: cp [OPTIONS] <from...> <to>
  -x: stay on original source file system.
  --skip=P: skip files matching lua regex P
 ]])
-return not not options.h
+return not not a.h
 end
-return transfer.batch(args,{
+return d.batch(b,{
 cmd="cp",
-i=options.i,f=options.f,n=options.n,r=options.r,
-u=options.u,P=options.P,v=options.v,x=options.x,
-skip={options.skip},
+i=a.i,f=a.f,n=a.n,r=a.r,
+u=a.u,P=a.P,v=a.v,x=a.x,
+skip={a.skip},
 })

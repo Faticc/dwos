@@ -1,7 +1,7 @@
-local shell=require("shell")
-local fs=require("filesystem")
-local args,options=shell.parse(...)
-if options.help then
+local d=require("shell")
+local b=require("filesystem")
+local e,a=d.parse(...)
+if a.help then
 print([[Usage: touch [OPTION]... FILE...
 Update the modification times of each FILE to the current time.
 A FILE argument that does not exist is created empty, unless -c is supplied.
@@ -9,34 +9,34 @@ A FILE argument that does not exist is created empty, unless -c is supplied.
   -c, --no-create    do not create any files
       --help         display this help and exit]])
 return 0
-elseif#args==0 then
+elseif#e==0 then
 io.stderr:write("touch: missing operand\n")
 return 1
 end
-local noCreate=options.c or options["no-create"]
-local errors=0
-for _,arg in ipairs(args)do
-local path=shell.resolve(arg)
-if fs.isDirectory(path)then
-io.stderr:write(string.format("`%s' ignored: directories not supported\n",arg))
+local f=a.c or a["no-create"]
+local g=0
+for a,c in ipairs(e)do
+local e=d.resolve(c)
+if b.isDirectory(e)then
+io.stderr:write(string.format("`%s' ignored: directories not supported\n",c))
 else
-local real,reason=fs.realPath(path)
-if real then
-local file
-if fs.exists(real)or not noCreate then
-file=io.open(real,"a")
+local a,h=b.realPath(e)
+if a then
+local d
+if b.exists(a)or not f then
+d=io.open(a,"a")
 end
-if not file then
-real=noCreate
-reason="permission denied"
+if not d then
+a=f
+h="permission denied"
 else
-file:close()
+d:close()
 end
 end
-if not real then
-io.stderr:write(string.format("touch: cannot touch `%s': %s\n",arg,reason))
-errors=1
+if not a then
+io.stderr:write(string.format("touch: cannot touch `%s': %s\n",c,h))
+g=1
 end
 end
 end
-return errors
+return g

@@ -1,96 +1,96 @@
-local process=require("process")
-local unicode=require("unicode")
-local event=require("event")
-local event_mt=getmetatable(event.handlers)
-local elbow=unicode.char(0x2514)
-local function thread_id(t,p)
-if t then
-return(tostring(t):gsub("^thread: 0x",""))
+local c=require("process")
+local b=require("unicode")
+local f=require("event")
+local i=getmetatable(f.handlers)
+local j=b.char(0x2514)
+local function a(d,e)
+if d then
+return(tostring(d):gsub("^thread: 0x",""))
 end
-for k,v in pairs(process.list)do
-if v==p then
-return thread_id(k)
+for d,g in pairs(c.list)do
+if g==e then
+return a(d)
 end
 end
 return"-"
 end
-local function isThread(h)
-local mt=getmetatable(h)
-return mt and mt.__status
+local function g(e)
+local d=getmetatable(e)
+return d and d.__status
 end
-local function count(n)return n==0 and"-"or tostring(n)end
-local cols={
-{"PID",thread_id},
-{"EVENTS",function(_,p)
-local handlers={}
-if event_mt.threaded then
-handlers=rawget(p.data,"handlers")or{}
-elseif not p.parent then
-handlers=event.handlers
+local function d(e)return e==0 and"-"or tostring(e)end
+local k={
+{"PID",a},
+{"EVENTS",function(e,h)
+local e={}
+if i.threaded then
+e=rawget(h.data,"handlers")or{}
+elseif not h.parent then
+e=f.handlers
 end
-local n=0
-for _ in pairs(handlers)do n=n+1 end
-return count(n)
+local f=0
+for h in pairs(e)do f=f+1 end
+return d(f)
 end},
-{"THREADS",function(_,p)
-local n=0
-for _,h in ipairs(p.data.handles)do
-if isThread(h)then n=n+1 end
+{"THREADS",function(e,f)
+local e=0
+for h,h in ipairs(f.data.handles)do
+if g(h)then e=e+1 end
 end
-return count(n)
+return d(e)
 end},
-{"PARENT",function(_,p)
-for _,info in pairs(process.list)do
-for _,h in ipairs(info.data.handles)do
-if isThread(h)and getmetatable(h).process==p then
-return thread_id(nil,info)
+{"PARENT",function(e,e)
+for f,f in pairs(c.list)do
+for h,h in ipairs(f.data.handles)do
+if g(h)and getmetatable(h).process==e then
+return a(nil,f)
 end
 end
 end
-return thread_id(nil,p.parent)
+return a(nil,e.parent)
 end},
-{"HANDLES",function(_,p)return count(#p.data.handles)end},
-{"CMD",function(_,p)return p.command end},
+{"HANDLES",function(a,a)return d(#a.data.handles)end},
+{"CMD",function(a,a)return a.command end},
 }
-local rows={}
-for t,p in pairs(process.list)do
-local row={}
-for _,col in ipairs(cols)do
-row[col[1]]=col[2](t,p)
+local d={}
+for e,f in pairs(c.list)do
+local a={}
+for c,c in ipairs(k)do
+a[c[1]]=c[2](e,f)
 end
-rows[#rows+1]=row
+d[#d+1]=a
 end
-local sorted,used={},{}
-local function family(parent,depth)
-for i,row in ipairs(rows)do
-if not used[i]and row.PARENT==parent then
-used[i]=true
-row.CMD=(" "):rep(math.max(depth-1,0))..(depth>0 and elbow or"")..row.CMD
-sorted[#sorted+1]=row
-family(row.PID,depth+1)
-end
-end
-end
-family("-",0)
-local shown={"PID","EVENTS","THREADS","HANDLES","CMD"}
-local widths={}
-for _,key in ipairs(shown)do
-widths[key]=unicode.wlen(key)
-for _,row in ipairs(sorted)do
-widths[key]=math.max(widths[key],unicode.wlen(row[key]))
+local c,f={},{}
+local function g(i,e)
+for h,a in ipairs(d)do
+if not f[h]and a.PARENT==i then
+f[h]=true
+a.CMD=(" "):rep(math.max(e-1,0))..(e>0 and j or"")..a.CMD
+c[#c+1]=a
+g(a.PID,e+1)
 end
 end
-local function line(row)
-local out={}
-for i,key in ipairs(shown)do
-local v=row[key]
-out[i]=i<#shown and v..string.rep(" ",widths[key]-unicode.wlen(v))or v
 end
-print(table.concat(out,"   "))
+g("-",0)
+local d={"PID","EVENTS","THREADS","HANDLES","CMD"}
+local e={}
+for a,a in ipairs(d)do
+e[a]=b.wlen(a)
+for f,f in ipairs(c)do
+e[a]=math.max(e[a],b.wlen(f[a]))
 end
-local header={}
-for _,key in ipairs(shown)do header[key]=key end
-line(header)
-for _,row in ipairs(sorted)do
-line(row)
+end
+local function f(j)
+local g={}
+for h,i in ipairs(d)do
+local a=j[i]
+g[h]=h<#d and a..string.rep(" ",e[i]-b.wlen(a))or a
+end
+print(table.concat(g,"   "))
+end
+local a={}
+for b,b in ipairs(d)do a[b]=b end
+f(a)
+for a,a in ipairs(c)do
+f(a)
 end

@@ -1,39 +1,39 @@
-local shell=require("shell")
-local tty=require("tty")
-local text=require("text")
-local sh=require("sh")
-local args=shell.parse(...)
-shell.prime()
-if#args>0 then
-return sh.execute(...)
+local a=require("shell")
+local c=require("tty")
+local d=require("text")
+local b=require("sh")
+local e=a.parse(...)
+a.prime()
+if#e>0 then
+return b.execute(...)
 end
-local has_profile
-local input_handler={hint=sh.hintHandler}
+local a
+local e={hint=b.hintHandler}
 while true do
 if io.stdin.tty and io.stdout.tty then
-if not has_profile then
-has_profile=true
+if not a then
+a=true
 dofile("/etc/profile.lua")
 end
-if tty.getCursor()>1 then
+if c.getCursor()>1 then
 io.write("\n")
 end
-io.write(sh.expand(os.getenv("PS1")or"$ "))
+io.write(b.expand(os.getenv("PS1")or"$ "))
 end
-tty.window.cursor=input_handler
-local command=io.stdin:readLine(false)
-tty.window.cursor=nil
-if command then
-command=text.trim(command)
-if command=="exit"then
+c.window.cursor=e
+local a=io.stdin:readLine(false)
+c.window.cursor=nil
+if a then
+a=d.trim(a)
+if a=="exit"then
 return
-elseif command~=""then
-local result,reason=sh.execute(_ENV,command)
-if not result and reason then
-io.stderr:write(tostring(reason),"\n")
+elseif a~=""then
+local d,c=b.execute(_ENV,a)
+if not d and c then
+io.stderr:write(tostring(c),"\n")
 end
 end
-elseif command==nil then
+elseif a==nil then
 return
 end
 end

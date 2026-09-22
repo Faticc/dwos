@@ -1,139 +1,139 @@
-local component=require("component")
-local computer=require("computer")
-local event=require("event")
-local adding={}
-local primaries={}
-setmetatable(component,{
-__index=function(_,key)
-return component.getPrimary(key)
+local a=require("component")
+local j=require("computer")
+local g=require("event")
+local c={}
+local b={}
+setmetatable(a,{
+__index=function(d,d)
+return a.getPrimary(d)
 end,
-__pairs=function(self)
-local parent=false
-return function(_,key)
-if parent then
-return next(primaries,key)
+__pairs=function(h)
+local d=false
+return function(e,e)
+if d then
+return next(b,e)
 end
-local k,v=next(self,key)
-if not k then
-parent=true
-return next(primaries)
+local f,i=next(h,e)
+if not f then
+d=true
+return next(b)
 end
-return k,v
+return f,i
 end
 end,
 })
-function component.get(address,componentType)
-checkArg(1,address,"string")
-checkArg(2,componentType,"string","nil")
-for c in component.list(componentType,true)do
-if c:sub(1,address:len())==address then
-return c
+function a.get(d,e)
+checkArg(1,d,"string")
+checkArg(2,e,"string","nil")
+for f in a.list(e,true)do
+if f:sub(1,d:len())==d then
+return f
 end
 end
 return nil,"no such component"
 end
-function component.isAvailable(componentType)
-checkArg(1,componentType,"string")
-if not primaries[componentType]and not adding[componentType]then
-component.setPrimary(componentType,component.list(componentType,true)())
+function a.isAvailable(d)
+checkArg(1,d,"string")
+if not b[d]and not c[d]then
+a.setPrimary(d,a.list(d,true)())
 end
-return primaries[componentType]~=nil
+return b[d]~=nil
 end
-function component.isPrimary(address)
-local componentType=component.type(address)
-if componentType and component.isAvailable(componentType)then
-return primaries[componentType].address==address
+function a.isPrimary(e)
+local d=a.type(e)
+if d and a.isAvailable(d)then
+return b[d].address==e
 end
 return false
 end
-function component.getPrimary(componentType)
-checkArg(1,componentType,"string")
-assert(component.isAvailable(componentType),"no primary '"..componentType.."' available")
-return primaries[componentType]
+function a.getPrimary(d)
+checkArg(1,d,"string")
+assert(a.isAvailable(d),"no primary '"..d.."' available")
+return b[d]
 end
-function component.setPrimary(componentType,address)
-checkArg(1,componentType,"string")
-checkArg(2,address,"string","nil")
-if address~=nil then
-address=component.get(address,componentType)
-assert(address,"no such component")
+function a.setPrimary(d,e)
+checkArg(1,d,"string")
+checkArg(2,e,"string","nil")
+if e~=nil then
+e=a.get(e,d)
+assert(e,"no such component")
 end
-local wasAvailable=primaries[componentType]
-if wasAvailable and address==wasAvailable.address then
+local h=b[d]
+if h and e==h.address then
 return
 end
-local wasAdding=adding[componentType]
-if wasAdding and address==wasAdding.address then
+local f=c[d]
+if f and e==f.address then
 return
 end
-if wasAdding then
-event.cancel(wasAdding.timer)
+if f then
+g.cancel(f.timer)
 end
-primaries[componentType]=nil
-adding[componentType]=nil
-local primary=address and component.proxy(address)or nil
-if wasAvailable then
-computer.pushSignal("component_unavailable",componentType)
+b[d]=nil
+c[d]=nil
+local i=e and a.proxy(e)or nil
+if h then
+j.pushSignal("component_unavailable",d)
 end
-if primary then
-if wasAvailable or wasAdding then
-adding[componentType]={
-address=address,
-proxy=primary,
-timer=event.timer(0.1,function()
-adding[componentType]=nil
-primaries[componentType]=primary
-computer.pushSignal("component_available",componentType)
+if i then
+if h or f then
+c[d]={
+address=e,
+proxy=i,
+timer=g.timer(0.1,function()
+c[d]=nil
+b[d]=i
+j.pushSignal("component_available",d)
 end),
 }
 else
-primaries[componentType]=primary
-computer.pushSignal("component_available",componentType)
+b[d]=i
+j.pushSignal("component_available",d)
 end
 end
 end
-local function onComponentAdded(_,address,componentType)
-local prev=primaries[componentType]or(adding[componentType]and adding[componentType].proxy)
-if prev then
-if componentType=="screen"then
-if#prev.getKeyboards()==0 then
-local first_kb=component.invoke(address,"getKeyboards")[1]
-if first_kb then
-component.setPrimary("keyboard",first_kb)
-prev=nil
+local function i(d,f,d)
+local e=b[d]or(c[d]and c[d].proxy)
+if e then
+if d=="screen"then
+if#e.getKeyboards()==0 then
+local h=a.invoke(f,"getKeyboards")[1]
+if h then
+a.setPrimary("keyboard",h)
+e=nil
 end
 end
-elseif componentType=="keyboard"and address~=prev.address then
-local current_screen=primaries.screen or(adding.screen and adding.screen.proxy)
-if current_screen then
-prev=address~=current_screen.getKeyboards()[1]
-end
-end
-end
-if not prev then
-component.setPrimary(componentType,address)
-end
-end
-local function onComponentRemoved(_,address,componentType)
-if primaries[componentType]and primaries[componentType].address==address or
-adding[componentType]and adding[componentType].address==address then
-local nxt=component.list(componentType,true)()
-component.setPrimary(componentType,nxt)
-if componentType=="screen"and nxt then
-local proxy=primaries.screen or(adding.screen and adding.screen.proxy)
-if proxy then
-local next_kb=proxy.getKeyboards()[1]
-local old_kb=primaries.keyboard or adding.keyboard
-if next_kb and(not old_kb or old_kb.address~=next_kb)then
-component.setPrimary("keyboard",next_kb)
+elseif d=="keyboard"and f~=e.address then
+local h=b.screen or(c.screen and c.screen.proxy)
+if h then
+e=f~=h.getKeyboards()[1]
 end
 end
 end
+if not e then
+a.setPrimary(d,f)
 end
 end
-event.listen("component_added",onComponentAdded)
-event.listen("component_removed",onComponentRemoved)
+local function f(d,e,d)
+if b[d]and b[d].address==e or
+c[d]and c[d].address==e then
+local e=a.list(d,true)()
+a.setPrimary(d,e)
+if d=="screen"and e then
+local e=b.screen or(c.screen and c.screen.proxy)
+if e then
+local d=e.getKeyboards()[1]
+local e=b.keyboard or c.keyboard
+if d and(not e or e.address~=d)then
+a.setPrimary("keyboard",d)
+end
+end
+end
+end
+end
+g.listen("component_added",i)
+g.listen("component_removed",f)
 if _G.boot_screen then
-component.setPrimary("screen",_G.boot_screen)
+a.setPrimary("screen",_G.boot_screen)
 end
 _G.boot_screen=nil

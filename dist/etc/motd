@@ -1,38 +1,38 @@
-local computer=require("computer")
-local unicode=require("unicode")
-local tty=require("tty")
-local tips={}
-local f=io.open("/usr/misc/greetings.txt")
-if f then
+local f=require("computer")
+local a=require("unicode")
+local g=require("tty")
+local c={}
+local b=io.open("/usr/misc/greetings.txt")
+if b then
 pcall(function()
-for line in f:lines()do
-if line~=""then tips[#tips+1]=line end
+for d in b:lines()do
+if d~=""then c[#c+1]=d end
 end
 end)
-f:close()
+b:close()
 end
-local tip=tips[math.random(1,math.max(#tips,1))]or""
-local head=_OSVERSION.." ("..math.floor(computer.totalMemory()/1024).."k RAM)"
-local lines={head}
-local width=math.min(unicode.wlen(tip),(tty.getViewport()or math.huge)-5)
-local maxLine=unicode.wlen(head)
-while unicode.len(tip)>0 do
-local piece=unicode.wlen(tip)<=width and tip or unicode.wtrunc(tip,width+1)
-if piece~=tip then
-local cut=piece:match("^(.*%s)%S*$")
-if cut and#cut>0 then piece=cut end
+local b=c[math.random(1,math.max(#c,1))]or""
+local e=_OSVERSION.." ("..math.floor(f.totalMemory()/1024).."k RAM)"
+local c={e}
+local f=math.min(a.wlen(b),(g.getViewport()or math.huge)-5)
+local d=a.wlen(e)
+while a.len(b)>0 do
+local e=a.wlen(b)<=f and b or a.wtrunc(b,f+1)
+if e~=b then
+local f=e:match("^(.*%s)%S*$")
+if f and#f>0 then e=f end
 end
-lines[#lines+1]=(piece:gsub("%s+$",""))
-maxLine=math.max(maxLine,unicode.wlen(lines[#lines]))
-tip=unicode.sub(tip,unicode.len(piece)+1)
+c[#c+1]=(e:gsub("%s+$",""))
+d=math.max(d,a.wlen(c[#c]))
+b=a.sub(b,a.len(e)+1)
 end
-local c=unicode.char
-io.write("\27[36m",c(0x256D),string.rep(c(0x2500),maxLine+2),c(0x256E),"\n")
-for i,line in ipairs(lines)do
-io.write(c(0x2502)," ",i==1 and"\27[37m"or"\27[33m",line,"\27[36m",
-string.rep(" ",maxLine-unicode.wlen(line)+1),c(0x2502),"\n")
+local b=a.char
+io.write("\27[36m",b(0x256D),string.rep(b(0x2500),d+2),b(0x256E),"\n")
+for f,e in ipairs(c)do
+io.write(b(0x2502)," ",f==1 and"\27[37m"or"\27[33m",e,"\27[36m",
+string.rep(" ",d-a.wlen(e)+1),b(0x2502),"\n")
 end
-io.write(c(0x2570),string.rep(c(0x2500),maxLine+2),c(0x256F),"\27[37m\n")
+io.write(b(0x2570),string.rep(b(0x2500),d+2),b(0x256F),"\27[37m\n")
 if require("filesystem").get("home").isReadOnly()then
 io.write("\27[33mДомашний каталог только для чтения: выполните `install` и перезагрузитесь.\27[37m\n")
 end

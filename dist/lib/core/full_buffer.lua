@@ -1,185 +1,185 @@
-local buffer=require("buffer")
-local unicode=require("unicode")
-function buffer:getTimeout()
+local b=require("buffer")
+local e=require("unicode")
+function b:getTimeout()
 return self.readTimeout
 end
-function buffer:setTimeout(value)
-self.readTimeout=tonumber(value)
+function b:setTimeout(a)
+self.readTimeout=tonumber(a)
 end
-function buffer:seek(whence,offset)
-whence=tostring(whence or"cur")
-assert(whence=="set"or whence=="cur"or whence=="end",
-"bad argument #1 (set, cur or end expected, got "..whence..")")
-offset=offset or 0
-checkArg(2,offset,"number")
-assert(math.floor(offset)==offset,"bad argument #2 (not an integer)")
+function b:seek(a,c)
+a=tostring(a or"cur")
+assert(a=="set"or a=="cur"or a=="end",
+"bad argument #1 (set, cur or end expected, got "..a..")")
+c=c or 0
+checkArg(2,c,"number")
+assert(math.floor(c)==c,"bad argument #2 (not an integer)")
 if self.mode.w or self.mode.a then
 self:flush()
-elseif whence=="cur"then
-offset=offset-#self.bufferRead
+elseif a=="cur"then
+c=c-#self.bufferRead
 end
-local result,reason=self.stream:seek(whence,offset)
-if result then
+local d,f=self.stream:seek(a,c)
+if d then
 self.bufferRead=""
-return result
+return d
 end
-return nil,reason
+return nil,f
 end
-function buffer:buffered_write(arg)
-local result,reason
+function b:buffered_write(a)
+local c,d
 if self.bufferMode=="full"then
-if self.bufferSize-#self.bufferWrite<#arg then
-result,reason=self:flush()
-if not result then
-return nil,reason
+if self.bufferSize-#self.bufferWrite<#a then
+c,d=self:flush()
+if not c then
+return nil,d
 end
 end
-if#arg>self.bufferSize then
-return self.stream:write(arg)
+if#a>self.bufferSize then
+return self.stream:write(a)
 end
-self.bufferWrite=self.bufferWrite..arg
+self.bufferWrite=self.bufferWrite..a
 return self
 end
-local l=arg:find("\n[^\n]*$")
-if l or#arg>self.bufferSize then
-result,reason=self:flush()
-if not result then
-return nil,reason
+local f=a:find("\n[^\n]*$")
+if f or#a>self.bufferSize then
+c,d=self:flush()
+if not c then
+return nil,d
 end
 end
-if l then
-result,reason=self.stream:write(arg:sub(1,l))
-if not result then
-return nil,reason
+if f then
+c,d=self.stream:write(a:sub(1,f))
+if not c then
+return nil,d
 end
-arg=arg:sub(l+1)
+a=a:sub(f+1)
 end
-if#arg>self.bufferSize then
-return self.stream:write(arg)
+if#a>self.bufferSize then
+return self.stream:write(a)
 end
-self.bufferWrite=self.bufferWrite..arg
+self.bufferWrite=self.bufferWrite..a
 return self
 end
-local function measure(self)
-if self.mode.b then return rawlen,string.sub end
-return unicode.len,unicode.sub
+local function d(a)
+if a.mode.b then return rawlen,string.sub end
+return e.len,e.sub
 end
-function buffer:readNumber(readChunk)
-local len,sub=measure(self)
-local number_text=""
-local white_done
-local function peek()
-if len(self.bufferRead)==0 then
-local result,reason=readChunk(self)
-if not result then
-return result,reason
+function b:readNumber(h)
+local g,c=d(self)
+local a=""
+local f
+local function i()
+if g(self.bufferRead)==0 then
+local g,j=h(self)
+if not g then
+return g,j
 end
 end
-return sub(self.bufferRead,1,1)
+return c(self.bufferRead,1,1)
 end
-local function pop()
-local n=sub(self.bufferRead,1,1)
-self.bufferRead=sub(self.bufferRead,2)
-return n
+local function g()
+local h=c(self.bufferRead,1,1)
+self.bufferRead=c(self.bufferRead,2)
+return h
 end
 while true do
-local peeked=peek()
-if not peeked then
+local c=i()
+if not c then
 break
 end
-if peeked:match("%s")then
-if white_done then
+if c:match("%s")then
+if f then
 break
 end
-pop()
+g()
 else
-white_done=true
-if not tonumber(number_text..peeked.."0")then
+f=true
+if not tonumber(a..c.."0")then
 break
 end
-number_text=number_text..pop()
+a=a..g()
 end
 end
-return tonumber(number_text)
+return tonumber(a)
 end
-function buffer:readBytesOrChars(readChunk,n)
-n=math.max(n,0)
-local len,sub=measure(self)
-local parts,have={},0
-while have<n do
-local needed=n-have
+function b:readBytesOrChars(i,a)
+a=math.max(a,0)
+local f,j=d(self)
+local d,c={},0
+while c<a do
+local g=a-c
 if#self.bufferRead==0 then
-local result,reason=readChunk(self)
-if not result then
-if reason then
-return result,reason
+local a,h=i(self)
+if not a then
+if h then
+return a,h
 end
-return have>0 and table.concat(parts)or nil
-end
-end
-local splice=self.bufferRead
-if len(splice)>needed then
-splice=sub(self.bufferRead,1,needed)
-if len(splice)~=needed then
-splice=self.bufferRead
+return c>0 and table.concat(d)or nil
 end
 end
-parts[#parts+1]=splice
-have=have+len(splice)
-self.bufferRead=string.sub(self.bufferRead,#splice+1)
+local a=self.bufferRead
+if f(a)>g then
+a=j(self.bufferRead,1,g)
+if f(a)~=g then
+a=self.bufferRead
 end
-return table.concat(parts)
 end
-function buffer:readAll(readChunk)
+d[#d+1]=a
+c=c+f(a)
+self.bufferRead=string.sub(self.bufferRead,#a+1)
+end
+return table.concat(d)
+end
+function b:readAll(d)
 repeat
-local result,reason=readChunk(self)
-if not result and reason then
-return result,reason
+local a,c=d(self)
+if not a and c then
+return a,c
 end
-until not result
-local result=self.bufferRead
+until not a
+local a=self.bufferRead
 self.bufferRead=""
-return result
+return a
 end
-function buffer:formatted_read(readChunk,...)
+function b:formatted_read(c,...)
 self.timeout=require("computer").uptime()+self.readTimeout
-local function read(n,format)
-if type(format)=="number"then
-return self:readBytesOrChars(readChunk,format)
+local function h(d,a)
+if type(a)=="number"then
+return self:readBytesOrChars(c,a)
 end
-if type(format)~="string"then
-error("bad argument #"..n.." (invalid option)")
+if type(a)~="string"then
+error("bad argument #"..d.." (invalid option)")
 end
-local first=unicode.sub(format,1,1)=="*"and 2 or 1
-format=unicode.sub(format,first,first)
-if format=="n"then
-return self:readNumber(readChunk)
-elseif format=="l"then
+local f=e.sub(a,1,1)=="*"and 2 or 1
+a=e.sub(a,f,f)
+if a=="n"then
+return self:readNumber(c)
+elseif a=="l"then
 return self:readLine(true,self.timeout)
-elseif format=="L"then
+elseif a=="L"then
 return self:readLine(false,self.timeout)
-elseif format=="a"then
-return self:readAll(readChunk)
+elseif a=="a"then
+return self:readAll(c)
 end
-error("bad argument #"..n.." (invalid format)")
+error("bad argument #"..d.." (invalid format)")
 end
-local results={}
-local formats=table.pack(...)
-for i=1,formats.n do
-local result,reason=read(i,formats[i])
-if result then
-results[i]=result
-elseif reason then
-return nil,reason
+local d={}
+local a=table.pack(...)
+for c=1,a.n do
+local f,g=h(c,a[c])
+if f then
+d[c]=f
+elseif g then
+return nil,g
 end
 end
-return table.unpack(results,1,formats.n)
+return table.unpack(d,1,a.n)
 end
-function buffer:size()
-local len=self.mode.b and rawlen or unicode.len
-local size=len(self.bufferRead)
+function b:size()
+local b=self.mode.b and rawlen or e.len
+local a=b(self.bufferRead)
 if self.stream.size then
-size=size+self.stream:size()
+a=a+self.stream:size()
 end
-return size
+return a
 end

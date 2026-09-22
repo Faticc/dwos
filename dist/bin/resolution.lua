@@ -1,26 +1,26 @@
-local shell=require("shell")
-local tty=require("tty")
-local args=shell.parse(...)
-local gpu=tty.gpu()
-if#args==0 then
-local w,h=gpu.getViewport()
-io.write(w," ",h,"\n")
+local c=require("shell")
+local b=require("tty")
+local a=c.parse(...)
+local c=b.gpu()
+if#a==0 then
+local d,e=c.getViewport()
+io.write(d," ",e,"\n")
 return
 end
-if#args~=2 then
+if#a~=2 then
 print("Usage: resolution [<width> <height>]")
 return
 end
-local w,h=tonumber(args[1]),tonumber(args[2])
-if not w or not h then
+local d,e=tonumber(a[1]),tonumber(a[2])
+if not d or not e then
 io.stderr:write("invalid width or height\n")
 return 1
 end
-local result,reason=gpu.setResolution(w,h)
-if not result then
-if reason then
-io.stderr:write(reason.."\n")
+local f,a=c.setResolution(d,e)
+if not f then
+if a then
+io.stderr:write(a.."\n")
 end
 return 1
 end
-tty.clear()
+b.clear()

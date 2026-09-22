@@ -1,158 +1,158 @@
-local lib={}
-lib.internal={}
-function lib.internal.range_adjust(f,l,s)
-checkArg(1,f,"number","nil")
-checkArg(2,l,"number","nil")
-checkArg(3,s,"number")
-if f==nil then f=1 elseif f<0 then f=s+f+1 end
-if l==nil then l=s elseif l<0 then l=s+l+1 end
-return f,l
+local a={}
+a.internal={}
+function a.internal.range_adjust(b,c,d)
+checkArg(1,b,"number","nil")
+checkArg(2,c,"number","nil")
+checkArg(3,d,"number")
+if b==nil then b=1 elseif b<0 then b=d+b+1 end
+if c==nil then c=d elseif c<0 then c=d+c+1 end
+return b,c
 end
-function lib.internal.table_view(tbl,f,l)
+function a.internal.table_view(d,e,c)
 return setmetatable({},{
-__index=function(_,key)
-return(type(key)~="number"or(key>=f and key<=l))and tbl[key]or nil
+__index=function(b,b)
+return(type(b)~="number"or(b>=e and b<=c))and d[b]or nil
 end,
-__len=function()return l end,
+__len=function()return c end,
 })
 end
-local adjust=lib.internal.range_adjust
-local view=lib.internal.table_view
-function lib.first(tbl,pred,f,l)
-checkArg(1,tbl,"table")
-checkArg(2,pred,"function","table")
-if type(pred)=="table"then
-local set=pred
-pred=function(_,fi,t)
-for vi=1,#set do
-local v=set[vi]
-if lib.begins(t,v,fi)then return true,#v end
+local f=a.internal.range_adjust
+local i=a.internal.table_view
+function a.first(b,c,d,e)
+checkArg(1,b,"table")
+checkArg(2,c,"function","table")
+if type(c)=="table"then
+local g=c
+c=function(h,j,k)
+for l=1,#g do
+local h=g[l]
+if a.begins(k,h,j)then return true,#h end
 end
 end
 end
-local s=#tbl
-f,l=adjust(f,l,s)
-tbl=view(tbl,f,l)
-for i=f,l do
-local si,ei=pred(tbl[i],i,tbl)
-if si then
-return i,i+(ei or 1)-1
+local g=#b
+d,e=f(d,e,g)
+b=i(b,d,e)
+for g=d,e do
+local d,e=c(b[g],g,b)
+if d then
+return g,g+(e or 1)-1
 end
 end
 end
-function lib.begins(tbl,v,f,l)
-checkArg(1,tbl,"table")
-checkArg(2,v,"table")
-local vs=#v
-f,l=adjust(f,l,#tbl)
-if vs>(l-f+1)then return end
-for i=1,vs do
-if tbl[f+i-1]~=v[i]then return end
+function a.begins(c,d,b,e)
+checkArg(1,c,"table")
+checkArg(2,d,"table")
+local g=#d
+b,e=f(b,e,#c)
+if g>(e-b+1)then return end
+for e=1,g do
+if c[b+e-1]~=d[e]then return end
 end
 return true
 end
-function lib.concat(...)
-local r,rn,k={},0
-for i,tbl in ipairs({...})do
-if type(tbl)~="table"then
-return nil,"parameter "..tostring(i).." to concat is not a table"
+function a.concat(...)
+local d,c,e={},0
+for g,b in ipairs({...})do
+if type(b)~="table"then
+return nil,"parameter "..tostring(g).." to concat is not a table"
 end
-local n=tbl.n or#tbl
-k=k or tbl.n
-for j=1,n do
-rn=rn+1
-r[rn]=tbl[j]
+local g=b.n or#b
+e=e or b.n
+for h=1,g do
+c=c+1
+d[c]=b[h]
 end
 end
-r.n=k and rn or nil
-return r
+d.n=e and c or nil
+return d
 end
-function lib.sub(tbl,f,l)
-checkArg(1,tbl,"table")
-local r,s={},#tbl
-f,l=adjust(f,l,s)
-l=math.min(l,s)
-for i=math.max(f,1),l do
-r[#r+1]=tbl[i]
+function a.sub(c,d,b)
+checkArg(1,c,"table")
+local e,g={},#c
+d,b=f(d,b,g)
+b=math.min(b,g)
+for g=math.max(d,1),b do
+e[#e+1]=c[g]
 end
-return r
+return e
 end
-function lib.partition(tbl,partitioner,dropEnds,f,l)
-checkArg(1,tbl,"table")
-checkArg(2,partitioner,"function","table")
-checkArg(3,dropEnds,"boolean","nil")
-if type(partitioner)=="table"then
-return lib.partition(tbl,function(_,i,t)
-return lib.first(t,partitioner,i)
-end,dropEnds,f,l)
+function a.partition(c,h,j,b,g)
+checkArg(1,c,"table")
+checkArg(2,h,"function","table")
+checkArg(3,j,"boolean","nil")
+if type(h)=="table"then
+return a.partition(c,function(d,d,e)
+return a.first(e,h,d)
+end,j,b,g)
 end
-local s=#tbl
-f,l=adjust(f,l,s)
-local cut=view(tbl,f,l)
-local result={}
-local need=true
-local function exp()if need then result[#result+1]={}need=false end end
-local i=f
-while i<=l do
-local e=cut[i]
-local ds,de=partitioner(e,i,cut)
-if ds==true then ds,de=i,i
-elseif ds==false then ds,de=nil,nil end
-if ds~=nil then
-ds,de=adjust(ds,de,l)
-ds=ds>=i and ds
+local d=#c
+b,g=f(b,g,d)
+local k=i(c,b,g)
+local c={}
+local l=true
+local function n()if l then c[#c+1]={}l=false end end
+local d=b
+while d<=g do
+local m=k[d]
+local b,e=h(m,d,k)
+if b==true then b,e=d,d
+elseif b==false then b,e=nil,nil end
+if b~=nil then
+b,e=f(b,e,g)
+b=b>=d and b
 end
-if not ds then
-exp()
-table.insert(result[#result],e)
+if not b then
+n()
+table.insert(c[#c],m)
 else
-local sub=lib.sub(cut,i,not dropEnds and de or(ds-1))
-if#sub>0 then
-exp()
-result[#result+math.min(#result[#result],1)]=sub
+local g=a.sub(k,d,not j and e or(b-1))
+if#g>0 then
+n()
+c[#c+math.min(#c[#c],1)]=g
 end
-local ensured=math.max(math.max(de or ds,ds),i)
-if de and ds and de<ds and ensured==i then
-if#result==0 then result[1]={}end
-table.insert(result[#result],e)
+local g=math.max(math.max(e or b,b),d)
+if e and b and e<b and g==d then
+if#c==0 then c[1]={}end
+table.insert(c[#c],m)
 end
-i=ensured
-need=true
+d=g
+l=true
 end
-i=i+1
+d=d+1
 end
-return result
+return c
 end
-function lib.foreach(tbl,c,f,l)
-checkArg(1,tbl,"table")
+function a.foreach(b,c,d,e)
+checkArg(1,b,"table")
 checkArg(2,c,"function","string")
-local ck=c
-c=type(c)=="string"and function(e)return e[ck]end or c
-local s=#tbl
-f,l=adjust(f,l,s)
-tbl=view(tbl,f,l)
-local r={}
-for i=f,l do
-local n,k=c(tbl[i],i,tbl)
-if n~=nil then
-if k then r[k]=n else r[#r+1]=n end
+local g=c
+c=type(c)=="string"and function(h)return h[g]end or c
+local g=#b
+d,e=f(d,e,g)
+b=i(b,d,e)
+local f={}
+for g=d,e do
+local d,e=c(b[g],g,b)
+if d~=nil then
+if e then f[e]=d else f[#f+1]=d end
 end
 end
-return r
+return f
 end
-function lib.where(tbl,p,f,l)
-return lib.foreach(tbl,function(e,i,t)return p(e,i,t)and e or nil end,f,l)
+function a.where(b,c,d,e)
+return a.foreach(b,function(b,f,g)return c(b,f,g)and b or nil end,d,e)
 end
-function lib.at(tbl,index)
-checkArg(1,tbl,"table")
-checkArg(2,index,"number","nil")
-local current=1
-for k,v in pairs(tbl)do
-if current==index then
-return k,v
+function a.at(c,d)
+checkArg(1,c,"table")
+checkArg(2,d,"number","nil")
+local b=1
+for e,f in pairs(c)do
+if b==d then
+return e,f
 end
-current=current+1
+b=b+1
 end
-return nil,current-1
+return nil,b-1
 end
-return lib
+return a

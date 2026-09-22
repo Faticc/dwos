@@ -1,82 +1,82 @@
-local shell=require("shell")
-local fs=require("filesystem")
-local text=require("text")
-local USAGE=[==[Usage: find [path] [--type=[dfs]] [--[i]name=EXPR]
+local g=require("shell")
+local c=require("filesystem")
+local h=require("text")
+local e=[==[Usage: find [path] [--type=[dfs]] [--[i]name=EXPR]
   --path  if not specified, path is assumed to be current working directory
   --type  returns results of a given type, d:directory, f:file, and s:symlinks
   --name  specify the file name pattern. Use quote to include *. iname is
           case insensitive
   --help  display this help and exit]==]
-local args,options=shell.parse(...)
-if options.help then
-print(USAGE)
+local b,a=g.parse(...)
+if a.help then
+print(e)
 return
 end
-if#args>1 then
-io.stderr:write(USAGE.."\n")
+if#b>1 then
+io.stderr:write(e.."\n")
 return 1
 end
-local path=args[1]or"."
-local want={d=true,f=true,s=true}
-local pattern=""
-local caseSensitive=true
-if options.iname and options.name then
+local i=b[1]or"."
+local d={d=true,f=true,s=true}
+local b=""
+local f=true
+if a.iname and a.name then
 io.stderr:write("find cannot define both iname and name\n")
 return 1
 end
-if options.type then
-if not want[options.type]then
-io.stderr:write(string.format("find: Unknown argument to type: %s\n",options.type))
-io.stderr:write(USAGE.."\n")
+if a.type then
+if not d[a.type]then
+io.stderr:write(string.format("find: Unknown argument to type: %s\n",a.type))
+io.stderr:write(e.."\n")
 return 1
 end
-want={[options.type]=true}
+d={[a.type]=true}
 end
-if options.iname or options.name then
-caseSensitive=options.iname==nil
-pattern=options.iname or options.name
-if type(pattern)~="string"then
+if a.iname or a.name then
+f=a.iname==nil
+b=a.iname or a.name
+if type(b)~="string"then
 io.stderr:write("find: missing argument to `name'\n")
 return 1
 end
-if not caseSensitive then
-pattern=pattern:lower()
+if not f then
+b=b:lower()
 end
-pattern="^"..text.escapeMagic(pattern):gsub("%%%*",".*").."$"
+b="^"..h.escapeMagic(b):gsub("%%%*",".*").."$"
 end
-local function matches(spath)
-if not fs.exists(spath)then
+local function h(a)
+if not c.exists(a)then
 return false
 end
-if pattern~=""then
-local name=spath:gsub(".*/","")
-if name==""then
+if b~=""then
+local e=a:gsub(".*/","")
+if e==""then
 return false
 end
-if not caseSensitive then
-name=name:lower()
+if not f then
+e=e:lower()
 end
-if not name:find(pattern)then
+if not e:find(b)then
 return false
 end
 end
-if fs.isDirectory(spath)then
-return want.d
-elseif fs.isLink(spath)then
-return want.s
+if c.isDirectory(a)then
+return d.d
+elseif c.isLink(a)then
+return d.s
 end
-return want.f
+return d.f
 end
-local function visit(rpath)
-local spath=shell.resolve(rpath)
-local clean=rpath:gsub("/+$","")
-if matches(spath)then
-print(clean)
+local function b(d)
+local a=g.resolve(d)
+local e=d:gsub("/+$","")
+if h(a)then
+print(e)
 end
-if fs.isDirectory(spath)then
-for item in fs.list(spath)do
-visit(clean.."/"..item)
+if c.isDirectory(a)then
+for d in c.list(a)do
+b(e.."/"..d)
 end
 end
 end
-visit(path)
+b(i)

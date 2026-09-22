@@ -1,22 +1,22 @@
-local args={...}
-if#args<1 then
-for k,v in pairs(os.getenv())do
-io.write(k.."='"..string.gsub(v,"'",[['"'"']]).."'\n")
+local c={...}
+if#c<1 then
+for a,b in pairs(os.getenv())do
+io.write(a.."='"..string.gsub(b,"'",[['"'"']]).."'\n")
 end
 return
 end
-local count=0
-for _,expr in ipairs(args)do
-local e=expr:find("=")
-if e then
-os.setenv(expr:sub(1,e-1),expr:sub(e+1))
+local a=0
+for b,b in ipairs(c)do
+local c=b:find("=")
+if c then
+os.setenv(b:sub(1,c-1),b:sub(c+1))
 else
-if count==0 then
-for i=1,os.getenv("#")do
-os.setenv(i,nil)
+if a==0 then
+for c=1,os.getenv("#")do
+os.setenv(c,nil)
 end
 end
-count=count+1
-os.setenv(count,expr)
+a=a+1
+os.setenv(a,b)
 end
 end

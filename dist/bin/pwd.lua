@@ -1,12 +1,12 @@
-local shell=require("shell")
-local fs=require("filesystem")
-local _,op=shell.parse(...)
-local path,why=shell.getWorkingDirectory(),""
-if op.P then
-path,why=fs.realPath(path)
+local b=require("shell")
+local d=require("filesystem")
+local a,e=b.parse(...)
+local a,c=b.getWorkingDirectory(),""
+if e.P then
+a,c=d.realPath(a)
 end
-if not path then
-io.stderr:write(string.format("error retrieving current directory: %s",why))
+if not a then
+io.stderr:write(string.format("error retrieving current directory: %s",c))
 os.exit(1)
 end
-io.write(path,"\n")
+io.write(a,"\n")

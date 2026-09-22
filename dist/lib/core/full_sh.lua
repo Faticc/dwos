@@ -1,440 +1,440 @@
-local fs=require("filesystem")
-local process=require("process")
-local shell=require("shell")
-local text=require("text")
-local unicode=require("unicode")
-local sh=require("sh")
-local isWordOf=sh.internal.isWordOf
-function sh.internal.command_passed(ec)
-return sh.internal.command_result_as_code(ec)==0
+local e=require("filesystem")
+local t=require("process")
+local f=require("shell")
+local b=require("text")
+local c=require("unicode")
+local a=require("sh")
+local k=a.internal.isWordOf
+function a.internal.command_passed(d)
+return a.internal.command_result_as_code(d)==0
 end
-function sh.internal.buildCommandRedirects(words)
-local redirects={}
-local index=1
-local from_io,to_io,mode
-local syn_err_msg="syntax error near unexpected token "
+function a.internal.buildCommandRedirects(n)
+local l={}
+local i=1
+local o,g,d
+local p="syntax error near unexpected token "
 while true do
-local word=words[index]
-if not word then break end
-local part=word[1]
-local token=not word[2]and not part.qr and part.txt or""
-local _,_,from_io_txt,mode_txt,to_io_txt=token:find("(%d*)([<>]>?)%&?(.*)")
-if mode_txt then
-if mode then
-return nil,syn_err_msg..token
+local j=n[i]
+if not j then break end
+local m=j[1]
+local h=not j[2]and not m.qr and m.txt or""
+local q,q,q,r,s=h:find("(%d*)([<>]>?)%&?(.*)")
+if r then
+if d then
+return nil,p..h
 end
-mode=assert(({["<"]="r",[">"]="w",[">>"]="a"})[mode_txt],"redirect failed to detect mode")
-from_io=from_io_txt~=""and tonumber(from_io_txt)or mode=="r"and 0 or 1
-to_io=to_io_txt~=""and tonumber(to_io_txt)
-elseif mode then
-token=sh.internal.evaluate({word})
-if#token>1 then
-return nil,string.format("%s: ambiguous redirect",part.txt)
+d=assert(({["<"]="r",[">"]="w",[">>"]="a"})[r],"redirect failed to detect mode")
+o=q~=""and tonumber(q)or d=="r"and 0 or 1
+g=s~=""and tonumber(s)
+elseif d then
+h=a.internal.evaluate({j})
+if#h>1 then
+return nil,string.format("%s: ambiguous redirect",m.txt)
 end
-to_io=token[1]
+g=h[1]
 else
-index=index+1
+i=i+1
 end
-if mode then
-table.remove(words,index)
+if d then
+table.remove(n,i)
 end
-if to_io then
-redirects[#redirects+1]={from_io,to_io,mode}
-mode,to_io=nil,nil
+if g then
+l[#l+1]={o,g,d}
+d,g=nil,nil
 end
 end
-if mode then
-return nil,syn_err_msg.."newline"
+if d then
+return nil,p.."newline"
 end
-return redirects
+return l
 end
-function sh.internal.openCommandRedirects(redirects)
-local ios=process.info().data.io
-for _,rjob in ipairs(redirects)do
-local from_io,to_io,mode=table.unpack(rjob)
-if type(to_io)=="number"then
-ios[from_io]=io.dup(ios[to_io])
+function a.internal.openCommandRedirects(d)
+local g=t.info().data.io
+for h,i in ipairs(d)do
+local h,d,j=table.unpack(i)
+if type(d)=="number"then
+g[h]=io.dup(g[d])
 else
-local file,reason=io.open(shell.resolve(to_io),mode)
-if not file then
-io.stderr:write("could not open '"..to_io.."': "..reason.."\n")
+local i,l=io.open(f.resolve(d),j)
+if not i then
+io.stderr:write("could not open '"..d.."': "..l.."\n")
 os.exit(1)
 end
-ios[from_io]=file
+g[h]=i
 end
 end
 end
-function sh.internal.glob(eword)
-local globbers={{"*",".*"},{"?","."}}
-local glob_pattern=""
-local has_globits
-for _,part in ipairs(eword)do
-local nxt=part.txt
-if not part.qr then
-local escaped=text.escapeMagic(nxt)
-nxt=escaped
-for _,rule in ipairs(globbers)do
-local doubled=text.escapeMagic(rule[1]):rep(2)
+function a.internal.glob(j)
+local l={{"*",".*"},{"?","."}}
+local g=""
+local i
+for d,h in ipairs(j)do
+local d=h.txt
+if not h.qr then
+local m=b.escapeMagic(d)
+d=m
+for h,h in ipairs(l)do
+local n=b.escapeMagic(h[1]):rep(2)
 while true do
-local prev=nxt
-nxt=nxt:gsub(doubled,rule[1])
-if prev==nxt then break end
+local o=d
+d=d:gsub(n,h[1])
+if o==d then break end
 end
-nxt=nxt:gsub("%%%"..rule[1],rule[2])
+d=d:gsub("%%%"..h[1],h[2])
 end
-has_globits=has_globits or nxt~=escaped
+i=i or d~=m
 end
-glob_pattern=glob_pattern..nxt
+g=g..d
 end
-if not has_globits then
-return{eword.txt}
+if not i then
+return{j.txt}
 end
-local segments=text.split(glob_pattern,{"/"},true)
-local hiddens={}
-for i,e in ipairs(segments)do hiddens[i]=e:match("^%%%.")==nil end
-local function is_visible(s,i)
-return not hiddens[i]or s:match("^%.")==nil
+local d=b.split(g,{"/"},true)
+local h={}
+for i,m in ipairs(d)do h[i]=m:match("^%%%.")==nil end
+local function o(i,m)
+return not h[m]or i:match("^%.")==nil
 end
-local function magical(s)
-for _,rule in ipairs(globbers)do
-if(" "..s):match("[^%%]"..text.escapeMagic(rule[2]))then
+local function n(h)
+for i,i in ipairs(l)do
+if(" "..h):match("[^%%]"..b.escapeMagic(i[2]))then
 return true
 end
 end
 end
-local is_abs=glob_pattern:sub(1,1)=="/"
-local root=is_abs and""or shell.getWorkingDirectory():gsub("([^/])$","%1/")
-local paths={is_abs and"/"or""}
-local relative_separator=""
-for i,segment in ipairs(segments)do
-local enclosed_pattern=string.format("^(%s)/?$",segment)
-local next_paths={}
-for _,path in ipairs(paths)do
-if fs.isDirectory(root..path)then
-if magical(segment)then
-for file in fs.list(root..path)do
-if file:match(enclosed_pattern)and is_visible(file,i)then
-next_paths[#next_paths+1]=path..relative_separator..file:gsub("/+$","")
+local i=g:sub(1,1)=="/"
+local l=i and""or f.getWorkingDirectory():gsub("([^/])$","%1/")
+local h={i and"/"or""}
+local i=""
+for p,m in ipairs(d)do
+local q=string.format("^(%s)/?$",m)
+local d={}
+for g,g in ipairs(h)do
+if e.isDirectory(l..g)then
+if n(m)then
+for n in e.list(l..g)do
+if n:match(q)and o(n,p)then
+d[#d+1]=g..i..n:gsub("/+$","")
 end
 end
 else
-local plain=text.removeEscapes(segment)
-local fpath=root..path..relative_separator..plain
-if fs.exists(fpath)then
-next_paths[#next_paths+1]=path..relative_separator..plain:gsub("/+$","")
+local n=b.removeEscapes(m)
+local m=l..g..i..n
+if e.exists(m)then
+d[#d+1]=g..i..n:gsub("/+$","")
 end
 end
 end
 end
-paths=next_paths
-if not next(paths)then
-return{eword.txt}
+h=d
+if not next(h)then
+return{j.txt}
 end
-relative_separator="/"
+i="/"
 end
-return paths
+return h
 end
-function sh.getMatchingPrograms(baseName)
-if not baseName or baseName==""then return{}end
-local result,seen={},{}
-local function check(key)
-if key:find(baseName,1,true)==1 and not seen[key]then
-result[#result+1]=key
-seen[key]=true
-end
-end
-for alias in shell.aliases()do
-check(alias)
-end
-for basePath in string.gmatch(os.getenv("PATH"),"[^:]+")do
-for file in fs.list(shell.resolve(basePath))do
-check((file:gsub("%.lua$","")))
+function a.getMatchingPrograms(g)
+if not g or g==""then return{}end
+local h,i={},{}
+local function j(d)
+if d:find(g,1,true)==1 and not i[d]then
+h[#h+1]=d
+i[d]=true
 end
 end
-return result
+for d in f.aliases()do
+j(d)
 end
-function sh.getMatchingFiles(partial_path)
-local name=partial_path:gsub("^.*/","")
-local basePath=unicode.sub(partial_path,1,-unicode.len(name)-1)
-local resolvedPath=shell.resolve(basePath)
-local result,baseName={}
-if fs.isDirectory(resolvedPath)and name==""then
-baseName="^(.-)/?$"
+for d in string.gmatch(os.getenv("PATH"),"[^:]+")do
+for g in e.list(f.resolve(d))do
+j((g:gsub("%.lua$","")))
+end
+end
+return h
+end
+function a.getMatchingFiles(d)
+local g=d:gsub("^.*/","")
+local i=c.sub(d,1,-c.len(g)-1)
+local j=f.resolve(i)
+local d,h={}
+if e.isDirectory(j)and g==""then
+h="^(.-)/?$"
 else
-baseName="^("..text.escapeMagic(name)..".-)/?$"
+h="^("..b.escapeMagic(g)..".-)/?$"
 end
-for file in fs.list(resolvedPath)do
-local match=file:match(baseName)
-if match then
-result[#result+1]=basePath..match:gsub("(%s)","\\%1")
+for l in e.list(j)do
+local g=l:match(h)
+if g then
+d[#d+1]=i..g:gsub("(%s)","\\%1")
 end
 end
-if#result==1 and fs.isDirectory(shell.resolve(result[1]))then
-result[1]=result[1].."/"
+if#d==1 and e.isDirectory(f.resolve(d[1]))then
+d[1]=d[1].."/"
 end
-return result
+return d
 end
-function sh.internal.hintHandlerSplit(line)
-if line:match("\\$")then return nil end
-local splits=text.internal.tokenize(line,{show_escapes=true})
-if not splits then
+function a.internal.hintHandlerSplit(e)
+if e:match("\\$")then return nil end
+local d=b.internal.tokenize(e,{show_escapes=true})
+if not d then
 return nil
 end
-local num_splits=#splits
-local last_close=0
-for index=num_splits,1,-1 do
-if isWordOf(splits[index],{";","&&","||","|"})then
-last_close=index
+local f=#d
+local g=0
+for h=f,1,-1 do
+if k(d[h],{";","&&","||","|"})then
+g=h
 break
 end
 end
-if last_close==num_splits then
+if g==f then
 return nil
 end
-local last_word=splits[num_splits]
-local normal=text.internal.normalize({last_word})[1]
-if unicode.sub(line,-unicode.len(normal))~=normal then
-return line,nil,""
+local h=d[f]
+local d=b.internal.normalize({h})[1]
+if c.sub(e,-c.len(d))~=d then
+return e,nil,""
 end
-local prefix=unicode.sub(line,1,-unicode.len(normal)-1)
-normal=text.internal.normalize(text.internal.tokenize(normal),true)[1]
-if last_close==num_splits-1 then
-return prefix,normal,nil
+local h=c.sub(e,1,-c.len(d)-1)
+d=b.internal.normalize(b.internal.tokenize(d),true)[1]
+if g==f-1 then
+return h,d,nil
 end
-return prefix,nil,normal
+return h,nil,d
 end
-function sh.internal.hintHandlerImpl(full_line,cursor)
-local line=unicode.sub(full_line,1,cursor-1)
-local suffix=unicode.sub(full_line,cursor)
-local prev,cmd,arg=sh.internal.hintHandlerSplit(line)
-if not prev then
+function a.internal.hintHandlerImpl(d,e)
+local h=c.sub(d,1,e-1)
+local i=c.sub(d,e)
+local f,g,e=a.internal.hintHandlerSplit(h)
+if not f then
 return{}
 end
-local result
-local searchInPath=cmd and not cmd:find("/")
-if searchInPath then
-result=sh.getMatchingPrograms(cmd)
+local d
+local j=g and not g:find("/")
+if j then
+d=a.getMatchingPrograms(g)
 else
-if arg then
-local equal_index=arg:find("=[^=]*$")
-if equal_index then
-prev=prev..unicode.sub(arg,1,equal_index)
-arg=unicode.sub(arg,equal_index+1)
+if e then
+local h=e:find("=[^=]*$")
+if h then
+f=f..c.sub(e,1,h)
+e=c.sub(e,h+1)
 end
 end
-result=sh.getMatchingFiles(cmd or arg)
+d=a.getMatchingFiles(g or e)
 end
-local resultSuffix=suffix
-if#result>0 and unicode.sub(result[1],-1)~="/"and
-not suffix:sub(1,1):find("%s")and
-#result==1 or searchInPath then
-resultSuffix=" "..resultSuffix
+local e=i
+if#d>0 and c.sub(d[1],-1)~="/"and
+not i:sub(1,1):find("%s")and
+#d==1 or j then
+e=" "..e
 end
-table.sort(result)
-for i=1,#result do
-result[i]=prev..result[i]..resultSuffix
+table.sort(d)
+for c=1,#d do
+d[c]=f..d[c]..e
 end
-return result
+return d
 end
-function sh.internal.hasValidPiping(words,pipes)
-checkArg(1,words,"table")
-checkArg(2,pipes,"table","nil")
-if#words==0 then
+function a.internal.hasValidPiping(d,e)
+checkArg(1,d,"table")
+checkArg(2,e,"table","nil")
+if#d==0 then
 return true
 end
-pipes=pipes or{"&&","||?"}
-local state=""
-for w=1,#words do
-local word=words[w]
-for p=1,#word do
-local part=word[p]
-if part.qr then
-state=nil
-elseif part.txt==""then
-state=nil
-elseif#text.split(part.txt,pipes,true)==0 then
-local prev=state
-state=part.txt
-if prev then
-word=nil
+e=e or{"&&","||?"}
+local c=""
+for g=1,#d do
+local f=d[g]
+for g=1,#f do
+local d=f[g]
+if d.qr then
+c=nil
+elseif d.txt==""then
+c=nil
+elseif#b.split(d.txt,e,true)==0 then
+local e=c
+c=d.txt
+if e then
+f=nil
 break
 end
 else
-state=nil
+c=nil
 end
 end
-if not word then
+if not f then
 break
 end
 end
-if state then
-return false,"syntax error near unexpected token "..state
+if c then
+return false,"syntax error near unexpected token "..c
 end
 return true
 end
-function sh.internal.boolean_executor(chains,predicator)
-local function not_gate(result,reason)
-return sh.internal.command_passed(result)and 1 or 0,reason
+function a.internal.boolean_executor(h,f)
+local function m(c,d)
+return a.internal.command_passed(c)and 1 or 0,d
 end
-local last=true
-local last_reason
-local boolean_stage,negation_stage,command_stage=1,2,0
-local stage=negation_stage
-local skip=false
-for ci=1,#chains do
-local nxt=chains[ci]
-local single=#nxt==1 and#nxt[1]==1 and not nxt[1][1].qr and nxt[1][1].txt
-if single=="||"or single=="&&"then
-if stage~=command_stage or#chains==0 then
-return nil,"syntax error near unexpected token '"..single.."'"
+local e=true
+local n
+local p,i,j=1,2,0
+local d=i
+local l=false
+for o=1,#h do
+local c=h[o]
+local g=#c==1 and#c[1]==1 and not c[1][1].qr and c[1][1].txt
+if g=="||"or g=="&&"then
+if d~=j or#h==0 then
+return nil,"syntax error near unexpected token '"..g.."'"
 end
-local passed=sh.internal.command_passed(last)
-if(single=="||")==passed then
-skip=true
+local h=a.internal.command_passed(e)
+if(g=="||")==h then
+l=true
 end
-stage=boolean_stage
-elseif not skip then
-local chomped=#nxt
-local negate=sh.internal.remove_negation(nxt)
-chomped=chomped~=#nxt
-if negate then
-local prev=predicator
-predicator=function(n,i)
-local result,reason=not_gate(prev(n,i))
-predicator=prev
-return result,reason
+d=p
+elseif not l then
+local g=#c
+local h=a.internal.remove_negation(c)
+g=g~=#c
+if h then
+local h=f
+f=function(p,q)
+local r,s=m(h(p,q))
+f=h
+return r,s
 end
 end
-if chomped then
-stage=negation_stage
+if g then
+d=i
 end
-if#nxt>0 then
-last,last_reason=predicator(nxt,ci)
-stage=command_stage
+if#c>0 then
+e,n=f(c,o)
+d=j
 end
 else
-skip=false
-stage=command_stage
+l=false
+d=j
 end
 end
-if stage==negation_stage then
-last=not_gate(last)
+if d==i then
+e=m(e)
 end
-return last,last_reason
+return e,n
 end
-local function partition(words,delims,keep)
-local result,group={},nil
-for _,w in ipairs(words)do
-if isWordOf(w,delims)then
-if keep then result[#result+1]={w}end
-group=nil
+local function e(g,h,i)
+local d,c={},nil
+for f,f in ipairs(g)do
+if k(f,h)then
+if i then d[#d+1]={f}end
+c=nil
 else
-if not group then
-group={}
-result[#result+1]=group
+if not c then
+c={}
+d[#d+1]=c
 end
-group[#group+1]=w
+c[#c+1]=f
 end
 end
-return result
+return d
 end
-function sh.internal.splitStatements(words,semicolon)
-checkArg(1,words,"table")
-checkArg(2,semicolon,"string","nil")
-return partition(words,{semicolon or";"})
+function a.internal.splitStatements(c,d)
+checkArg(1,c,"table")
+checkArg(2,d,"string","nil")
+return e(c,{d or";"})
 end
-function sh.internal.splitChains(s,pc)
-checkArg(1,s,"table")
-checkArg(2,pc,"string","nil")
-return partition(s,{pc or"|"})
+function a.internal.splitChains(c,d)
+checkArg(1,c,"table")
+checkArg(2,d,"string","nil")
+return e(c,{d or"|"})
 end
-function sh.internal.groupChains(s)
-checkArg(1,s,"table")
-return partition(s,{"&&","||"},true)
+function a.internal.groupChains(c)
+checkArg(1,c,"table")
+return e(c,{"&&","||"},true)
 end
-function sh.internal.remove_negation(chain)
-if isWordOf(chain[1],{"!"})then
-table.remove(chain,1)
-return not sh.internal.remove_negation(chain)
+function a.internal.remove_negation(c)
+if k(c[1],{"!"})then
+table.remove(c,1)
+return not a.internal.remove_negation(c)
 end
 return false
 end
-function sh.internal.execute_complex(words,eargs,env)
-local statements=sh.internal.splitStatements(words)
-for i=1,#statements do
-local ok,why=sh.internal.hasValidPiping(statements[i])
-if not ok then return nil,why end
+function a.internal.execute_complex(d,f,g)
+local c=a.internal.splitStatements(d)
+for d=1,#c do
+local e,h=a.internal.hasValidPiping(c[d])
+if not e then return nil,h end
 end
-for si=1,#statements do
-local chains=sh.internal.groupChains(statements[si])
-local last_code,reason=sh.internal.boolean_executor(chains,function(chain,chain_index)
-local pipe_parts=sh.internal.splitChains(chain)
-local next_args=chain_index==#chains and si==#statements and eargs or{}
-return sh.internal.executePipes(pipe_parts,next_args,env)
+for d=1,#c do
+local e=a.internal.groupChains(c[d])
+local h,i=a.internal.boolean_executor(e,function(j,k)
+local l=a.internal.splitChains(j)
+local j=k==#e and d==#c and f or{}
+return a.internal.executePipes(l,j,g)
 end)
-sh.internal.ec.last=sh.internal.command_result_as_code(last_code,reason)
+a.internal.ec.last=a.internal.command_result_as_code(h,i)
 end
-return sh.internal.ec.last==0
+return a.internal.ec.last==0
 end
-function sh.internal.evaluate(words)
-local redirects,why=sh.internal.buildCommandRedirects(words)
-if not redirects then
-return nil,why
+function a.internal.evaluate(c)
+local e,d=a.internal.buildCommandRedirects(c)
+if not e then
+return nil,d
 end
 do
-local command_text=table.concat(text.internal.normalize(words)," ")
-local subbed=sh.internal.parse_sub(command_text)
-if subbed~=command_text then
-words=text.internal.tokenize(subbed)
+local d=table.concat(b.internal.normalize(c)," ")
+local f=a.internal.parse_sub(d)
+if f~=d then
+c=b.internal.tokenize(f)
 end
 end
-local repack=false
-for _,word in ipairs(words)do
-for _,part in pairs(word)do
-if not(part.qr or{})[3]then
-local expanded=sh.expand(part.txt)
-if expanded~=part.txt then
-part.txt=expanded
-repack=true
+local f=false
+for d,g in ipairs(c)do
+for d,d in pairs(g)do
+if not(d.qr or{})[3]then
+local g=a.expand(d.txt)
+if g~=d.txt then
+d.txt=g
+f=true
 end
 end
 end
 end
-if repack then
-words=text.internal.tokenize(table.concat(text.internal.normalize(words)," "))
+if f then
+c=b.internal.tokenize(table.concat(b.internal.normalize(c)," "))
 end
-local args={}
-for _,word in ipairs(words)do
-local eword={txt=""}
-for _,part in ipairs(word)do
-eword.txt=eword.txt..part.txt
-eword[#eword+1]={qr=part.qr,txt=part.txt}
+local d={}
+for b,f in ipairs(c)do
+local b={txt=""}
+for c,c in ipairs(f)do
+b.txt=b.txt..c.txt
+b[#b+1]={qr=c.qr,txt=c.txt}
 end
-for _,arg in ipairs(sh.internal.glob(eword))do
-args[#args+1]=arg
+for c,c in ipairs(a.internal.glob(b))do
+d[#d+1]=c
 end
 end
-return args,redirects
+return d,e
 end
-function sh.internal.parse_sub(input,quotes)
-if quotes and quotes[1]=="`"then
-input=string.format("`%s`",input)
-quotes[1],quotes[2]="",""
+function a.internal.parse_sub(b,a)
+if a and a[1]=="`"then
+b=string.format("`%s`",b)
+a[1],a[2]="",""
 end
-local packed={}
-local i,len=1,#input
-while i<=len do
-local fi,si,capture=input:find("`([^`]*)`",i)
-if not fi then
-packed[#packed+1]=input:sub(i)
+local a={}
+local c,d=1,#b
+while c<=d do
+local d,e,f=b:find("`([^`]*)`",c)
+if not d then
+a[#a+1]=b:sub(c)
 break
 end
-packed[#packed+1]=input:sub(i,fi-1)
-local sub=io.popen(capture)
-local result=sub:read("*a")
-sub:close()
-packed[#packed+1]=(result:gsub("\n+$",""))
-i=si+1
+a[#a+1]=b:sub(c,d-1)
+local b=io.popen(f)
+local d=b:read("*a")
+b:close()
+a[#a+1]=(d:gsub("\n+$",""))
+c=e+1
 end
-return table.concat(packed)
+return table.concat(a)
 end

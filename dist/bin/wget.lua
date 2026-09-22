@@ -1,83 +1,76 @@
-local component=require("component")
-local fs=require("filesystem")
-local internet=require("internet")
-local shell=require("shell")
-local text=require("text")
-if not component.isAvailable("internet")then
+local a=require("component")
+local g=require("filesystem")
+local j=require("fetch")
+local d=require("shell")
+local h=require("text")
+if not a.isAvailable("internet")then
 io.stderr:write("This program requires an internet card to run.")
 return
 end
-local args,options=shell.parse(...)
-options.q=options.q or options.Q
-if#args<1 then
+local b,c=d.parse(...)
+c.q=c.q or c.Q
+if#b<1 then
 io.write("Usage: wget [-fq] <url> [<filename>]\n")
 io.write(" -f: Force overwriting existing files.\n")
 io.write(" -q: Quiet mode - no status messages.\n")
 io.write(" -Q: Superquiet mode - no error messages.")
 return
 end
-local function fail(msg,ret)
-if not options.Q then io.stderr:write(msg)end
-return nil,ret or msg
+local function e(a,f)
+if not c.Q then io.stderr:write(a)end
+return nil,f or a
 end
-local url=text.trim(args[1])
-local filename=args[2]
-if not filename then
-filename=url:match("/([^/]*)$")or url
-filename=filename:match("^[^?]*")
+local f=h.trim(b[1])
+local a=b[2]
+if not a then
+a=f:match("/([^/]*)$")or f
+a=a:match("^[^?]*")
 end
-filename=text.trim(filename)
-if filename==""then
-return fail("could not infer filename, please specify one","missing target filename")
+a=h.trim(a)
+if a==""then
+return e("could not infer filename, please specify one","missing target filename")
 end
-filename=shell.resolve(filename)
-local preexisted
-if fs.exists(filename)then
-preexisted=true
-if not options.f then
-return fail("file already exists")
+a=d.resolve(a)
+local h
+if g.exists(a)then
+h=true
+if not c.f then
+return e("file already exists")
 end
 end
-local f,reason=io.open(filename,"a")
-if not f then
-return fail("failed opening file for writing: "..reason)
+local b,d=io.open(a,"a")
+if not b then
+return e("failed opening file for writing: "..d)
 end
-f:close()
-f=nil
-if not options.q then
+b:close()
+b=nil
+if not c.q then
 io.write("Downloading... ")
 end
-local ok,response=pcall(internet.request,url,nil,{["user-agent"]="Wget/OpenComputers"})
-if not ok then
-if not options.q then io.write("failed.\n")end
-return fail("HTTP request failed: "..response.."\n",response)
+local i
+j.many({{
+url=f,headers={["user-agent"]="Wget/OpenComputers"},
+write=function(f)
+if not b then
+b,d=io.open(a,"wb")
+assert(b,"failed opening file for writing: "..tostring(d))
 end
-local result
-result,reason=pcall(function()
-for chunk in response do
-if not f then
-f,reason=io.open(filename,"wb")
-assert(f,"failed opening file for writing: "..tostring(reason))
-end
-f:write(chunk)
-end
-end)
-if not result then
-if not options.q then
+b:write(f)
+end,
+finish=function(f)i,d=not f,f end,
+}})
+if not i then
+if not c.q then
 io.stderr:write("failed.\n")
 end
-if f then
-f:close()
-if not preexisted then
-fs.remove(filename)
+if b then b:close()end
+if not h then g.remove(a)end
+return e("HTTP request failed: "..tostring(d).."\n",d)
 end
+if b then
+b:close()
 end
-return fail("HTTP request failed: "..tostring(reason).."\n",reason)
-end
-if f then
-f:close()
-end
-if not options.q then
-io.write("success.\nSaved data to "..filename.."\n")
+if not c.q then
+io.write("success.\nSaved data to "..a.."\n")
 end
 return true

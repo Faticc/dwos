@@ -1,171 +1,171 @@
-local computer=require("computer")
-local fs=require("filesystem")
-local info
+local g=require("computer")
+local d=require("filesystem")
+local b
 do
-local basics,reason=loadfile("/lib/core/install_basics.lua","bt",_G)
-if not basics then
-io.stderr:write("failed to load install: "..tostring(reason).."\n")
+local a,c=loadfile("/lib/core/install_basics.lua","bt",_G)
+if not a then
+io.stderr:write("failed to load install: "..tostring(c).."\n")
 return 1
 end
-info=basics(...)
+b=a(...)
 end
-if not info then return end
-local options,sources,targets,label=info.options,info.sources,info.targets,info.label
-local had_from,had_to=options.from,options.to
-local graphic=io.stdin.tty and io.stdout.tty and not options.text
-local ui
+if not b then return end
+local a,h,e,f=b.options,b.sources,b.targets,b.label
+local m,n=a.from,a.to
+local k=io.stdin.tty and io.stdout.tty and not a.text
+local b
 do
-local load_ui,reason=loadfile("/lib/core/install_ui.lua","bt",_G)
-if not load_ui then
-io.stderr:write("failed to load install ui: "..tostring(reason).."\n")
+local c,i=loadfile("/lib/core/install_ui.lua","bt",_G)
+if not c then
+io.stderr:write("failed to load install ui: "..tostring(i).."\n")
 return 1
 end
-ui=load_ui(graphic)
+b=c(k)
 end
-local function bail(code)
-ui.close()
-os.exit(code)
+local function j(c)
+b.close()
+os.exit(c)
 end
-local source=sources[1]
-if#sources~=1 then
-source=ui.select("sources",sources,options)
+local c=h[1]
+if#h~=1 then
+c=b.select("sources",h,a)
 end
-if not source then bail()end
-options={
-from=source.path.."/",
-fromDir=fs.canonical(options.fromDir or source.prop.fromDir or""),
-root=fs.canonical(options.root or options.toDir or source.prop.root or""),
-update=options.update or options.u,
-label=source.prop.label or label,
-setlabel=not(options.nosetlabel or options.nolabelset)and source.prop.setlabel,
-setboot=not(options.nosetboot or options.noboot)and source.prop.setboot,
-reboot=not options.noreboot and source.prop.reboot,
+if not c then j()end
+a={
+from=c.path.."/",
+fromDir=d.canonical(a.fromDir or c.prop.fromDir or""),
+root=d.canonical(a.root or a.toDir or c.prop.root or""),
+update=a.update or a.u,
+label=c.prop.label or f,
+setlabel=not(a.nosetlabel or a.nolabelset)and c.prop.setlabel,
+setboot=not(a.nosetboot or a.noboot)and c.prop.setboot,
+reboot=not a.noreboot and c.prop.reboot,
 }
-local source_display=options.label or source.dev.getLabel()or source.path
-local target=targets[1]
-for index,entry in ipairs(targets)do
-if entry.dev==source.dev then
-table.remove(targets,index)
-target=targets[1]
+local i=a.label or c.dev.getLabel()or c.path
+local f=e[1]
+for l,o in ipairs(e)do
+if o.dev==c.dev then
+table.remove(e,l)
+f=e[1]
 break
 end
 end
-if#targets~=1 then
-if#sources==1 then
-ui.note(source_display.." selected for install")
+if#e~=1 then
+if#h==1 then
+b.note(i.." selected for install")
 end
-target=ui.select("targets",targets,options)
+f=b.select("targets",e,a)
 end
-if not target then bail()end
-options.to=target.path.."/"
-local function resolveFrom(path)
-return fs.concat(options.from,options.fromDir).."/"..path
+if not f then j()end
+a.to=f.path.."/"
+local function l(h)
+return d.concat(a.from,a.fromDir).."/"..h
 end
-local fullTargetPath=fs.concat(options.to,options.root)
-local transfer_args={
+local h=d.concat(a.to,a.root)
+local j={
 {
-{resolveFrom("."),fullTargetPath},
+{l("."),h},
 {
 cmd="cp",
-r=true,v=not graphic,x=true,u=options.update,i=options.update,
-skip={resolveFrom(".prop")},
+r=true,v=not k,x=true,u=a.update,i=a.update,
+skip={l(".prop")},
 },
 },
 }
-if source.prop.noclobber and#source.prop.noclobber>0 then
-local keep={cmd="cp",v=not graphic,n=true}
-for _,name in ipairs(source.prop.noclobber)do
-local from=resolveFrom(name)
-table.insert(transfer_args[1][2].skip,from)
-table.insert(transfer_args,{{from,fs.concat(fullTargetPath,name)},keep})
+if c.prop.noclobber and#c.prop.noclobber>0 then
+local o={cmd="cp",v=not k,n=true}
+for k,k in ipairs(c.prop.noclobber)do
+local c=l(k)
+table.insert(j[1][2].skip,c)
+table.insert(j,{{c,d.concat(h,k)},o})
 end
 end
-local special_target=""
-if#targets>1 or had_to or had_from then
-special_target=" to "..transfer_args[1][1][2]
+local k=""
+if#e>1 or n or m then
+k=" to "..j[1][1][2]
 end
-local agreed
-if ui.graphic then
-ui.note(source_display.."  →  "..fullTargetPath)
-agreed=ui.ask("Установить "..source_display.." на "..fullTargetPath.."?")
+local c
+if b.graphic then
+b.note(i.."  →  "..h)
+c=b.ask("Установить "..i.." на "..h.."?")
 else
-agreed=ui.ask("Install "..source_display..special_target.."?")
+c=b.ask("Install "..i..k.."?")
 end
-if not agreed then
-ui.close()
+if not c then
+b.close()
 io.write("Installation cancelled\n")
 os.exit()
 end
-local installer_path=options.from.."/.install"
-if fs.exists(installer_path)then
-ui.close()
-local installer,reason=loadfile(installer_path,"bt",setmetatable({install=options},{__index=_G}))
-if not installer then
-io.stderr:write("installer failed to load: "..tostring(reason).."\n")
+local c=a.from.."/.install"
+if d.exists(c)then
+b.close()
+local e,h=loadfile(c,"bt",setmetatable({install=a},{__index=_G}))
+if not e then
+io.stderr:write("installer failed to load: "..tostring(h).."\n")
 os.exit(1)
 end
-os.exit(installer())
+os.exit(e())
 end
-if computer.freeMemory()<50000 then
-if not ui.graphic then print("Low memory, collecting garbage")end
-for _=1,20 do os.sleep(0)end
+if g.freeMemory()<50000 then
+if not b.graphic then print("Low memory, collecting garbage")end
+for c=1,20 do os.sleep(0)end
 end
-local transfer=require("tools/transfer")
-if ui.graphic then
-ui.progress(0)
-local from=fs.concat(options.from,options.fromDir)
-local count=0
-local function walk(dir)
-for name in fs.list(dir)do
-local full=fs.concat(dir,name)
-if name:sub(-1)=="/"then walk(full)else count=count+1 end
+local c=require("tools/transfer")
+if b.graphic then
+b.progress(0)
+local l=d.concat(a.from,a.fromDir)
+local e=0
+local function h(i)
+for k in d.list(i)do
+local m=d.concat(i,k)
+if k:sub(-1)=="/"then h(m)else e=e+1 end
 end
 end
-local ok=pcall(walk,from)
-ui.progress(ok and count or 0)
-transfer.onFile=ui.step
+local d=pcall(h,l)
+b.progress(d and e or 0)
+c.onFile=b.step
 end
-local code
-for _,inst in ipairs(transfer_args)do
-local ec=transfer.batch(table.unpack(inst))
-if ec~=nil and ec~=0 then
-code=ec
+local d
+for e,h in ipairs(j)do
+local e=c.batch(table.unpack(h))
+if e~=nil and e~=0 then
+d=e
 break
 end
 end
-transfer.onFile=nil
-if code then
-ui.close()
-return code
+c.onFile=nil
+if d then
+b.close()
+return d
 end
-local done={"Installation complete!"}
-if options.setlabel then
-pcall(target.dev.setLabel,options.label)
+local c={"Installation complete!"}
+if a.setlabel then
+pcall(f.dev.setLabel,a.label)
 end
-if options.setboot then
-local address=target.dev.address
-if computer.setBootAddress(address)then
-done[#done+1]="Boot address set to "..address
+if a.setboot then
+local d=f.dev.address
+if g.setBootAddress(d)then
+c[#c+1]="Boot address set to "..d
 end
 end
-if ui.graphic then
-ui.note(table.concat(done,"  ·  "))
-if options.reboot then
-if ui.ask("Установка завершена. Перезагрузить компьютер сейчас?")then
-ui.close()
+if b.graphic then
+b.note(table.concat(c,"  ·  "))
+if a.reboot then
+if b.ask("Установка завершена. Перезагрузить компьютер сейчас?")then
+b.close()
 print("\nRebooting now!\n")
-computer.shutdown(true)
+g.shutdown(true)
 end
 else
-ui.finish(table.concat(done,"\n"))
-ui.pause()
+b.finish(table.concat(c,"\n"))
+b.pause()
 end
-ui.close()
+b.close()
 return
 end
-for _,s in ipairs(done)do print(s)end
-if options.reboot and ui.ask("Reboot now?")then
+for d,d in ipairs(c)do print(d)end
+if a.reboot and b.ask("Reboot now?")then
 print("\nRebooting now!\n")
-computer.shutdown(true)
+g.shutdown(true)
 end
 print("Returning to shell.\n")

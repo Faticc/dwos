@@ -1,10 +1,10 @@
-local shell=require("shell")
-local fs=require("filesystem")
-local args,options=shell.parse(...)
-if#args==0 then
-args[1]="."
+local g=require("shell")
+local a=require("filesystem")
+local h,b=g.parse(...)
+if#h==0 then
+h[1]="."
 end
-if options.help then
+if b.help then
 print([[
 Usage: du [OPTION]... [FILE]...
 Summarize disk usage of each FILE, recursively for directories.
@@ -15,72 +15,72 @@ Summarize disk usage of each FILE, recursively for directories.
       --version  output version information and exit]])
 return true
 end
-if options.version then
+if b.version then
 print("du (DwOS bin) 1.0\nWritten by payonel, patterned after GNU coreutils du")
 return true
 end
-local function opCheck(shortName,longName)
-local enabled=options[shortName]or options[longName]
-options[shortName],options[longName]=nil,nil
-return enabled
+local function c(d,e)
+local f=b[d]or b[e]
+b[d],b[e]=nil,nil
+return f
 end
-local bHuman=opCheck("h","human-readable")
-local bSummary=opCheck("s","summarize")
-if next(options)then
-for op in pairs(options)do
-io.stderr:write(string.format("du: invalid option -- '%s'\n",op))
+local d=c("h","human-readable")
+local i=c("s","summarize")
+if next(b)then
+for c in pairs(b)do
+io.stderr:write(string.format("du: invalid option -- '%s'\n",c))
 end
 io.stderr:write("Try 'du --help' for more information.\n")
 return 1
 end
-local function formatSize(size)
-if not bHuman then
-return tostring(size)
+local function e(b)
+if not d then
+return tostring(b)
 end
-local sizes={"","K","M","G"}
-local unit=1
-while size>1024 and unit<#sizes do
-unit=unit+1
-size=size/1024
+local d={"","K","M","G"}
+local c=1
+while b>1024 and c<#d do
+c=c+1
+b=b/1024
 end
-return math.floor(size*10)/10 ..sizes[unit]
+return math.floor(b*10)/10 ..d[c]
 end
-local function printSize(size,rpath)
-io.write(string.format("%-12s%s\n",formatSize(size),rpath))
+local function d(b,c)
+io.write(string.format("%-12s%s\n",e(b),c))
 end
-local function visitor(rpath)
-local subtotal,dirs=0,0
-local spath=shell.resolve(rpath)
-if fs.isDirectory(spath)then
-local prefix=rpath:sub(-1)=="/"and rpath or rpath.."/"
-for item in fs.list(spath)do
-local vtotal,vdirs=visitor(prefix..item)
-subtotal=subtotal+vtotal
-dirs=dirs+vdirs
+local function j(b)
+local c,e=0,0
+local f=g.resolve(b)
+if a.isDirectory(f)then
+local k=b:sub(-1)=="/"and b or b.."/"
+for l in a.list(f)do
+local m,n=j(k..l)
+c=c+m
+e=e+n
 end
-if dirs==0 and not bSummary then
-printSize(subtotal,rpath)
+if e==0 and not i then
+d(c,b)
 end
-elseif not fs.isLink(spath)then
-subtotal=fs.size(spath)
+elseif not a.isLink(f)then
+c=a.size(f)
 end
-return subtotal,dirs
+return c,e
 end
-for _,arg in ipairs(args)do
-local path=shell.resolve(arg)
-if not fs.exists(path)then
-io.stderr:write(string.format("du: cannot access '%s': no such file or directory\n",arg))
+for b,b in ipairs(h)do
+local c=g.resolve(b)
+if not a.exists(c)then
+io.stderr:write(string.format("du: cannot access '%s': no such file or directory\n",b))
 return 1
 end
-if fs.isDirectory(path)then
-local total=visitor(arg)
-if bSummary then
-printSize(total,arg)
+if a.isDirectory(c)then
+local e=j(b)
+if i then
+d(e,b)
 end
-elseif fs.isLink(path)then
-printSize(0,arg)
+elseif a.isLink(c)then
+d(0,b)
 else
-printSize(fs.size(path),arg)
+d(a.size(c),b)
 end
 end
 return true

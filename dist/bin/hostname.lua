@@ -1,27 +1,27 @@
-local shell=require("shell")
-local args,ops=shell.parse(...)
-local hostname=args[1]
-if hostname then
-local file,reason=io.open("/etc/hostname","w")
-if not file then
-io.stderr:write("failed to open for writing: ",reason,"\n")
+local a=require("shell")
+local b,c=a.parse(...)
+local a=b[1]
+if a then
+local b,d=io.open("/etc/hostname","w")
+if not b then
+io.stderr:write("failed to open for writing: ",d,"\n")
 return 1
 end
-file:write(hostname)
-file:close()
-ops.update=true
+b:write(a)
+b:close()
+c.update=true
 else
-local file=io.open("/etc/hostname")
-if file then
-hostname=file:read("*l")
-file:close()
+local b=io.open("/etc/hostname")
+if b then
+a=b:read("*l")
+b:close()
 end
 end
-if ops.update then
-os.setenv("HOSTNAME_SEPARATOR",hostname and#hostname>0 and":"or"")
-os.setenv("HOSTNAME",hostname)
-elseif hostname then
-print(hostname)
+if c.update then
+os.setenv("HOSTNAME_SEPARATOR",a and#a>0 and":"or"")
+os.setenv("HOSTNAME",a)
+elseif a then
+print(a)
 else
 io.stderr:write("Hostname not set\n")
 return 1

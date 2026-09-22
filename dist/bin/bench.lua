@@ -1,807 +1,807 @@
-local computer=require("computer")
-local event=require("event")
-local fs=require("filesystem")
-local gfx=require("gfx")
-local keys=require("keyboard").keys
-local serialization=require("serialization")
-local term=require("term")
-local tty=require("tty")
-local unicode=require("unicode")
-if not term.isAvailable()then
+local h=require("computer")
+local aA=require("event")
+local W=require("filesystem")
+local b=require("gfx")
+local X=require("keyboard").keys
+local an=require("serialization")
+local Y=require("term")
+local a=require("tty")
+local F=require("unicode")
+if not Y.isAvailable()then
 io.stderr:write("bench: нужен экран\n")
 return 1
 end
-local gpu=tty.gpu()
-local W,H=gpu.getResolution()
-if W<80 or H<25 then
+local s=a.gpu()
+local u,A=s.getResolution()
+if u<80 or A<25 then
 io.stderr:write("bench: нужен экран не меньше 80x25\n")
 return 1
 end
-local floor,min,max,random,sin,pi=math.floor,math.min,math.max,math.random,math.sin,math.pi
-local clock,uptime=os.clock,computer.uptime
-local wlen,usub=unicode.wlen,unicode.sub
-local mix=gfx.mix
-local BG,PANEL,LINE=0x0B0E14,0x151A24,0x262D3D
-local FG,DIM,HEAD=0xD8DEE9,0x6B7489,0xFFCC66
-local CPU_SECS,REAL_SECS=2,3
-local SAVE="/home/.bench"
-local quit=false
-local function wantQuit(e,code)
-if e=="interrupted"or(e=="key_down"and code==keys.q)then quit=true end
+local d,i,g,o,J,Z=math.floor,math.min,math.max,math.random,math.sin,math.pi
+local K,C=os.clock,h.uptime
+local P,l=F.wlen,F.sub
+local p=b.mix
+local m,f,q=0x0B0E14,0x151A24,0x262D3D
+local L,r,M=0xD8DEE9,0x6B7489,0xFFCC66
+local ao,ap=2,3
+local aq="/home/.bench"
+local af=false
+local function ar(a,c)
+if a=="interrupted"or(a=="key_down"and c==X.q)then af=true end
 end
-local L=W>=120 and 44 or 34
-local VX,VR=L+3,6
-local VW,VH=W-VX-1,H-7
-local T=gfx.surface(gpu)
-local P=gfx.new(gpu,VW,VH,{rgb=true,x=VX,y=VR,background=PANEL})
-local PW,PH=P.pw,P.ph
-local fb=P.fb
-local function cut(s,n)
-if wlen(s)>n then return usub(s,1,n)end
-return s
+local v=u>=120 and 44 or 34
+local D,U=v+3,6
+local w,y=u-D-1,A-7
+local j=b.surface(s)
+local a=b.new(s,w,y,{rgb=true,x=D,y=U,background=f})
+local b,c=a.pw,a.ph
+local N=a.fb
+local function V(e,k)
+if P(e)>k then return l(e,1,k)end
+return e
 end
-local function pad(s,n,right)
-s=cut(s,n)
-local sp=(" "):rep(n-wlen(s))
-return right and sp..s or s..sp
+local function ag(e,k,n)
+e=V(e,k)
+local l=(" "):rep(k-P(e))
+return n and l..e or e..l
 end
-local slots={}
-local function put(x,y,w,s,fg,bg,right)
-if w<=0 then return end
-s=pad(s,w,right)
-local key,v=x*256+y,s..fg.."/"..bg
-if slots[key]~=v then
-slots[key]=v
-T:set(x,y,s,fg,bg)
+local ah={}
+local function n(k,l,t,e,x,z,B)
+if t<=0 then return end
+e=ag(e,t,B)
+local t,B=k*256+l,e..x.."/"..z
+if ah[t]~=B then
+ah[t]=B
+j:set(k,l,e,x,z)
 end
 end
-local function invalidate()
-for i=1,#P.shown do P.shown[i]=-1 end
-P:touch(1,1,PW,PH)
-P.fg,P.bg=nil,nil
+local function as()
+for e=1,#a.shown do a.shown[e]=-1 end
+a:touch(1,1,b,c)
+a.fg,a.bg=nil,nil
 end
-local function human(v)
-if v>=1e6 then return("%.2fM"):format(v/1e6)end
-if v>=1e4 then return("%.1fK"):format(v/1e3)end
-if v>=100 then return tostring(floor(v+0.5))end
-return("%.1f"):format(v)
+local function ai(e)
+if e>=1e6 then return("%.2fM"):format(e/1e6)end
+if e>=1e4 then return("%.1fK"):format(e/1e3)end
+if e>=100 then return tostring(d(e+0.5))end
+return("%.1f"):format(e)
 end
-local function ramp(stops,n,cyclic)
-local out,segs={},#stops-1
-for i=0,n-1 do
-local t=cyclic and i/n or i/max(1,n-1)
-local k=min(segs-1,floor(t*segs))
-out[i+1]=mix(stops[k+1],stops[k+2],t*segs-k)
+local function _(e,k,B)
+local x,l={},#e-1
+for t=0,k-1 do
+local z=B and t/k or t/g(1,k-1)
+local k=i(l-1,d(z*l))
+x[t+1]=p(e[k+1],e[k+2],z*l-k)
 end
-return out
+return x
 end
-local life={name="Целые",unit="кл/с",color=0x7BD88F,ref=2.4e6,
+local k={name="Целые",unit="кл/с",color=0x7BD88F,ref=2.4e6,
 title="«Жизнь» Конвея",about="клеток поля за секунду процессора"}
 do
-local cur,nxt,age,xl,xr,up,dn,fade
-function life.init()
-cur,nxt,age,xl,xr,up,dn={},{},{},{},{},{},{}
-for x=1,PW do
-xl[x]=x==1 and PW or x-1
-xr[x]=x==PW and 1 or x+1
+local t,E,x,G,H,l,I,z
+function k.init()
+t,E,x,G,H,l,I={},{},{},{},{},{},{}
+for e=1,b do
+G[e]=e==1 and b or e-1
+H[e]=e==b and 1 or e+1
 end
-for y=1,PH do
-up[y]=((y==1 and PH or y-1)-1)*PW
-dn[y]=((y==PH and 1 or y+1)-1)*PW
+for e=1,c do
+l[e]=((e==1 and c or e-1)-1)*b
+I[e]=((e==c and 1 or e+1)-1)*b
 end
-for i=1,PW*PH do
-cur[i]=random()<0.3 and 1 or 0
-nxt[i],age[i]=0,5
+for e=1,b*c do
+t[e]=o()<0.3 and 1 or 0
+E[e],x[e]=0,5
 end
-fade={[0]=0xE8FFE0}
-for a=1,5 do fade[a]=mix(life.color,PANEL,(a-1)/4)end
-life.gen,life.seeded=0,0
+z={[0]=0xE8FFE0}
+for e=1,5 do z[e]=p(k.color,f,(e-1)/4)end
+k.gen,k.seeded=0,0
 end
-function life.step(deadline)
-local n,cells=0,PW*PH
+function k.step(aa)
+local O,ab=0,b*c
 repeat
-local c,nx=cur,nxt
-for y=1,PH do
-local o,ou,od=(y-1)*PW,up[y],dn[y]
-for x=1,PW do
-local l,r=xl[x],xr[x]
-local s=c[ou+l]+c[ou+x]+c[ou+r]+c[o+l]+c[o+r]
-+c[od+l]+c[od+x]+c[od+r]
-if s==3 or(s==2 and c[o+x]==1)then nx[o+x]=1 else nx[o+x]=0 end
+local e,Q=t,E
+for R=1,c do
+local B,S,T=(R-1)*b,l[R],I[R]
+for l=1,b do
+local I,R=G[l],H[l]
+local G=e[S+I]+e[S+l]+e[S+R]+e[B+I]+e[B+R]
++e[T+I]+e[T+l]+e[T+R]
+if G==3 or(G==2 and e[B+l]==1)then Q[B+l]=1 else Q[B+l]=0 end
 end
 end
-cur,nxt=nx,c
-n=n+cells
-life.gen=life.gen+1
-until clock()>=deadline
-return n
+t,E=Q,e
+O=O+ab
+k.gen=k.gen+1
+until K()>=aa
+return O
 end
-function life.draw()
-if life.gen-life.seeded>=40 then
-life.seeded=life.gen
-local sx,sy=random(1,PW-12),random(1,PH-12)
-for y=sy,sy+11 do
-for x=sx,sx+11 do cur[(y-1)*PW+x]=random()<0.45 and 1 or 0 end
+function k.draw()
+if k.gen-k.seeded>=40 then
+k.seeded=k.gen
+local e,l=o(1,b-12),o(1,c-12)
+for B=l,l+11 do
+for l=e,e+11 do t[(B-1)*b+l]=o()<0.45 and 1 or 0 end
 end
 end
-for i=1,PW*PH do
-if cur[i]==1 then
-fb[i]=age[i]>0 and fade[0]or fade[1]
-age[i]=0
+for e=1,b*c do
+if t[e]==1 then
+N[e]=x[e]>0 and z[0]or z[1]
+x[e]=0
 else
-local a=age[i]
-if a<5 then a=a+1 age[i]=a end
-fb[i]=fade[a]
+local l=x[e]
+if l<5 then l=l+1 x[e]=l end
+N[e]=z[l]
 end
 end
-P:touch(1,1,PW,PH)
+a:touch(1,1,b,c)
 end
 end
-local mand={name="Дробные",unit="ит/с",color=0xFC9867,ref=5.4e6,
+local l={name="Дробные",unit="ит/с",color=0xFC9867,ref=5.4e6,
 title="Множество Мандельброта",about="итераций z² + c за секунду процессора"}
 do
-local VIEWS={
+local x={
 {-0.65,0,3.1,48},
 {-0.7453,0.1127,0.014,160},
 {-0.235125,0.827215,0.006,200},
 {-1.2539,0.3845,0.04,150},
 {-0.1592,1.0317,0.035,120},
 }
-local PAL=ramp({0x07104A,0x206BCB,0xEDFFFF,0xFFAA00,0x7A1E00,0x07104A},48,true)
-local cx,cy,sc,it
-local function nextView()
-mand.view=mand.view%#VIEWS+1
-local v=VIEWS[mand.view]
-sc=v[3]/PW
-cx,cy,it=v[1]-sc*PW/2,v[2]-sc*PH/2,v[4]
-mand.row=1
+local I=_({0x07104A,0x206BCB,0xEDFFFF,0xFFAA00,0x7A1E00,0x07104A},48,true)
+local G,H,e,z
+local function E()
+l.view=l.view%#x+1
+local t=x[l.view]
+e=t[3]/b
+G,H,z=t[1]-e*b/2,t[2]-e*c/2,t[4]
+l.row=1
 end
-function mand.init()mand.view,mand.row=0,PH+1 end
-function mand.step(deadline)
-local n,np=0,#PAL
+function l.init()l.view,l.row=0,c+1 end
+function l.step(Q)
+local B,R=0,#I
 repeat
-if mand.row>PH then nextView()end
-local y=mand.row
-local ci,o=cy+(y-1)*sc,(y-1)*PW
-for x=1,PW do
-local cr=cx+(x-1)*sc
-local zr,zi,zr2,zi2,k=0,0,0,0,0
-while k<it and zr2+zi2<4 do
-zi=2*zr*zi+ci
-zr=zr2-zi2+cr
-zr2,zi2=zr*zr,zi*zi
-k=k+1
+if l.row>c then E()end
+local E=l.row
+local S,T=H+(E-1)*e,(E-1)*b
+for O=1,b do
+local aa=G+(O-1)*e
+local t,x,G,H,e=0,0,0,0,0
+while e<z and G+H<4 do
+x=2*t*x+S
+t=G-H+aa
+G,H=t*t,x*x
+e=e+1
 end
-n=n+k
-fb[o+x]=k>=it and 0 or PAL[k%np+1]
+B=B+e
+N[T+O]=e>=z and 0 or I[e%R+1]
 end
-mand.row=y+1
-until clock()>=deadline
-return n
+l.row=E+1
+until K()>=Q
+return B
 end
-function mand.draw()P:touch(1,1,PW,PH)end
+function l.draw()a:touch(1,1,b,c)end
 end
-local str={name="Строки",unit="оп/с",color=0x78DCE8,ref=1.8e5,
+local E={name="Строки",unit="оп/с",color=0x78DCE8,ref=1.8e5,
 title="Строки и юникод",about="format, gsub, find, upper, concat за секунду процессора"}
 do
-local WORDS={"альфа","beta","гамма","delta","эпсилон","zeta","омега","lua","dwos","тик"}
-local lines,seq,i
-function str.init()lines,seq,i={},0,0 end
-function str.step(deadline)
-local n,parts=0,{}
+local z={"альфа","beta","гамма","delta","эпсилон","zeta","омега","lua","dwos","тик"}
+local G,t,e
+function E.init()G,t,e={},0,0 end
+function E.step(O)
+local H,x=0,{}
 repeat
-for _=1,32 do
-i=i+1
-local w=WORDS[i%#WORDS+1]
-local s=("%06d  %s  %04X"):format(i,w,i*7919%65536):gsub("0","·")
-local u=unicode.upper(w)
-local h=0
-for k=1,#u,2 do h=(h*31+u:byte(k))%65521 end
-parts[1],parts[2],parts[3]=s,u,("#%05d"):format(h)
-s=table.concat(parts,"  ")
-if s:find(u,1,true)then n=n+1 end
-if i%24==0 then
-seq=seq+1
-lines[(seq-1)%VH+1]=s
+for B=1,32 do
+e=e+1
+local I=z[e%#z+1]
+local z=("%06d  %s  %04X"):format(e,I,e*7919%65536):gsub("0","·")
+local B=F.upper(I)
+local F=0
+for I=1,#B,2 do F=(F*31+B:byte(I))%65521 end
+x[1],x[2],x[3]=z,B,("#%05d"):format(F)
+z=table.concat(x,"  ")
+if z:find(B,1,true)then H=H+1 end
+if e%24==0 then
+t=t+1
+G[(t-1)%y+1]=z
 end
 end
-until clock()>=deadline
-return n
+until K()>=O
+return H
 end
-function str.draw()P:clear(PANEL)end
-function str.overlay()
-for r=1,VH do
-local k=seq-VH+r
-if k>=1 then
-local c=r==VH and 0xFFFFFF or mix(PANEL,str.color,(r/VH)^1.5)
-P:text(2,r,cut(lines[(k-1)%VH+1],VW-2),c,PANEL)
-end
-end
+function E.draw()a:clear(f)end
+function E.overlay()
+for e=1,y do
+local x=t-y+e
+if x>=1 then
+local t=e==y and 0xFFFFFF or p(f,E.color,(e/y)^1.5)
+a:text(2,e,V(G[(x-1)%y+1],w-2),t,f)
 end
 end
-local tab={name="Таблицы",unit="табл/с",color=0xAB9DF2,ref=8.0e5,
+end
+end
+local F={name="Таблицы",unit="табл/с",color=0xAB9DF2,ref=8.0e5,
 title="Сортировка и сборка мусора",about="созданных таблиц за секунду; внизу - занятая память"}
 do
-local function byId(a,b)return a.id<b.id end
-local mem,seed
-function tab.init()mem,seed={},1 end
-function tab.step(deadline)
-local n=0
+local function G(e,t)return e.id<t.id end
+local e,x
+function F.init()e,x={},1 end
+function F.step(H)
+local z=0
 repeat
-for _=1,8 do
-local arr,idx={},{}
-for j=1,32 do
-seed=seed*16807%2147483647
-arr[j]={id=seed%1000,n=j}
+for t=1,8 do
+local t,I={},{}
+for B=1,32 do
+x=x*16807%2147483647
+t[B]={id=x%1000,n=B}
 end
-table.sort(arr,byId)
-for j=1,32 do idx[arr[j].n]=arr[j].id end
-table.insert(arr,1,table.remove(arr))
-n=n+34
+table.sort(t,G)
+for x=1,32 do I[t[x].n]=t[x].id end
+table.insert(t,1,table.remove(t))
+z=z+34
 end
-until clock()>=deadline
-return n
+until K()>=H
+return z
 end
-function tab.draw()
-local total=computer.totalMemory()
-mem[#mem+1]=(total-computer.freeMemory())/total
-local cols=floor(PW/2)
-while#mem>cols do table.remove(mem,1)end
-P:rect(1,1,PW,PH,PANEL)
-for y=PH,1,-8 do P:rect(1,y,PW,1,LINE)end
-local body=mix(tab.color,PANEL,0.6)
-for i=1,#mem do
-local x=PW-(#mem-i+1)*2+1
-local hg=max(1,floor(mem[i]*PH+0.5))
-P:rect(x,PH-hg+1,2,hg,body)
-P:rect(x,PH-hg+1,2,1,tab.color)
+function F.draw()
+local t=h.totalMemory()
+e[#e+1]=(t-h.freeMemory())/t
+local t=d(b/2)
+while#e>t do table.remove(e,1)end
+a:rect(1,1,b,c,f)
+for t=c,1,-8 do a:rect(1,t,b,1,q)end
+local B=p(F.color,f,0.6)
+for x=1,#e do
+local z=b-(#e-x+1)*2+1
+local t=g(1,d(e[x]*c+0.5))
+a:rect(z,c-t+1,2,t,B)
+a:rect(z,c-t+1,2,1,F.color)
 end
 end
 end
-local scr={name="Экран",unit="выз/с",color=0xFF6188,ref=3800,kind="real",
+local Q={name="Экран",unit="выз/с",color=0xFF6188,ref=3800,kind="real",
 title="Прямой вывод на экран",about="вызовов gpu за секунду: упирается в бюджет тика"}
 do
-local CONF={0xFF6188,0xFC9867,0xFFD866,0xA9DC76,0x78DCE8,0xAB9DF2}
-function scr.init()if gpu.setActiveBuffer then gpu.setActiveBuffer(0)end end
-function scr.step()
-for _=1,16 do
-local w,h=random(2,12),random(1,4)
-local x,y=VX+random(0,VW-w),VR+random(0,VH-h)
-gpu.setBackground(CONF[random(#CONF)])
-gpu.fill(x,y,w,h," ")
+local e={0xFF6188,0xFC9867,0xFFD866,0xA9DC76,0x78DCE8,0xAB9DF2}
+function Q.init()if s.setActiveBuffer then s.setActiveBuffer(0)end end
+function Q.step()
+for t=1,16 do
+local t,x=o(2,12),o(1,4)
+local z,B=D+o(0,w-t),U+o(0,y-x)
+s.setBackground(e[o(#e)])
+s.fill(z,B,t,x," ")
 end
 return 32
 end
-function scr.finish()
-T.fg,T.bg=nil,nil
-invalidate()
+function Q.finish()
+j.fg,j.bg=nil,nil
+as()
 end
 end
-local fps={name="Кадры",unit="к/с",color=0xFFD866,ref=20,kind="real",
+local aa={name="Кадры",unit="к/с",color=0xFFD866,ref=20,kind="real",
 title="Плазма через gfx",about="полных кадров в секунду: расчёт, буфер, вывод"}
 do
-local PL,SX,SY,SD,NX,NY,ND,t
-local function wave(n,amp)
-local w={}
-for i=0,n-1 do w[i]=floor((sin(i/n*2*pi)+1)*amp)end
-return w
+local z,B,G,H,o,s,t,e
+local function x(I,S)
+local O={}
+for R=0,I-1 do O[R]=d((J(R/I*2*Z)+1)*S)end
+return O
 end
-function fps.init()
-PL=ramp({0x1B0B3B,0xAB2F6F,0xFFD866,0x2BB3C0,0x1B0B3B},64,true)
-NX,NY,ND=floor(PW*0.9),floor(PH*1.3),floor((PW+PH)*0.6)
-SX,SY,SD=wave(NX,10.5),wave(NY,10.5),wave(ND,10.5)
-t=0
+function aa.init()
+z=_({0x1B0B3B,0xAB2F6F,0xFFD866,0x2BB3C0,0x1B0B3B},64,true)
+o,s,t=d(b*0.9),d(c*1.3),d((b+c)*0.6)
+B,G,H=x(o,10.5),x(s,10.5),x(t,10.5)
+e=0
 end
-function fps.step()
-t=t+1
-local a,b,c=t*3,t*2,t*5
-for y=1,PH do
-local o,sy,yc=(y-1)*PW,SY[(y+b)%NY],y+c
-for x=1,PW do
-fb[o+x]=PL[(SX[(x+a)%NX]+sy+SD[(x+yc)%ND])%64+1]
+function aa.step()
+e=e+1
+local x,I,O=e*3,e*2,e*5
+for e=1,c do
+local R,S,T=(e-1)*b,G[(e+I)%s],e+O
+for e=1,b do
+N[R+e]=z[(B[(e+x)%o]+S+H[(e+T)%t])%64+1]
 end
 end
-P:touch(1,1,PW,PH)
-P.fg,P.bg=nil,nil
-P:flush()
+a:touch(1,1,b,c)
+a.fg,a.bg=nil,nil
+a:flush()
 return 1
 end
 end
-local fig={name="Фигура",unit="к/с",color=0xE879F9,ref=20,kind="real",
+local G={name="Фигура",unit="к/с",color=0xE879F9,ref=20,kind="real",
 title="Тор в 3D",about="поворот, свет, отсечение и заливка граней за кадр"}
 do
-local U,V,R,r=22,11,1,0.42
-local vx,vy,vz,nx,ny,nz={},{},{},{},{},{}
-local px,py,pz,faces,order={},{},{},{},{}
-local SH,f,cx,cy,ax,ay
-local LX,LY,LZ=-0.45,0.6,-0.66
-local D=4
-local function id(i,j)return(i%U)*V+(j%V)+1 end
-function fig.init()
-for i=0,U-1 do
-local a=i/U*2*pi
-local ca,sa=math.cos(a),sin(a)
-for j=0,V-1 do
-local b=j/V*2*pi
-local cb,sb=math.cos(b),sin(b)
-local k=id(i,j)
-vx[k],vy[k],vz[k]=(R+r*cb)*ca,r*sb,(R+r*cb)*sa
-nx[k],ny[k],nz[k]=cb*ca,sb,cb*sa
+local R,O,B,z=22,11,1,0.42
+local aj,at,ak,al,au,am={},{},{},{},{},{}
+local s,t,S,H,T={},{},{},{},{}
+local ab,av,aw,ax,U,V
+local aB,aC,aD=-0.45,0.6,-0.66
+local aE=4
+local function o(e,x)return(e%R)*O+(x%O)+1 end
+function G.init()
+for I=0,R-1 do
+local e=I/R*2*Z
+local ac,ad=math.cos(e),J(e)
+for ae=0,O-1 do
+local e=ae/O*2*Z
+local x,ay=math.cos(e),J(e)
+local e=o(I,ae)
+aj[e],at[e],ak[e]=(B+z*x)*ac,z*ay,(B+z*x)*ad
+al[e],au[e],am[e]=x*ac,ay,x*ad
 end
 end
-for i=0,U-1 do
-for j=0,V-1 do
-faces[#faces+1]={id(i,j),id(i+1,j),id(i+1,j+1),id(i,j+1)}
+for e=0,R-1 do
+for x=0,O-1 do
+H[#H+1]={o(e,x),o(e+1,x),o(e+1,x+1),o(e,x+1)}
 end
 end
-SH=ramp({mix(fig.color,PANEL,0.88),mix(fig.color,PANEL,0.35),fig.color,0xFFF4FF},40)
-f=min(PW,PH*1.2)*1.05
-cx,cy=PW/2+0.5,PH/2+0.5
-ax,ay=0.5,0
+ab=_({p(G.color,f,0.88),p(G.color,f,0.35),G.color,0xFFF4FF},40)
+av=i(b,c*1.2)*1.05
+aw,ax=b/2+0.5,c/2+0.5
+U,V=0.5,0
 end
-local function tri(x1,y1,x2,y2,x3,y3,c)
-if y1>y2 then x1,y1,x2,y2=x2,y2,x1,y1 end
-if y2>y3 then x2,y2,x3,y3=x3,y3,x2,y2 end
-if y1>y2 then x1,y1,x2,y2=x2,y2,x1,y1 end
-if y3-y1<0.001 then return end
-local ys,ye=max(1,math.ceil(y1-0.5)),min(PH,floor(y3+0.5))
-for y=ys,ye do
-local t=min(max(y,y1),y3)
-local xa=x1+(x3-x1)*(t-y1)/(y3-y1)
-local xb
-if t<y2 then xb=x1+(x2-x1)*(t-y1)/(y2-y1)
-elseif y3>y2 then xb=x2+(x3-x2)*(t-y2)/(y3-y2)
-else xb=x2 end
-if xa>xb then xa,xb=xb,xa end
-local o=(y-1)*PW
-for x=max(1,floor(xa+0.5)),min(PW,floor(xb+0.5))do fb[o+x]=c end
-end
-end
-function fig.step()
-ax,ay=ax+0.045,ay+0.07
-local sx,cxa,sy,cya=sin(ax),math.cos(ax),sin(ay),math.cos(ay)
-local rnx,rny,rnz={},{},{}
-for k=1,U*V do
-local x,z=vx[k]*cya+vz[k]*sy,-vx[k]*sy+vz[k]*cya
-local y=vy[k]
-y,z=y*cxa-z*sx,y*sx+z*cxa
-local w=f/(z+D)
-px[k],py[k],pz[k]=cx+x*w,cy-y*w,z
-local a,c=nx[k]*cya+nz[k]*sy,-nx[k]*sy+nz[k]*cya
-local b=ny[k]
-rnx[k],rny[k],rnz[k]=a,b*cxa-c*sx,b*sx+c*cxa
-end
-for i=1,PW*PH do fb[i]=PANEL end
-local n=0
-for fi=1,#faces do
-local q=faces[fi]
-local a,b,c,d=q[1],q[2],q[3],q[4]
-local cross=(px[b]-px[a])*(py[d]-py[a])-(py[b]-py[a])*(px[d]-px[a])
-if cross<0 then
-n=n+1
-order[n]=fi
-q.z=pz[a]+pz[b]+pz[c]+pz[d]
+local function ay(B,o,x,e,ac,z,aF)
+if o>e then B,o,x,e=x,e,B,o end
+if e>z then x,e,ac,z=ac,z,x,e end
+if o>e then B,o,x,e=x,e,B,o end
+if z-o<0.001 then return end
+local I,ad=g(1,math.ceil(o-0.5)),i(c,d(z+0.5))
+for az=I,ad do
+local ad=i(g(az,o),z)
+local ae=B+(ac-B)*(ad-o)/(z-o)
+local I
+if ad<e then I=B+(x-B)*(ad-o)/(e-o)
+elseif z>e then I=x+(ac-x)*(ad-e)/(z-e)
+else I=x end
+if ae>I then ae,I=I,ae end
+local e=(az-1)*b
+for o=g(1,d(ae+0.5)),i(b,d(I+0.5))do N[e+o]=aF end
 end
 end
-for i=n+1,#order do order[i]=nil end
-table.sort(order,function(i,j)return faces[i].z>faces[j].z end)
-for i=1,n do
-local q=faces[order[i]]
-local a,b,c,d=q[1],q[2],q[3],q[4]
-local lx=rnx[a]+rnx[b]+rnx[c]+rnx[d]
-local ly=rny[a]+rny[b]+rny[c]+rny[d]
-local lz=rnz[a]+rnz[b]+rnz[c]+rnz[d]
-local l=(lx*LX+ly*LY+lz*LZ)/math.sqrt(lx*lx+ly*ly+lz*lz)
-local col=SH[max(1,min(#SH,floor((0.12+0.88*max(0,l))^1.4*#SH+0.5)))]
-tri(px[a],py[a],px[b],py[b],px[c],py[c],col)
-tri(px[a],py[a],px[c],py[c],px[d],py[d],col)
+function G.step()
+U,V=U+0.045,V+0.07
+local I,ac,ad,ae=J(U),math.cos(U),J(V),math.cos(V)
+local x,z,B={},{},{}
+for e=1,R*O do
+local U,o=aj[e]*ae+ak[e]*ad,-aj[e]*ad+ak[e]*ae
+local O=at[e]
+O,o=O*ac-o*I,O*I+o*ac
+local R=av/(o+aE)
+s[e],t[e],S[e]=aw+U*R,ax-O*R,o
+local R,o=al[e]*ae+am[e]*ad,-al[e]*ad+am[e]*ae
+local O=au[e]
+x[e],z[e],B[e]=R,O*ac-o*I,O*I+o*ac
 end
-P:touch(1,1,PW,PH)
-P.fg,P.bg=nil,nil
-P:flush()
+for e=1,b*c do N[e]=f end
+local e=0
+for R=1,#H do
+local o=H[R]
+local I,N,U,O=o[1],o[2],o[3],o[4]
+local V=(s[N]-s[I])*(t[O]-t[I])-(t[N]-t[I])*(s[O]-s[I])
+if V<0 then
+e=e+1
+T[e]=R
+o.z=S[I]+S[N]+S[U]+S[O]
+end
+end
+for o=e+1,#T do T[o]=nil end
+table.sort(T,function(o,I)return H[o].z>H[I].z end)
+for o=1,e do
+local N=H[T[o]]
+local e,H,o,I=N[1],N[2],N[3],N[4]
+local N=x[e]+x[H]+x[o]+x[I]
+local x=z[e]+z[H]+z[o]+z[I]
+local z=B[e]+B[H]+B[o]+B[I]
+local B=(N*aB+x*aC+z*aD)/math.sqrt(N*N+x*x+z*z)
+local x=ab[g(1,i(#ab,d((0.12+0.88*g(0,B))^1.4*#ab+0.5)))]
+ay(s[e],t[e],s[H],t[H],s[o],t[o],x)
+ay(s[e],t[e],s[o],t[o],s[I],t[I],x)
+end
+a:touch(1,1,b,c)
+a.fg,a.bg=nil,nil
+a:flush()
 return 1
 end
 end
-local disk={name="Диск",unit="КБ/с",color=0x5AB0F6,ref=1000,kind="real",
+local s={name="Диск",unit="КБ/с",color=0x5AB0F6,ref=1000,kind="real",
 title="Файл туда и обратно",about="запись и чтение кусками по 2 КБ"}
 do
-local CHUNK=("DwOS"):rep(512)
-local path,n,h,phase,done,cols,cw,chh,gx,gy
-local wb,wt,rb,rt,t0
-local function block(i,c)
-local col,row=(i-1)%cols,floor((i-1)/cols)
-P:rect(gx+col*cw,gy+row*chh,cw-1,chh-1,c)
+local ab=("DwOS"):rep(512)
+local t,x,e,O,o,z,B,R,ac,ad
+local S,H,T,I,N
+local function U(V,ae)
+local aj,ak=(V-1)%z,d((V-1)/z)
+a:rect(ac+aj*B,ad+ak*R,B-1,R-1,ae)
 end
-function disk.init()
-path,h=nil,nil
-for _,dir in ipairs({"/home","/tmp"})do
-local px=fs.get(dir)
-if px and not px.isReadOnly()then
-local free=px.spaceTotal()-px.spaceUsed()
-if free>=24*1024 then
-path,n=dir.."/.bench.tmp",min(64,floor(free/2048/2))
+function s.init()
+t,e=nil,nil
+for V,ae in ipairs({"/home","/tmp"})do
+local V=W.get(ae)
+if V and not V.isReadOnly()then
+local aj=V.spaceTotal()-V.spaceUsed()
+if aj>=24*1024 then
+t,x=ae.."/.bench.tmp",i(64,d(aj/2048/2))
 break
 end
 end
 end
-wb,wt,rb,rt=0,0,0,0
-phase,done="w",0
-if not path then disk.about="нет диска, куда можно писать"return end
-cols=16
-cw=max(2,floor((PW-2)/cols))
-chh=max(2,min(cw,floor((PH-2)/math.ceil(n/cols))))
-gx=floor((PW-cols*cw)/2)+1
-gy=floor((PH-math.ceil(n/cols)*chh)/2)+1
-for i=1,n do block(i,LINE)end
-t0=uptime()
+S,H,T,I=0,0,0,0
+O,o="w",0
+if not t then s.about="нет диска, куда можно писать"return end
+z=16
+B=g(2,d((b-2)/z))
+R=g(2,i(B,d((c-2)/math.ceil(x/z))))
+ac=d((b-z*B)/2)+1
+ad=d((c-math.ceil(x/z)*R)/2)+1
+for z=1,x do U(z,q)end
+N=C()
 end
-function disk.step()
-if not path then return 0 end
-local moved=0
-for _=1,4 do
-if phase=="w"then
-if not h then
-for i=1,n do block(i,LINE)end
-h=fs.open(path,"wb")
-if not h then path=nil return 0 end
+function s.step()
+if not t then return 0 end
+local z=0
+for B=1,4 do
+if O=="w"then
+if not e then
+for B=1,x do U(B,q)end
+e=W.open(t,"wb")
+if not e then t=nil return 0 end
 end
-h:write(CHUNK)
-done=done+1
-moved=moved+#CHUNK
-wb=wb+#CHUNK
-block(done,mix(disk.color,PANEL,0.55))
-if done>=n then
-h:close()
-h,phase,done=nil,"r",0
-local now=uptime()
-wt,t0=wt+now-t0,now
+e:write(ab)
+o=o+1
+z=z+#ab
+S=S+#ab
+U(o,p(s.color,f,0.55))
+if o>=x then
+e:close()
+e,O,o=nil,"r",0
+local B=C()
+H,N=H+B-N,B
 end
 else
-if not h then h=fs.open(path,"rb")end
-local s=h and h:read(2048)
-if s then
-done=done+1
-moved=moved+#s
-rb=rb+#s
-block(done,disk.color)
+if not e then e=W.open(t,"rb")end
+local B=e and e:read(2048)
+if B then
+o=o+1
+z=z+#B
+T=T+#B
+U(o,s.color)
 end
-if not s or done>=n then
-if h then h:close()end
-h,phase,done=nil,"w",0
-local now=uptime()
-rt,t0=rt+now-t0,now
-end
-end
-end
-local parts={}
-if wt>0 then parts[#parts+1]=("запись %s КБ/с"):format(human(wb/1024/wt))end
-if rt>0 then parts[#parts+1]=("чтение %s КБ/с"):format(human(rb/1024/rt))end
-parts[#parts+1]=path
-disk.about=table.concat(parts," · ")
-P.fg,P.bg=nil,nil
-P:flush()
-return moved/1024
-end
-function disk.finish()
-if h then pcall(h.close,h)h=nil end
-if path then fs.remove(path)end
+if not B or o>=x then
+if e then e:close()end
+e,O,o=nil,"w",0
+local o=C()
+I,N=I+o-N,o
 end
 end
-local sig={name="Сигналы",unit="сиг/с",color=0xA9DC76,ref=20,kind="real",
+end
+local o={}
+if H>0 then o[#o+1]=("запись %s КБ/с"):format(ai(S/1024/H))end
+if I>0 then o[#o+1]=("чтение %s КБ/с"):format(ai(T/1024/I))end
+o[#o+1]=t
+s.about=table.concat(o," · ")
+a.fg,a.bg=nil,nil
+a:flush()
+return z/1024
+end
+function s.finish()
+if e then pcall(e.close,e)e=nil end
+if t then W.remove(t)end
+end
+end
+local x={name="Сигналы",unit="сиг/с",color=0xA9DC76,ref=20,kind="real",
 title="Очередь сигналов",about="pushSignal и pullSignal за секунду"}
 do
-local N,K=32,16
-local dots,heat,k,cx,cy,rad
-local shade={}
-function sig.init()
-cx,cy=floor(PW/2),floor(PH/2)
-rad=floor(min(PW,PH)/2)-4
-dots,heat,k={},{},0
-for i=1,N do
-local a=(i-1)/N*2*pi
-dots[i]={floor(cx+rad*math.cos(a)+0.5),floor(cy+rad*sin(a)+0.5)}
-heat[i]=0
+local t,N=32,16
+local B,e,o,O,R,z
+local H={}
+function x.init()
+O,R=d(b/2),d(c/2)
+z=d(i(b,c)/2)-4
+B,e,o={},{},0
+for I=1,t do
+local S=(I-1)/t*2*Z
+B[I]={d(O+z*math.cos(S)+0.5),d(R+z*J(S)+0.5)}
+e[I]=0
 end
-for j=0,6 do shade[j]=mix(LINE,sig.color,j/6)end
-shade[7]=0xF0FFE0
+for z=0,6 do H[z]=p(q,x.color,z/6)end
+H[7]=0xF0FFE0
 end
-function sig.step()
-for i=1,K do computer.pushSignal("bench_ping",i)end
-local got,miss=0,0
-while got<K and miss<4 do
-local e,_,_,code=computer.pullSignal(0)
-if e=="bench_ping"then
-got=got+1
-k=k%N+1
-heat[k]=7
-elseif e then
-wantQuit(e,code)
+function x.step()
+for z=1,N do h.pushSignal("bench_ping",z)end
+local z,I=0,0
+while z<N and I<4 do
+local J,N,N,N=h.pullSignal(0)
+if J=="bench_ping"then
+z=z+1
+o=o%t+1
+e[o]=7
+elseif J then
+ar(J,N)
 else
-miss=miss+1
+I=I+1
 end
 end
-for i=1,N do
-local d=dots[i]
-P:rect(d[1]-1,d[2]-1,3,3,shade[heat[i]])
-if heat[i]>0 then heat[i]=heat[i]-1 end
+for o=1,t do
+local t=B[o]
+a:rect(t[1]-1,t[2]-1,3,3,H[e[o]])
+if e[o]>0 then e[o]=e[o]-1 end
 end
-P.fg,P.bg=nil,nil
-P:flush()
-return got
+a.fg,a.bg=nil,nil
+a:flush()
+return z
 end
 end
-local RESERVE=96*1024
-local mem={name="Память",color=0xF7768E,kind="mem",
+local z=96*1024
+local e={name="Память",color=0xF7768E,kind="mem",
 title="Сколько памяти достаётся программе",about="заполнение до упора, без очков"}
 do
-local keep,total,free0,cols
-function mem.init()
-keep,total={},computer.totalMemory()
-free0=computer.freeMemory()
-cols=ramp({mix(mem.color,PANEL,0.6),mem.color,0xFFE0E6},PH)
-P:rect(1,1,PW,PH,LINE)
+local t,o,B,H
+function e.init()
+t,o={},h.totalMemory()
+B=h.freeMemory()
+H=_({p(e.color,f,0.6),e.color,0xFFE0E6},c)
+a:rect(1,1,b,c,q)
 end
-function mem.step()
-for _=1,4 do
-local free=computer.freeMemory()
-if free<=RESERVE then return true end
-local n=min(2048,max(64,floor((free-RESERVE)/24)))
-local ok,t=pcall(function()
-local t={}
-for i=1,n do t[i]=i end
-return t
+function e.step()
+for I=1,4 do
+local I=h.freeMemory()
+if I<=z then return true end
+local J=i(2048,g(64,d((I-z)/24)))
+local N,O=pcall(function()
+local z={}
+for I=1,J do z[I]=I end
+return z
 end)
-if not ok then return true end
-keep[#keep+1]=t
+if not N then return true end
+t[#t+1]=O
 end
 return false
 end
-function mem.draw()
-local used=total-computer.freeMemory()
-mem.value=free0-computer.freeMemory()
-mem.progress=used/total
-local h=floor(used/total*PH+0.5)
-for y=1,PH do
-P:rect(1,y,PW,1,PH-y<h and cols[PH-y+1]or LINE)
+function e.draw()
+local z=o-h.freeMemory()
+e.value=B-h.freeMemory()
+e.progress=z/o
+local B=d(z/o*c+0.5)
+for z=1,c do
+a:rect(1,z,b,1,c-z<B and H[c-z+1]or q)
 end
 end
-function mem.show()
-return("%.1fM из %.1fM"):format(mem.value/1048576,total/1048576)
+function e.show()
+return("%.1fM из %.1fM"):format(e.value/1048576,o/1048576)
 end
-function mem.finish()keep=nil end
+function e.finish()t=nil end
 end
-local TESTS={life,mand,str,tab,scr,fps,fig,disk,sig}
-local ALL={life,mand,str,tab,scr,fps,fig,disk,sig,mem}
-local function row(i)return 3+(i-1)*2 end
-local SUM=row(#ALL)+2
-local SPIN={"◐","◓","◑","◒"}
-local BAR=L-20
-local info=("%s · ОЗУ %dK · %d×%d"):format(
-computer.getArchitecture and computer.getArchitecture()or _VERSION,
-floor(computer.totalMemory()/1024),W,H)
-local saved={}
+local o={k,l,E,F,Q,aa,G,s,x}
+local t={k,l,E,F,Q,aa,G,s,x,e}
+local function x(e)return 3+(e-1)*2 end
+local E=x(#t)+2
+local Q={"◐","◓","◑","◒"}
+local H=v-20
+local z=("%s · ОЗУ %dK · %d×%d"):format(
+h.getArchitecture and h.getArchitecture()or _VERSION,
+d(h.totalMemory()/1024),u,A)
+local k={}
 do
-local f=io.open(SAVE)
-if f then
-saved=serialization.unserialize(f:read("*a")or"")or{}
-f:close()
+local e=io.open(aq)
+if e then
+k=an.unserialize(e:read("*a")or"")or{}
+e:close()
 end
 end
-local started,current,spin=0,0,0
-local bars={}
-local function layout()
-slots,bars={},{}
-T:fill(1,1,W,H," ",FG,BG)
-T:fill(1,1,W,1," ",FG,LINE)
-T:fill(L+1,3,W-L,H-3," ",FG,PANEL)
-T:set(2,1,"DwOS · бенчмарк",HEAD,LINE)
-T:set(W-wlen(info)-1,1,info,DIM,LINE)
+local O,B,l=0,0,0
+local I={}
+local function R()
+ah,I={},{}
+j:fill(1,1,u,A," ",L,m)
+j:fill(1,1,u,1," ",L,q)
+j:fill(v+1,3,u-v,A-3," ",L,f)
+j:set(2,1,"DwOS · бенчмарк",M,q)
+j:set(u-P(z)-1,1,z,r,q)
 end
-local function drawList()
-for i,t in ipairs(ALL)do
-local y=row(i)
-local fin=t.score or t.done
-local on=i==current and not fin
-local icon,ic="○",DIM
-if fin then icon,ic="●",t.color elseif on then icon,ic=SPIN[spin%4+1],t.color end
-put(2,y,1,icon,ic,BG)
-put(4,y,L-14,t.name,(fin or on)and FG or DIM,BG)
-put(L-9,y,8,t.score and tostring(t.score)or"",t.color,BG,true)
-local frac=t.score and min(1,t.score/2000)or(on or t.done)and(t.progress or 0)or 0
-local full=floor(min(1,frac)*BAR+0.5)
-if bars[i]~=full then
-bars[i]=full
-if full>0 then T:set(4,y+1,("━"):rep(full),fin and t.color or mix(t.color,BG,0.4),BG)end
-if full<BAR then T:set(4+full,y+1,("─"):rep(BAR-full),LINE,BG)end
+local function S()
+for F,e in ipairs(t)do
+local z=x(F)
+local G=e.score or e.done
+local x=F==B and not G
+local J,N="○",r
+if G then J,N="●",e.color elseif x then J,N=Q[l%4+1],e.color end
+n(2,z,1,J,N,m)
+n(4,z,v-14,e.name,(G or x)and L or r,m)
+n(v-9,z,8,e.score and tostring(e.score)or"",e.color,m,true)
+local J=e.score and i(1,e.score/2000)or(x or e.done)and(e.progress or 0)or 0
+local x=d(i(1,J)*H+0.5)
+if I[F]~=x then
+I[F]=x
+if x>0 then j:set(4,z+1,("━"):rep(x),G and e.color or p(e.color,m,0.4),m)end
+if x<H then j:set(4+x,z+1,("─"):rep(H-x),q,m)end
 end
-local v=""
-if t.show then v=t.value and t.show()or""
-elseif t.value then v=human(t.value).." "..t.unit end
-put(L-15,y+1,14,v,DIM,BG,true)
+local x=""
+if e.show then x=e.value and e.show()or""
+elseif e.value then x=ai(e.value).." "..e.unit end
+n(v-15,z+1,14,x,r,m,true)
 end
 end
-local function drawFrame(total)
-T.fg,T.bg=nil,nil
-drawList()
-local t=ALL[current]
-if t then
-put(VX,3,VW,t.name.." · "..t.title,t.color,PANEL)
-put(VX,4,VW,t.about,DIM,PANEL)
+local function x(z)
+j.fg,j.bg=nil,nil
+S()
+local e=t[B]
+if e then
+n(D,3,w,e.name.." · "..e.title,e.color,f)
+n(D,4,w,e.about,r,f)
 end
-put(2,SUM,L-3,"Итог",HEAD,BG)
-put(2,SUM+1,L-3,total and("%d очков"):format(total)or"идёт замер…",total and HEAD or DIM,BG)
-local prev=""
-if saved.last then
-prev=("прошлый %d · лучший %d"):format(saved.last,saved.best or saved.last)
+n(2,E,v-3,"Итог",M,m)
+n(2,E+1,v-3,z and("%d очков"):format(z)or"идёт замер…",z and M or r,m)
+local e=""
+if k.last then
+e=("прошлый %d · лучший %d"):format(k.last,k.best or k.last)
 end
-if SUM+2<H then put(2,SUM+2,L-3,prev,DIM,BG)end
-if total then
-put(2,H,W-2,"r — ещё раз · q — выход",DIM,BG)
+if E+2<A then n(2,E+2,v-3,e,r,m)end
+if z then
+n(2,A,u-2,"r — ещё раз · q — выход",r,m)
 else
-put(2,H,W-2,("q — выход · проба %d из %d · %.1f с"):format(current,#ALL,uptime()-started),DIM,BG)
+n(2,A,u-2,("q — выход · проба %d из %d · %.1f с"):format(B,#t,C()-O),r,m)
 end
-T:present("replay")
-P.fg,P.bg=nil,nil
+j:present("replay")
+a.fg,a.bg=nil,nil
 end
-local function aborted()
-local e,_,_,code=computer.pullSignal(0)
-wantQuit(e,code)
-return quit
+local function m()
+local e,u,u,u=h.pullSignal(0)
+ar(e,u)
+return af
 end
-local function runTest(i)
-local t=ALL[i]
-current,t.progress,t.value,t.score,t.done=i,0,nil,nil,nil
-P:clear(PANEL)
-t.init()
-if t.kind=="mem"then
-local ok,err=pcall(function()
+local function E(h)
+local e=t[h]
+B,e.progress,e.value,e.score,e.done=h,0,nil,nil,nil
+a:clear(f)
+e.init()
+if e.kind=="mem"then
+local h,u=pcall(function()
 repeat
-local full=t.step()
-t.draw()
-spin=spin+1
-drawFrame()
-P:flush()
-until full or aborted()
+local v=e.step()
+e.draw()
+l=l+1
+x()
+a:flush()
+until v or m()
 end)
-t.finish()
-t.done=true
-if not ok then t.about="упёрлись раньше запаса: "..tostring(err)end
-drawFrame()
-return not aborted()
-elseif t.kind=="real"then
-drawFrame()
-local t0,units,ui=uptime(),0,0
+e.finish()
+e.done=true
+if not h then e.about="упёрлись раньше запаса: "..tostring(u)end
+x()
+return not m()
+elseif e.kind=="real"then
+x()
+local z,u,v=C(),0,0
 repeat
-units=units+t.step()
-local el=uptime()-t0
-t.value,t.progress=units/max(el,0.05),el/REAL_SECS
-if el-ui>=0.25 then
-ui,spin=el,spin+1
-drawFrame()
+u=u+e.step()
+local h=C()-z
+e.value,e.progress=u/g(h,0.05),h/ap
+if h-v>=0.25 then
+v,l=h,l+1
+x()
 end
-until el>=REAL_SECS
-if t.finish then t.finish()end
+until h>=ap
+if e.finish then e.finish()end
 else
-local cpu,units=0,0
-while cpu<CPU_SECS do
-local c0=clock()
-units=units+t.step(c0+0.05)
-cpu=cpu+(clock()-c0)
-t.value,t.progress=units/cpu,cpu/CPU_SECS
-t.draw()
-spin=spin+1
-drawFrame()
-P:flush(t.overlay~=nil)
-if t.overlay then
-t.overlay()
-P:present()
+local h,u=0,0
+while h<ao do
+local v=K()
+u=u+e.step(v+0.05)
+h=h+(K()-v)
+e.value,e.progress=u/h,h/ao
+e.draw()
+l=l+1
+x()
+a:flush(e.overlay~=nil)
+if e.overlay then
+e.overlay()
+a:present()
 end
-if aborted()then return false end
+if m()then return false end
 end
 end
-t.score=t.value and t.value>0 and floor(1000*t.value/t.ref+0.5)or nil
-drawFrame()
-return not aborted()
+e.score=e.value and e.value>0 and d(1000*e.value/e.ref+0.5)or nil
+x()
+return not m()
 end
-local FONT={
+local v={
 ["0"]="111101101101111",["1"]="010110010010111",["2"]="111001111100111",
 ["3"]="111001111001111",["4"]="101101111001001",["5"]="111100111001111",
 ["6"]="111100111101111",["7"]="111001010010010",["8"]="111101111101111",
 ["9"]="111101111001111",
 }
-local function summary(total)
-current=0
-P:clear(PANEL)
-local digits=tostring(total)
-local s=max(1,min(floor(PW*0.8/(#digits*4)),floor(PH*0.3/5)))
-local x0=floor((PW-(#digits*4-1)*s)/2)+1
-local y0=3
-for d=1,#digits do
-local g=FONT[digits:sub(d,d)]
-for fy=0,4 do
-local c=mix(HEAD,0xFC9867,fy/4)
-for fx=0,2 do
-local k=fy*3+fx+1
-if g:sub(k,k)=="1"then
-P:rect(x0+((d-1)*4+fx)*s,y0+fy*s,s,s,c)
+local function F(m)
+B=0
+a:clear(f)
+local h=tostring(m)
+local e=g(1,i(d(b*0.8/(#h*4)),d(c*0.3/5)))
+local A=d((b-(#h*4-1)*e)/2)+1
+local u=3
+for c=1,#h do
+local B=v[h:sub(c,c)]
+for h=0,4 do
+local G=p(M,0xFC9867,h/4)
+for v=0,2 do
+local z=h*3+v+1
+if B:sub(z,z)=="1"then
+a:rect(A+((c-1)*4+v)*e,u+h*e,e,e,G)
 end
 end
 end
 end
-local textRow=floor((y0+5*s)/2)+2
-local top=textRow+2
-local bx,bw=12,PW-19
-local scale=2000
-for _,t in ipairs(TESTS)do scale=max(scale,t.score or 0)end
-local mark=bx+floor(1000/scale*bw)
-local last=saved.scores or{}
-P:rect(mark,(top-1)*2+1,1,#TESTS*2-1,mix(HEAD,PANEL,0.4))
-for i,t in ipairs(TESTS)do
-local py=(top+i-2)*2+1
-P:rect(bx,py,bw,1,LINE)
-if t.score then P:rect(bx,py,max(1,floor(t.score/scale*bw)),1,t.color)end
-if last[i]then P:rect(bx+floor(min(last[i],scale)/scale*bw),py,1,2,FG)end
+local z=d((u+5*e)/2)+2
+local c=z+2
+local e,h=12,b-19
+local b=2000
+for u,u in ipairs(o)do b=g(b,u.score or 0)end
+local u=e+d(1000/b*h)
+local A=k.scores or{}
+a:rect(u,(c-1)*2+1,1,#o*2-1,p(M,f,0.4))
+for p,u in ipairs(o)do
+local v=(c+p-2)*2+1
+a:rect(e,v,h,1,q)
+if u.score then a:rect(e,v,g(1,d(u.score/b*h)),1,u.color)end
+if A[p]then a:rect(e+d(i(A[p],b)/b*h),v,1,2,L)end
 end
-P:flush(true)
-local label="DwMark · 1000 — эталонная машина"
-P:text(floor((VW-wlen(label))/2)+1,textRow,label,DIM,PANEL)
-for i,t in ipairs(TESTS)do
-P:text(2,top+i-1,pad(t.name,9),t.color,PANEL)
-P:text(VW-6,top+i-1,pad(t.score and tostring(t.score)or"—",6,true),FG,PANEL)
+a:flush(true)
+local b="DwMark · 1000 — эталонная машина"
+a:text(d((w-P(b))/2)+1,z,b,r,f)
+for e,b in ipairs(o)do
+a:text(2,c+e-1,ag(b.name,9),b.color,f)
+a:text(w-6,c+e-1,ag(b.score and tostring(b.score)or"—",6,true),L,f)
 end
-if saved.last and top+#TESTS+1<=VH then
-local d=(total-saved.last)/saved.last*100
-local msg=("%+.1f%% к прошлому"):format(d)
-if total>(saved.best or 0)then msg=msg.." · новый рекорд!"end
-P:text(floor((VW-wlen(msg))/2)+1,top+#TESTS+1,msg,d>=0 and 0xA9DC76 or 0xFF6188,PANEL)
+if k.last and c+#o+1<=y then
+local e=(m-k.last)/k.last*100
+local b=("%+.1f%% к прошлому"):format(e)
+if m>(k.best or 0)then b=b.." · новый рекорд!"end
+a:text(d((w-P(b))/2)+1,c+#o+1,b,e>=0 and 0xA9DC76 or 0xFF6188,f)
 end
-P:present()
-put(VX,3,VW,"Итог",HEAD,PANEL)
-put(VX,4,VW,("среднее геометрическое %d проб"):format(#TESTS),DIM,PANEL)
+a:present()
+n(D,3,w,"Итог",M,f)
+n(D,4,w,("среднее геометрическое %d проб"):format(#o),r,f)
 end
-local function save(total)
-local scores={}
-for i,t in ipairs(TESTS)do scores[i]=t.score end
-local rec={last=total,best=max(total,saved.best or 0),scores=scores,runs=(saved.runs or 0)+1}
+local function f(b)
+local c={}
+for e,h in ipairs(o)do c[e]=h.score end
+local e={last=b,best=g(b,k.best or 0),scores=c,runs=(k.runs or 0)+1}
 pcall(function()
-local f=io.open(SAVE,"w")
-if f then f:write(serialization.serialize(rec))f:close()end
+local b=io.open(aq,"w")
+if b then b:write(an.serialize(e))b:close()end
 end)
-return rec
+return e
 end
-local function run()
+local function g()
 while true do
-quit=false
-for _,t in ipairs(ALL)do t.score,t.value,t.progress,t.done=nil,nil,0,nil end
-layout()
-invalidate()
-started,spin=uptime(),0
-for i=1,#ALL do
-if not runTest(i)then return end
+af=false
+for b,b in ipairs(t)do b.score,b.value,b.progress,b.done=nil,nil,0,nil end
+R()
+as()
+O,l=C(),0
+for b=1,#t do
+if not E(b)then return end
 end
-local sum,cnt=0,0
-for _,t in ipairs(TESTS)do
-if t.score and t.score>0 then sum,cnt=sum+math.log(t.score),cnt+1 end
+local c,b=0,0
+for e,e in ipairs(o)do
+if e.score and e.score>0 then c,b=c+math.log(e.score),b+1 end
 end
-local total=cnt>0 and floor(math.exp(sum/cnt)+0.5)or 0
-summary(total)
-drawFrame(total)
-saved=save(total)
+local e=b>0 and d(math.exp(c/b)+0.5)or 0
+F(e)
+x(e)
+k=f(e)
 while true do
-local e,_,_,code=event.pull()
-if e=="interrupted"then return end
-if e=="key_down"then
-if code==keys.q or code==keys.enter then return end
-if code==keys.r then break end
+local c,b,b,b=aA.pull()
+if c=="interrupted"then return end
+if c=="key_down"then
+if b==X.q or b==X.enter then return end
+if b==X.r then break end
 end
 end
 end
 end
-term.setCursorBlink(false)
-local ok,err=xpcall(run,debug.traceback)
-pcall(disk.finish)
-P:close()
-T:close()
-term.setCursorBlink(true)
-term.clear()
-if not ok then error(err,0)end
+Y.setCursorBlink(false)
+local b,c=xpcall(g,debug.traceback)
+pcall(s.finish)
+a:close()
+j:close()
+Y.setCursorBlink(true)
+Y.clear()
+if not b then error(c,0)end

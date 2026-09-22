@@ -1,12 +1,12 @@
-local computer=require("computer")
-local shell=require("shell")
-local fs=require("filesystem")
-local args,opts=shell.parse(...)
-local function die(...)
+local b=require("computer")
+local i=require("shell")
+local c=require("filesystem")
+local h,a=i.parse(...)
+local function f(...)
 io.stderr:write(...)
 os.exit(1)
 end
-if opts.help then
+if a.help then
 print([[Usage: tree [OPTION]... [FILE]...
   -a, --all             do not ignore entries starting with .
       --full-time       with -l, print time in full iso format
@@ -31,156 +31,156 @@ print([[Usage: tree [OPTION]... [FILE]...
       --help            print this help and exit]])
 return 0
 end
-if#args==0 then
-args[1]="."
+if#h==0 then
+h[1]="."
 end
-opts.level=tonumber(opts.level)or math.huge
-if opts.level<1 then
-die("Invalid level, must be greater than 0")
+a.level=tonumber(a.level)or math.huge
+if a.level<1 then
+f("Invalid level, must be greater than 0")
 end
-opts.color=opts.color or"auto"
-if opts.color=="auto"then
-opts.color=io.stdout.tty and"always"or"never"
+a.color=a.color or"auto"
+if a.color=="auto"then
+a.color=io.stdout.tty and"always"or"never"
 end
-if opts.color~="always"and opts.color~="never"then
-die("Invalid value for --color=WHEN option; WHEN should be auto, always or never")
+if a.color~="always"and a.color~="never"then
+f("Invalid value for --color=WHEN option; WHEN should be auto, always or never")
 end
-local lastYield=computer.uptime()
-local function yieldopt()
-if computer.uptime()-lastYield>2 then
-lastYield=computer.uptime()
+local d=b.uptime()
+local function p()
+if b.uptime()-d>2 then
+d=b.uptime()
 os.sleep(0)
 end
 end
-local function stat(path)
-local st={path=path}
-st.name=fs.name(path)or"/"
-st.sortName=st.name:gsub("^%.","")
-st.time=fs.lastModified(path)
-st.isLink=fs.isLink(path)
-st.isDirectory=fs.isDirectory(path)
-st.size=st.isLink and 0 or fs.size(path)
-st.extension=st.name:match("(%.[^.]+)$")or""
-st.fs=fs.get(path)
-return st
+local function j(d)
+local b={path=d}
+b.name=c.name(d)or"/"
+b.sortName=b.name:gsub("^%.","")
+b.time=c.lastModified(d)
+b.isLink=c.isLink(d)
+b.isDirectory=c.isDirectory(d)
+b.size=b.isLink and 0 or c.size(d)
+b.extension=b.name:match("(%.[^.]+)$")or""
+b.fs=c.get(d)
+return b
 end
-local colorize
-if opts.color=="always"then
-local colors={}
-for pair in(os.getenv("LS_COLORS")or""):gmatch("[^:]+")do
-local k,v=pair:match("^(.-)=(.*)$")
-if k then colors[k]=v end
+local g
+if a.color=="always"then
+local b={}
+for e in(os.getenv("LS_COLORS")or""):gmatch("[^:]+")do
+local d,k=e:match("^(.-)=(.*)$")
+if d then b[d]=k end
 end
-function colorize(st)
-return st.isLink and colors.ln or st.isDirectory and colors.di or colors["*"..st.extension]or colors.fi
+function g(d)
+return d.isLink and b.ln or d.isDirectory and b.di or b["*"..d.extension]or b.fi
 end
 end
-local SORT={
-S=function(a,b)return a.size<b.size end,
-t=function(a,b)return a.time<b.time end,
-X=function(a,b)return a.extension<b.extension end,
+local d={
+S=function(b,e)return b.size<e.size end,
+t=function(b,e)return b.time<e.time end,
+X=function(b,e)return b.extension<e.extension end,
 }
-local function list(path)
-local l={}
-for entry in fs.list(path)do
-if opts.a or entry:sub(1,1)~="."then
-l[#l+1]=stat(fs.concat(path,entry))
+local function q(e)
+local b={}
+for k in c.list(e)do
+if a.a or k:sub(1,1)~="."then
+b[#b+1]=j(c.concat(e,k))
 end
 end
-table.sort(l,opts.S and SORT.S or opts.t and SORT.t or opts.X and SORT.X or
-function(a,b)return a.sortName<b.sortName end)
-if opts.r then
-for i=1,math.floor(#l/2)do l[i],l[#l-i+1]=l[#l-i+1],l[i]end
+table.sort(b,a.S and d.S or a.t and d.t or a.X and d.X or
+function(d,e)return d.sortName<e.sortName end)
+if a.r then
+for d=1,math.floor(#b/2)do b[d],b[#b-d+1]=b[#b-d+1],b[d]end
 end
-return l
+return b
 end
-local function nod(n)
-return n and(tostring(n):gsub("(%.[0-9]+)0+$","%1"))or"0"
+local function d(b)
+return b and(tostring(b):gsub("(%.[0-9]+)0+$","%1"))or"0"
 end
-local function formatFSize(size)
-if not opts.h and not opts["human-readable"]and not opts.si then
-return tostring(size)
+local function n(b)
+if not a.h and not a["human-readable"]and not a.si then
+return tostring(b)
 end
-local sizes={"","K","M","G"}
-local unit=1
-local power=opts.si and 1000 or 1024
-while size>power and unit<#sizes do
-unit=unit+1
-size=size/power
+local k={"","K","M","G"}
+local e=1
+local l=a.si and 1000 or 1024
+while b>l and e<#k do
+e=e+1
+b=b/l
 end
-return nod(math.floor(size*10)/10)..sizes[unit]
+return d(math.floor(b*10)/10)..k[e]
 end
-local function pad(txt)
-txt=tostring(txt)
-return#txt>=2 and txt or"0"..txt
+local function e(b)
+b=tostring(b)
+return#b>=2 and b or"0"..b
 end
-local MONTHS={"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"}
-local function formatTime(epochms)
-if epochms==0 then return""end
-local d=os.date("*t",epochms)
-local day,hour,min,sec=nod(d.day),pad(nod(d.hour)),pad(nod(d.min)),pad(nod(d.sec))
-if opts["full-time"]then
-return string.format("%s-%s-%s %s:%s:%s ",d.year,pad(nod(d.month)),pad(day),hour,min,sec)
+local o={"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"}
+local function r(k)
+if k==0 then return""end
+local b=os.date("*t",k)
+local k,l,m,s=d(b.day),e(d(b.hour)),e(d(b.min)),e(d(b.sec))
+if a["full-time"]then
+return string.format("%s-%s-%s %s:%s:%s ",b.year,e(d(b.month)),e(k),l,m,s)
 end
-return string.format("%s %2s %2s:%2s ",MONTHS[d.month],day,hour,pad(min))
+return string.format("%s %2s %2s:%2s ",o[b.month],k,l,e(m))
 end
-local function writeEntry(entry,levels)
-if not opts.i then
-for i,hasNext in ipairs(levels)do
-if i==#levels then
-io.write(hasNext and"├── "or"└── ")
+local function k(b,d)
+if not a.i then
+for l,e in ipairs(d)do
+if l==#d then
+io.write(e and"├── "or"└── ")
 else
-io.write(hasNext and"│\194\160\194\160 "or"    ")
+io.write(e and"│\194\160\194\160 "or"    ")
 end
 end
 end
-if opts.l then
-io.write("[",entry.isDirectory and"d"or entry.isLink and"l"or"f","-")
-io.write("r",entry.fs.isReadOnly()and"-"or"w"," ")
-io.write(formatFSize(entry.size)," ",formatTime(entry.time),"] ")
+if a.l then
+io.write("[",b.isDirectory and"d"or b.isLink and"l"or"f","-")
+io.write("r",b.fs.isReadOnly()and"-"or"w"," ")
+io.write(n(b.size)," ",r(b.time),"] ")
 end
-if opts.Q then io.write('"')end
-if colorize then io.write("\27["..colorize(entry).."m")end
-io.write(opts.f and entry.path or entry.name)
-if colorize then io.write("\27[0m")end
-if opts.p and entry.isDirectory then io.write("/")end
-if opts.Q then io.write('"')end
+if a.Q then io.write('"')end
+if g then io.write("\27["..g(b).."m")end
+io.write(a.f and b.path or b.name)
+if g then io.write("\27[0m")end
+if a.p and b.isDirectory then io.write("/")end
+if a.Q then io.write('"')end
 io.write("\n")
 end
-local dirs,files=0,0
-local function count(entry,depth)
-if opts.R or depth>0 then
-if entry.isDirectory then dirs=dirs+1 else files=files+1 end
+local d,e=0,0
+local function l(b,g)
+if a.R or g>0 then
+if b.isDirectory then d=d+1 else e=e+1 end
 end
 end
-local function walk(path,levels)
-local entries=list(path)
-for i,entry in ipairs(entries)do
-levels[#levels+1]=i<#entries
-count(entry,#levels)
-writeEntry(entry,levels)
-yieldopt()
-if entry.isDirectory and opts.level>#levels then
-walk(fs.concat(path,entry.name),levels)
+local function m(n,b)
+local o=q(n)
+for q,g in ipairs(o)do
+b[#b+1]=q<#o
+l(g,#b)
+k(g,b)
+p()
+if g.isDirectory and a.level>#b then
+m(c.concat(n,g.name),b)
 end
-levels[#levels]=nil
-end
-end
-for _,arg in ipairs(args)do
-local path=shell.resolve(arg)
-local real,reason=fs.realPath(path)
-if not real then
-die("cannot access ",path,": ",reason or"unknown error")
-elseif not fs.exists(path)then
-die("cannot access ",path,":","No such file or directory")
-end
-local root=stat(real)
-count(root,0)
-writeEntry(root,{})
-if root.isDirectory then
-walk(real,{})
+b[#b]=nil
 end
 end
-if not opts.C then
-io.write("\n",dirs," director",dirs==1 and"y"or"ies",", ",files," file",files==1 and""or"s","\n")
+for b,g in ipairs(h)do
+local b=i.resolve(g)
+local g,h=c.realPath(b)
+if not g then
+f("cannot access ",b,": ",h or"unknown error")
+elseif not c.exists(b)then
+f("cannot access ",b,":","No such file or directory")
+end
+local b=j(g)
+l(b,0)
+k(b,{})
+if b.isDirectory then
+m(g,{})
+end
+end
+if not a.C then
+io.write("\n",d," director",d==1 and"y"or"ies",", ",e," file",e==1 and""or"s","\n")
 end

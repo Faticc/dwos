@@ -1,90 +1,90 @@
-local graphic=...
-local unicode=require("unicode")
-local function mb(n)
-if not n then return"?"end
-if n>=1048576 then return string.format("%.1f МБ",n/1048576)end
-return string.format("%d КБ",math.floor(n/1024+0.5))
+local h=...
+local o=require("unicode")
+local function p(a)
+if not a then return"?"end
+if a>=1048576 then return string.format("%.1f МБ",a/1048576)end
+return string.format("%d КБ",math.floor(a/1024+0.5))
 end
-local function needs(items,disks)
-local need,over={},nil
-for _,it in ipairs(items)do
-if it.on and not it.header and it.disk and it.disk~=it.at then
-need[it.disk]=(need[it.disk]or 0)+(it.size or 0)
-end
-end
-for i,d in ipairs(disks)do
-if need[i]and d.free and need[i]>d.free then
-over=over or string.format("на \"%s\" не влезает: нужно %s, свободно %s",
-d.name,mb(need[i]),mb(d.free))
+local function D(d,e)
+local b,c={},nil
+for a,a in ipairs(d)do
+if a.on and not a.header and a.disk and a.disk~=a.at then
+b[a.disk]=(b[a.disk]or 0)+(a.size or 0)
 end
 end
-return need,over
+for d,a in ipairs(e)do
+if b[d]and a.free and b[d]>a.free then
+c=c or string.format("на \"%s\" не влезает: нужно %s, свободно %s",
+a.name,p(b[d]),p(a.free))
 end
-local function toggle(it)
-if it.header or it.lock then return end
-it.on=not it.on
 end
-local function shiftDisk(it,disks,step)
-if it.header or it.lock or not it.on or#disks==0 then return end
-it.disk=((it.disk or 1)-1+step)%#disks+1
+return b,c
 end
-local PROMPT={
+local function E(a)
+if a.header or a.lock then return end
+a.on=not a.on
+end
+local function F(a,b,c)
+if a.header or a.lock or not a.on or#b==0 then return end
+a.disk=((a.disk or 1)-1+c)%#b+1
+end
+local u={
 sources="What do you want to install?",
 targets="Where do you want to install to?",
 }
-local TITLE={
+local y={
 sources="Что установить?",
 targets="Куда установить?",
 }
-local function nameOf(src)
-local dev=src.dev
-local name=(src.prop or{}).label or dev.getLabel()
-if name then
-return string.format("%s (%s...)",name,dev.address:sub(1,8))
+local function z(b)
+local a=b.dev
+local c=(b.prop or{}).label or a.getLabel()
+if c then
+return string.format("%s (%s...)",c,a.address:sub(1,8))
 end
-return dev.address
+return a.address
 end
-local function sortDevs(devs)
-table.sort(devs,function(a,b)return a.path<b.path end)
+local function k(a)
+table.sort(a,function(a,b)return a.path<b.path end)
 end
-local function nothing(kind,options)
-if kind=="sources"then
-if options.label then
-io.stderr:write("Nothing to install labeled: "..options.label.."\n")
-elseif options.from then
-io.stderr:write("Nothing to install from: "..options.from.."\n")
+local function m(b,a)
+if b=="sources"then
+if a.label then
+io.stderr:write("Nothing to install labeled: "..a.label.."\n")
+elseif a.from then
+io.stderr:write("Nothing to install from: "..a.from.."\n")
 else
 io.stderr:write("Nothing to install\n")
 end
 else
-if options.to then
-io.stderr:write("No such target to install to: "..options.to.."\n")
+if a.to then
+io.stderr:write("No such target to install to: "..a.to.."\n")
 else
 io.stderr:write("No writable disks found, aborting\n")
 end
 end
 os.exit(1)
 end
-local text={graphic=false}
-function text.select(kind,devs,options)
-if#devs==0 then nothing(kind,options)end
-sortDevs(devs)
-local n=#devs
-if n<2 then return devs[1]end
-io.write(PROMPT[kind],"\n")
-for i=1,n do
-local src=devs[i]
+local a={graphic=false}
+function a.select(d,b,c)
+if#b==0 then m(d,c)end
+k(b)
+local c=#b
+if c<2 then return b[1]end
+io.write(u[d],"\n")
+for e=1,c do
+local d=b[e]
 io.write(string.format("%d) %s at %s [r%s]\n",
-i,nameOf(src),src.path,src.dev.isReadOnly()and"o"or"w"))
+e,z(d),d.path,d.dev.isReadOnly()and"o"or"w"))
 end
-io.write("Please enter a number between 1 and "..n.."\n")
+io.write("Please enter a number between 1 and "..c.."\n")
 io.write("Enter 'q' to cancel the installation: ")
-for _=1,5 do
-local result=io.read()or"q"
-if result=="q"then os.exit()end
-local number=tonumber(result)
-if number and number>0 and number<=n then
-return devs[number]
+for d=1,5 do
+local e=io.read()or"q"
+if e=="q"then os.exit()end
+local d=tonumber(e)
+if d and d>0 and d<=c then
+return b[d]
 end
 io.write("Invalid input, please try again: ")
 os.sleep(0)
@@ -92,343 +92,343 @@ end
 print("\ntoo many bad inputs, aborting")
 os.exit(1)
 end
-function text.note(s)
-io.write(s,"\n")
+function a.note(b)
+io.write(b,"\n")
 end
-function text.ask(question)
-io.write(question," [Y/n] ")
+function a.ask(b)
+io.write(b," [Y/n] ")
 return((io.read()or"n").."y"):match("^%s*[Yy]")~=nil
 end
-function text.progress()end
-function text.step(from,to)
-io.write(from," -> ",to,"\n")
+function a.progress()end
+function a.step(b,c)
+io.write(b," -> ",c,"\n")
 end
-function text.finish(s)
-io.write(s,"\n")
+function a.finish(b)
+io.write(b,"\n")
 end
-function text.pause()end
-function text.close()end
-function text.checklist(title,items,disks,options)
-options=options or{}
+function a.pause()end
+function a.close()end
+function a.checklist(e,c,d,b)
+b=b or{}
 while true do
-io.write("\n",title,"\n")
-for i,d in ipairs(disks)do
-io.write(string.format("  диск %d: %s, свободно %s\n",i,d.name,mb(d.free)))
+io.write("\n",e,"\n")
+for e,b in ipairs(d)do
+io.write(string.format("  диск %d: %s, свободно %s\n",e,b.name,p(b.free)))
 end
-for i,it in ipairs(items)do
-if it.header then
-io.write("  ",it.text,"\n")
+for e,b in ipairs(c)do
+if b.header then
+io.write("  ",b.text,"\n")
 else
-local mark=it.lock and"[*]"or it.on and"[x]"or"[ ]"
-local where=it.on and it.disk and(" -> диск "..it.disk)or""
-io.write(string.format("%3d) %s %s  %s%s\n",i,mark,it.text,it.sub or"",where))
+local f=b.lock and"[*]"or b.on and"[x]"or"[ ]"
+local g=b.on and b.disk and(" -> диск "..b.disk)or""
+io.write(string.format("%3d) %s %s  %s%s\n",e,f,b.text,b.sub or"",g))
 end
 end
-local _,over=needs(items,disks)
-if over then io.write("!! ",over,"\n")end
+local b,b=D(c,d)
+if b then io.write("!! ",b,"\n")end
 io.write("номер - отметить, 'номер диск' - куда, 'все диск' - всё туда,\n")
 io.write("пустая строка - ставить, q - отмена: ")
-local s=io.read()
-if not s or s=="q"then return nil end
-local a,b=s:match("^%s*(%S*)%s*(%S*)%s*$")
-if a==""then
-if not over then return true end
-elseif a=="все"or a=="all"then
-local d=tonumber(b)
-if d and disks[d]then
-for _,it in ipairs(items)do
-if it.on and not it.lock and not it.header then it.disk=d end
+local f=io.read()
+if not f or f=="q"then return nil end
+local e,g=f:match("^%s*(%S*)%s*(%S*)%s*$")
+if e==""then
+if not b then return true end
+elseif e=="все"or e=="all"then
+local f=tonumber(g)
+if f and d[f]then
+for b,b in ipairs(c)do
+if b.on and not b.lock and not b.header then b.disk=f end
 end
 end
 else
-local it,d=items[tonumber(a)or 0],tonumber(b)
-if it and d and disks[d]then
-if not it.lock and not it.header then it.on=true it.disk=d end
-elseif it then
-toggle(it)
+local b,f=c[tonumber(e)or 0],tonumber(g)
+if b and f and d[f]then
+if not b.lock and not b.header then b.on=true b.disk=f end
+elseif b then
+E(b)
 end
 end
 end
 end
-if not graphic then return text end
-local gfx=require("gfx")
-local term=require("term")
-local tty=require("tty")
-local event=require("event")
-local computer=require("computer")
-local keys=require("keyboard").keys
-local BG,FG,DIM,ACC=0x1B2A3A,0xE1E1E1,0x8C8C8C,0x66CCFF
-local SEL,BAR,VOID=0x2D4A66,0x33B5E5,0x000000
-local ui={graphic=true}
-local S,W,H
-local function open(w,h)
-local gpu=tty.gpu()
-local sw,sh=gpu.getResolution()
-w=math.min(w or 62,sw-2)
-h=math.min(h or 16,sh-2)
-if S and W==w and H==h then return end
-if S then S:close()S=nil end
-W,H=w,h
-term.clear()
-term.setCursorBlink(false)
-S=gfx.surface(gpu,{
-x=math.floor((sw-W)/2)+1,
-y=math.floor((sh-H)/2)+1,
-w=W,h=H,
+if not h then return a end
+local s=require("gfx")
+local v=require("term")
+local A=require("tty")
+local B=require("event")
+local I=require("computer")
+local b=require("keyboard").keys
+local i,l,d,w=0x1B2A3A,0xE1E1E1,0x8C8C8C,0x66CCFF
+local G,J,K=0x2D4A66,0x33B5E5,0x000000
+local j={graphic=true}
+local a,f,c
+local function q(e,g)
+local h=A.gpu()
+local n,r=h.getResolution()
+e=math.min(e or 62,n-2)
+g=math.min(g or 16,r-2)
+if a and f==e and c==g then return end
+if a then a:close()a=nil end
+f,c=e,g
+v.clear()
+v.setCursorBlink(false)
+a=s.surface(h,{
+x=math.floor((n-f)/2)+1,
+y=math.floor((r-c)/2)+1,
+w=f,h=c,
 })
 end
-local function fit(s,width)
-if unicode.wlen(s)>width then s=unicode.wtrunc(s,width+1)end
-return s
+local function r(e,g)
+if o.wlen(e)>g then e=o.wtrunc(e,g+1)end
+return e
 end
-local function line(row,s,fg,bg)
-bg=bg or BG
-S:fill(2,row,W-2,1," ",FG,bg)
-if s and s~=""then S:set(3,row,fit(s,W-4),fg or FG,bg)end
+local function h(n,g,s,e)
+e=e or i
+a:fill(2,n,f-2,1," ",l,e)
+if g and g~=""then a:set(3,n,r(g,f-4),s or l,e)end
 end
-local function frame(title,hint)
-local bar=("─"):rep(W-2)
-S:fill(1,1,W,H," ",FG,BG)
-S:set(1,1,"┌"..bar.."┐",DIM,BG)
-S:set(1,H,"└"..bar.."┘",DIM,BG)
-for i=2,H-1 do
-S:set(1,i,"│",DIM,BG)
-S:set(W,i,"│",DIM,BG)
+local function s(t,g)
+local e=("─"):rep(f-2)
+a:fill(1,1,f,c," ",l,i)
+a:set(1,1,"┌"..e.."┐",d,i)
+a:set(1,c,"└"..e.."┘",d,i)
+for n=2,c-1 do
+a:set(1,n,"│",d,i)
+a:set(f,n,"│",d,i)
 end
-S:set(1,3,"├"..bar.."┤",DIM,BG)
-S:set(3,1," "..fit(title,W-6).." ",ACC,BG)
-if hint then S:set(3,H," "..fit(hint,W-6).." ",DIM,BG)end
+a:set(1,3,"├"..e.."┤",d,i)
+a:set(3,1," "..r(t,f-6).." ",w,i)
+if g then a:set(3,c," "..r(g,f-6).." ",d,i)end
 end
-local function body()
-S:fill(2,4,W-2,H-4," ",FG,BG)
+local function t()
+a:fill(2,4,f-2,c-4," ",l,i)
 end
-local function keyPress()
+local function x()
 while true do
-local name,_,char,code=event.pull()
-if name=="interrupted"then return nil,nil end
-if name=="key_down"then return char,code end
+local e,g,g,n=B.pull()
+if e=="interrupted"then return nil,nil end
+if e=="key_down"then return g,n end
 end
 end
-function ui.select(kind,devs,options)
-if#devs==0 then
-ui.close()
-nothing(kind,options)
+function j.select(n,g,e)
+if#g==0 then
+j.close()
+m(n,e)
 end
-sortDevs(devs)
-if#devs<2 then return devs[1]end
-open()
-local rows=H-5
-local sel,top=1,1
+k(g)
+if#g<2 then return g[1]end
+q()
+local m=c-5
+local e,k=1,1
 while true do
-if sel<top then top=sel end
-if sel>top+rows-1 then top=sel-rows+1 end
-frame(TITLE[kind],"↑↓ выбор · Enter — ok · Q — отмена")
-line(2,PROMPT[kind],DIM)
-body()
-for i=0,rows-1 do
-local src=devs[top+i]
-if not src then break end
-local cur=top+i==sel
-local bg=cur and SEL or BG
-local mark=src.dev.isReadOnly()and"ro"or"rw"
-line(4+i,(cur and"▸ "or"  ")..nameOf(src),cur and FG or DIM,bg)
-local tail=src.path.." ["..mark.."]"
-local at=W-3-unicode.wlen(tail)
-if at>4 then S:set(at,4+i,tail,DIM,bg)end
+if e<k then k=e end
+if e>k+m-1 then k=e-m+1 end
+s(y[n],"↑↓ выбор · Enter — ok · Q — отмена")
+h(2,u[n],d)
+t()
+for n=0,m-1 do
+local u=g[k+n]
+if not u then break end
+local y=k+n==e
+local k=y and G or i
+local B=u.dev.isReadOnly()and"ro"or"rw"
+h(4+n,(y and"▸ "or"  ")..z(u),y and l or d,k)
+local y=u.path.." ["..B.."]"
+local u=f-3-o.wlen(y)
+if u>4 then a:set(u,4+n,y,d,k)end
 end
-if#devs>rows then
-line(H-1,string.format("%d из %d",sel,#devs),DIM)
+if#g>m then
+h(c-1,string.format("%d из %d",e,#g),d)
 end
-S:present()
-local char,code=keyPress()
-if not code then return nil end
-if code==keys.up then
-sel=sel>1 and sel-1 or#devs
-elseif code==keys.down then
-sel=sel<#devs and sel+1 or 1
-elseif code==keys.home then
-sel=1
-elseif code==keys["end"]then
-sel=#devs
-elseif code==keys.enter or code==keys.numpadenter then
-return devs[sel]
-elseif code==keys.q or char==113 or code==1 then
+a:present()
+local m,k=x()
+if not k then return nil end
+if k==b.up then
+e=e>1 and e-1 or#g
+elseif k==b.down then
+e=e<#g and e+1 or 1
+elseif k==b.home then
+e=1
+elseif k==b["end"]then
+e=#g
+elseif k==b.enter or k==b.numpadenter then
+return g[e]
+elseif k==b.q or m==113 or k==1 then
 return nil
 end
 end
 end
-local RED,OK=0xFF6655,0x77DD77
-function ui.checklist(title,items,disks,options)
-options=options or{}
-local gpu=tty.gpu()
-local sw,sh=gpu.getResolution()
-open(math.min(sw-2,110),math.min(sh-2,#items+9))
-local rows=H-7
-local DW=#disks>0 and 26 or 0
-local function selectable(i)return items[i]and not items[i].header end
-local sel=1
-while items[sel]and not selectable(sel)do sel=sel+1 end
-local top,warn=1,nil
-local function move(step)
-local i=sel
-repeat i=i+step until i<1 or i>#items or selectable(i)
-if selectable(i)then sel=i end
+local L,M=0xFF6655,0x77DD77
+function j.checklist(H,k,n,B)
+B=B or{}
+local e=A.gpu()
+local g,m=e.getResolution()
+q(math.min(g-2,110),math.min(m-2,#k+9))
+local u=c-7
+local y=#n>0 and 26 or 0
+local function C(e)return k[e]and not k[e].header end
+local g=1
+while k[g]and not C(g)do g=g+1 end
+local m,z=1,nil
+local function A(N)
+local e=g
+repeat e=e+N until e<1 or e>#k or C(e)
+if C(e)then g=e end
 end
 while true do
-if sel<top then top=sel end
-if sel>1 and items[sel-1].header and sel-1<top then top=sel-1 end
-if sel>top+rows-1 then top=sel-rows+1 end
-frame(title,"пробел — отметить · ←→ — диск · Tab — этот диск всем · Enter — ставить · Q — отмена")
-line(2,options.prompt or"Отметь, что поставить, и выбери, на какой диск",DIM)
-body()
-for i=0,rows-1 do
-local it=items[top+i]
-if not it then break end
-local row=4+i
-if it.header then
-line(row,it.text,ACC)
+if g<m then m=g end
+if g>1 and k[g-1].header and g-1<m then m=g-1 end
+if g>m+u-1 then m=g-u+1 end
+s(H,"пробел — отметить · ←→ — диск · Tab — этот диск всем · Enter — ставить · Q — отмена")
+h(2,B.prompt or"Отметь, что поставить, и выбери, на какой диск",d)
+t()
+for C=0,u-1 do
+local e=k[m+C]
+if not e then break end
+local B=4+C
+if e.header then
+h(B,e.text,w)
 else
-local cur=top+i==sel
-local bg=cur and SEL or BG
-local mark=it.lock and"[•]"or it.on and"[x]"or"[ ]"
-line(row,(cur and"▸ "or"  ")..mark.." "..it.text,it.on and FG or DIM,bg)
-local right=W-3-DW
-if it.sub then
-local s=fit(it.sub,24)
-S:set(right-unicode.wlen(s)-1,row,s,DIM,bg)
+local H=m+C==g
+local m=H and G or i
+local i=e.lock and"[•]"or e.on and"[x]"or"[ ]"
+h(B,(H and"▸ "or"  ")..i.." "..e.text,e.on and l or d,m)
+local C=f-3-y
+if e.sub then
+local i=r(e.sub,24)
+a:set(C-o.wlen(i)-1,B,i,d,m)
 end
-if DW>0 and it.on and disks[it.disk]then
-local moved=it.at and it.disk~=it.at
-local d=disks[it.disk].name
-local s=(it.lock and"  "or"◂ ")..fit(d,DW-4)
-s=s..(" "):rep(DW-2-unicode.wlen(s))..(it.lock and""or"▸")
-S:set(right+1,row,s,(it.at==nil or moved)and ACC or DIM,bg)
-end
-end
-end
-local need,over=needs(items,disks)
-local parts={}
-for i,d in ipairs(disks)do
-if need[i]then parts[#parts+1]=string.format("%s: %s из %s",d.name,mb(need[i]),mb(d.free))end
-end
-local summary=#parts>0 and("запишется — "..table.concat(parts," · "))or"ничего нового не качается"
-line(H-2,warn or over or summary,(warn or over)and RED or OK)
-warn=nil
-S:present()
-local char,code=keyPress()
-if not code then return nil end
-local it=items[sel]
-if code==keys.up then move(-1)
-elseif code==keys.down then move(1)
-elseif code==keys.pageUp then for _=1,rows do move(-1)end
-elseif code==keys.pageDown then for _=1,rows do move(1)end
-elseif code==keys.space then toggle(it)
-elseif code==keys.left then shiftDisk(it,disks,-1)
-elseif code==keys.right then shiftDisk(it,disks,1)
-elseif code==keys.tab then
-if it and it.on and it.disk then
-for _,o in ipairs(items)do
-if o.on and not o.lock and not o.header then o.disk=it.disk end
+if y>0 and e.on and n[e.disk]then
+local G=e.at and e.disk~=e.at
+local H=n[e.disk].name
+local i=(e.lock and"  "or"◂ ")..r(H,y-4)
+i=i..(" "):rep(y-2-o.wlen(i))..(e.lock and""or"▸")
+a:set(C+1,B,i,(e.at==nil or G)and w or d,m)
 end
 end
-elseif code==keys.enter or code==keys.numpadenter then
-if over then warn=over else return true end
-elseif code==keys.q or char==113 or code==1 then
+end
+local i,m=D(k,n)
+local e={}
+for r,y in ipairs(n)do
+if i[r]then e[#e+1]=string.format("%s: %s из %s",y.name,p(i[r]),p(y.free))end
+end
+local i=#e>0 and("запишется — "..table.concat(e," · "))or"ничего нового не качается"
+h(c-2,z or m or i,(z or m)and L or M)
+z=nil
+a:present()
+local p,e=x()
+if not e then return nil end
+local i=k[g]
+if e==b.up then A(-1)
+elseif e==b.down then A(1)
+elseif e==b.pageUp then for g=1,u do A(-1)end
+elseif e==b.pageDown then for g=1,u do A(1)end
+elseif e==b.space then E(i)
+elseif e==b.left then F(i,n,-1)
+elseif e==b.right then F(i,n,1)
+elseif e==b.tab then
+if i and i.on and i.disk then
+for g,g in ipairs(k)do
+if g.on and not g.lock and not g.header then g.disk=i.disk end
+end
+end
+elseif e==b.enter or e==b.numpadenter then
+if m then z=m else return true end
+elseif e==b.q or p==113 or e==1 then
 return nil
 end
 end
 end
-local note_text
-function ui.note(s)
-note_text=s
+local i
+function j.note(e)
+i=e
 end
-local function wrap(s,width)
-local out={}
-for piece in(s.."\n"):gmatch("(.-)\n")do
-local cur=""
-for word in piece:gmatch("%S+")do
-local try=cur==""and word or(cur.." "..word)
-if unicode.wlen(try)>width and cur~=""then
-out[#out+1]=cur
-cur=word
+local function m(e,p)
+local g={}
+for n in(e.."\n"):gmatch("(.-)\n")do
+local e=""
+for k in n:gmatch("%S+")do
+local n=e==""and k or(e.." "..k)
+if o.wlen(n)>p and e~=""then
+g[#g+1]=e
+e=k
 else
-cur=try
+e=n
 end
 end
-out[#out+1]=cur
+g[#g+1]=e
 end
-return out
+return g
 end
-function ui.ask(question)
-open()
-frame("Подтверждение","Enter/Y — да · N — нет")
-line(2,note_text or"",DIM)
-body()
-local rows=wrap(question,W-6)
-local at=math.max(4,math.floor((H-3-#rows)/2)+3)
-for i,s in ipairs(rows)do
-if at+i-1<H then line(at+i-1,s)end
+function j.ask(g)
+q()
+s("Подтверждение","Enter/Y — да · N — нет")
+h(2,i or"",d)
+t()
+local e=m(g,f-6)
+local g=math.max(4,math.floor((c-3-#e)/2)+3)
+for k,n in ipairs(e)do
+if g+k-1<c then h(g+k-1,n)end
 end
-line(H-2,"[ Да ]   [ Нет ]",ACC)
-S:present()
+h(c-2,"[ Да ]   [ Нет ]",w)
+a:present()
 while true do
-local char,code=keyPress()
-if not code then return false end
-if code==keys.enter or code==keys.numpadenter or code==keys.y or char==121 then
+local g,e=x()
+if not e then return false end
+if e==b.enter or e==b.numpadenter or e==b.y or g==121 then
 return true
-elseif code==keys.n or char==110 or code==keys.q or code==1 then
+elseif e==b.n or g==110 or e==b.q or e==1 then
 return false
 end
 end
 end
-local total,done,lastDraw
-local function drawBar()
-local inner=W-6
-local part=total>0 and math.min(1,done/total)or 0
-local full=math.floor(inner*part+0.5)
-S:fill(3,H-3,inner,1," ",FG,VOID)
-if full>0 then S:fill(3,H-3,full,1," ",FG,BAR)end
-local pct=string.format("%d%%  %d/%d",math.floor(part*100+0.5),done,total)
-line(H-2,pct,DIM)
+local e,b,g
+local function k()
+local n=f-6
+local o=e>0 and math.min(1,b/e)or 0
+local p=math.floor(n*o+0.5)
+a:fill(3,c-3,n,1," ",l,K)
+if p>0 then a:fill(3,c-3,p,1," ",l,J)end
+local n=string.format("%d%%  %d/%d",math.floor(o*100+0.5),b,e)
+h(c-2,n,d)
 end
-function ui.progress(n)
-open()
-total,done,lastDraw=n or 0,0,0
-frame("Установка","Ctrl+C — прервать")
-line(2,note_text or"",DIM)
-body()
-line(5,"Копирование файлов…",FG)
-drawBar()
-S:present()
+function j.progress(n)
+q()
+e,b,g=n or 0,0,0
+s("Установка","Ctrl+C — прервать")
+h(2,i or"",d)
+t()
+h(5,"Копирование файлов…",l)
+k()
+a:present()
 end
-function ui.step(from)
-done=done+1
-local now=computer.uptime()
-if now-lastDraw<0.2 and done<total then return end
-lastDraw=now
-line(7,from,DIM)
-drawBar()
-S:present()
+function j.step(l)
+b=b+1
+local i=I.uptime()
+if i-g<0.2 and b<e then return end
+g=i
+h(7,l,d)
+k()
+a:present()
 end
-function ui.finish(s)
-open()
-frame("Готово","Enter — дальше")
-body()
-local rows=wrap(s,W-6)
-local at=math.max(4,math.floor((H-3-#rows)/2)+3)
-for i,r in ipairs(rows)do
-if at+i-1<H then line(at+i-1,r)end
+function j.finish(d)
+q()
+s("Готово","Enter — дальше")
+t()
+local b=m(d,f-6)
+local d=math.max(4,math.floor((c-3-#b)/2)+3)
+for e,f in ipairs(b)do
+if d+e-1<c then h(d+e-1,f)end
 end
-S:present()
+a:present()
 end
-function ui.pause()
-keyPress()
+function j.pause()
+x()
 end
-function ui.close()
-if not S then return end
-S:close()
-S=nil
-term.setCursorBlink(true)
-term.clear()
+function j.close()
+if not a then return end
+a:close()
+a=nil
+v.setCursorBlink(true)
+v.clear()
 end
-return ui
+return j

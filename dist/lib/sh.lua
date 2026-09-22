@@ -1,173 +1,173 @@
-local process=require("process")
-local shell=require("shell")
-local text=require("text")
-local sh={}
-sh.internal={}
-function sh.internal.isWordOf(w,vs)
-if not w or#w~=1 or w[1].qr then return false end
-local txt=w[1].txt
-for i=1,#vs do
-if vs[i]==txt then return true end
+local h=require("process")
+local j=require("shell")
+local e=require("text")
+local a={}
+a.internal={}
+function a.internal.isWordOf(b,c)
+if not b or#b~=1 or b[1].qr then return false end
+local d=b[1].txt
+for b=1,#c do
+if c[b]==d then return true end
 end
 return false
 end
-local isWordOf=sh.internal.isWordOf
-local DELIMS={";","&&","||","|"}
-sh.internal.ec={parseCommand=127,last=0}
-function sh.getLastExitCode()
-return sh.internal.ec.last
+local f=a.internal.isWordOf
+local k={";","&&","||","|"}
+a.internal.ec={parseCommand=127,last=0}
+function a.getLastExitCode()
+return a.internal.ec.last
 end
-function sh.internal.command_result_as_code(ec,reason)
-local code
-if ec==false then
-code=1
-elseif ec==nil or ec==true then
-code=0
-elseif type(ec)~="number"then
-code=2
+function a.internal.command_result_as_code(c,d)
+local b
+if c==false then
+b=1
+elseif c==nil or c==true then
+b=0
+elseif type(c)~="number"then
+b=2
 else
-code=ec
+b=c
 end
-if reason and code~=0 then io.stderr:write(reason,"\n")end
-return code
+if d and b~=0 then io.stderr:write(d,"\n")end
+return b
 end
-function sh.internal.resolveActions(input,resolved)
-resolved=resolved or{}
-local processed={}
-local prev_was_delim=true
-local words,reason=text.internal.tokenize(input)
-if not words then
-return nil,reason
+function a.internal.resolveActions(d,b)
+b=b or{}
+local i={}
+local g=true
+local c,l=e.internal.tokenize(d)
+if not c then
+return nil,l
 end
-local i=1
-while i<=#words do
-local nxt=words[i]
-i=i+1
-if isWordOf(nxt,DELIMS)then
-prev_was_delim=true
-resolved={}
-elseif prev_was_delim then
-prev_was_delim=false
-if#nxt==1 and not nxt[1].qr then
-local key=nxt[1].txt
-if key=="!"then
-prev_was_delim=true
-elseif not resolved[key]then
-resolved[key]=shell.getAlias(key)
-local value=resolved[key]
-if value and key~=value then
-local replacement,why=sh.internal.resolveActions(value,resolved)
-if not replacement then
-return replacement,why
+local d=1
+while d<=#c do
+local e=c[d]
+d=d+1
+if f(e,k)then
+g=true
+b={}
+elseif g then
+g=false
+if#e==1 and not e[1].qr then
+local f=e[1].txt
+if f=="!"then
+g=true
+elseif not b[f]then
+b[f]=j.getAlias(f)
+local g=b[f]
+if g and f~=g then
+local f,j=a.internal.resolveActions(g,b)
+if not f then
+return f,j
 end
-local rest={}
-for j=1,#replacement do rest[#rest+1]=replacement[j]end
-for j=i,#words do rest[#rest+1]=words[j]end
-words,i=rest,1
-nxt=table.remove(words,1)
-end
-end
+local b={}
+for g=1,#f do b[#b+1]=f[g]end
+for f=d,#c do b[#b+1]=c[f]end
+c,d=b,1
+e=table.remove(c,1)
 end
 end
-processed[#processed+1]=nxt
 end
-return processed
 end
-function sh.internal.isIdentifier(key)
-if type(key)~="string"then
+i[#i+1]=e
+end
+return i
+end
+function a.internal.isIdentifier(b)
+if type(b)~="string"then
 return false
 end
-return key:match("^[%a_][%w_]*$")==key
+return b:match("^[%a_][%w_]*$")==b
 end
-function sh.expand(value)
-return(value:gsub("%$([_%w%?]+)",function(key)
-if key=="?"then
-return tostring(sh.getLastExitCode())
+function a.expand(b)
+return(b:gsub("%$([_%w%?]+)",function(b)
+if b=="?"then
+return tostring(a.getLastExitCode())
 end
-return os.getenv(key)or""
-end):gsub("%${(.*)}",function(key)
-if sh.internal.isIdentifier(key)then
-return os.getenv(key)or""
+return os.getenv(b)or""
+end):gsub("%${(.*)}",function(b)
+if a.internal.isIdentifier(b)then
+return os.getenv(b)or""
 end
-io.stderr:write("${"..key.."}: bad substitution\n")
+io.stderr:write("${"..b.."}: bad substitution\n")
 os.exit(1)
 end))
 end
-function sh.internal.createThreads(commands,env,start_args)
-local threads={}
-for i=1,#commands do
-local program,args,redirects=table.unpack(commands[i])
-local thread_env=type(program)=="string"and env or nil
-local thread,reason=process.load(program or"/dev/null",thread_env,function(...)
-if redirects then
-sh.internal.openCommandRedirects(redirects)
+function a.internal.createThreads(b,i,j)
+local c={}
+for f=1,#b do
+local g,e,d=table.unpack(b[f])
+local b=type(g)=="string"and i or nil
+local i,k=h.load(g or"/dev/null",b,function(...)
+if d then
+a.internal.openCommandRedirects(d)
 end
-local all,n={},0
-for j=1,#args do n=n+1 all[n]=args[j]end
-local extra=start_args[i]
-if extra then for j=1,extra.n or#extra do n=n+1 all[n]=extra[j]end end
-local more=table.pack(...)
-for j=1,more.n do n=n+1 all[n]=more[j]end
+local d,b={},0
+for l=1,#e do b=b+1 d[b]=e[l]end
+local e=j[f]
+if e then for j=1,e.n or#e do b=b+1 d[b]=e[j]end end
+local e=table.pack(...)
+for j=1,e.n do b=b+1 d[b]=e[j]end
 io.write("")
-return table.unpack(all,1,n)
-end,tostring(program))
-if not thread then
-for _,t in ipairs(threads)do
-process.internal.close(t)
+return table.unpack(d,1,b)
+end,tostring(g))
+if not i then
+for b,b in ipairs(c)do
+h.internal.close(b)
 end
-return nil,reason
+return nil,k
 end
-threads[i]=thread
+c[f]=i
 end
-if#threads>1 then
-require("pipe").buildPipeChain(threads)
+if#c>1 then
+require("pipe").buildPipeChain(c)
 end
-return threads
+return c
 end
-function sh.internal.executePipes(pipe_parts,eargs,env)
-local commands={}
-for _,words in ipairs(pipe_parts)do
-local args={}
-local reparse
-for _,word in ipairs(words)do
-local value=""
-for _,part in ipairs(word)do
-reparse=reparse or part.qr or part.txt:find("[%$%*%?<>]")
-value=value..part.txt
+function a.internal.executePipes(b,i,j)
+local c={}
+for d,g in ipairs(b)do
+local b={}
+local d
+for e,k in ipairs(g)do
+local e=""
+for f,f in ipairs(k)do
+d=d or f.qr or f.txt:find("[%$%*%?<>]")
+e=e..f.txt
 end
-args[#args+1]=value
+b[#b+1]=e
 end
-local redirects
-if reparse then
-args,redirects=sh.internal.evaluate(words)
-if not args then
-return false,redirects
+local e
+if d then
+b,e=a.internal.evaluate(g)
+if not b then
+return false,e
 end
 end
-commands[#commands+1]=table.pack(table.remove(args,1),args,redirects)
+c[#c+1]=table.pack(table.remove(b,1),b,e)
 end
-local threads,reason=sh.internal.createThreads(commands,env,{[#commands]=eargs})
-if not threads then return false,reason end
-return process.internal.continue(threads[1])
+local b,d=a.internal.createThreads(c,j,{[#c]=i})
+if not b then return false,d end
+return h.internal.continue(b[1])
 end
-function sh.execute(env,command,...)
-checkArg(2,command,"string")
-if command:find("^%s*#")then return true,0 end
-local words,reason=sh.internal.resolveActions(command)
-if type(words)~="table"then
-return words,reason
-elseif#words==0 then
+function a.execute(d,c,...)
+checkArg(2,c,"string")
+if c:find("^%s*#")then return true,0 end
+local b,e=a.internal.resolveActions(c)
+if type(b)~="table"then
+return b,e
+elseif#b==0 then
 return true
 end
-local eargs=table.pack(...)
-if not command:find("[;%$&|!<>]")then
-sh.internal.ec.last=sh.internal.command_result_as_code(sh.internal.executePipes({words},eargs,env))
-return sh.internal.ec.last==0
+local e=table.pack(...)
+if not c:find("[;%$&|!<>]")then
+a.internal.ec.last=a.internal.command_result_as_code(a.internal.executePipes({b},e,d))
+return a.internal.ec.last==0
 end
-return sh.internal.execute_complex(words,eargs,env)
+return a.internal.execute_complex(b,e,d)
 end
-function sh.hintHandler(full_line,cursor)
-return sh.internal.hintHandlerImpl(full_line,cursor)
+function a.hintHandler(b,c)
+return a.internal.hintHandlerImpl(b,c)
 end
-require("package").delay(sh,"/lib/core/full_sh.lua")
-return sh
+require("package").delay(a,"/lib/core/full_sh.lua")
+return a

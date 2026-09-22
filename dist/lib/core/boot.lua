@@ -1,101 +1,101 @@
-local raw_loadfile=...
+local g=...
 _G._OSVERSION="DwOS 1.0"
-local component,computer,unicode=component,computer,unicode
+local d,b,n=component,computer,unicode
 _G.runlevel="S"
-local shutdown=computer.shutdown
-computer.runlevel=function()return _G.runlevel end
-computer.shutdown=function(reboot)
-_G.runlevel=reboot and 6 or 0
+local c=b.shutdown
+b.runlevel=function()return _G.runlevel end
+b.shutdown=function(a)
+_G.runlevel=a and 6 or 0
 if os.sleep then
-computer.pushSignal("shutdown")
+b.pushSignal("shutdown")
 os.sleep(0.1)
 end
-shutdown(reboot)
+c(a)
 end
-local gpu
+local a
 do
-local screen=component.list("screen",true)()
-gpu=screen and component.list("gpu",true)()
-if gpu then
-gpu=component.proxy(gpu)
-if not gpu.getScreen()then gpu.bind(screen)end
-_G.boot_screen=gpu.getScreen()
-local w,h=gpu.maxResolution()
-gpu.setResolution(w,h)
-gpu.setBackground(0x000000)
-gpu.setForeground(0xFFFFFF)
-gpu.fill(1,1,w,h," ")
+local c=d.list("screen",true)()
+a=c and d.list("gpu",true)()
+if a then
+a=d.proxy(a)
+if not a.getScreen()then a.bind(c)end
+_G.boot_screen=a.getScreen()
+local c,e=a.maxResolution()
+a.setResolution(c,e)
+a.setBackground(0x000000)
+a.setForeground(0xFFFFFF)
+a.fill(1,1,c,e," ")
 end
 end
-local gfx=raw_loadfile("/lib/gfx.lua")()
-local splash
-if gpu then
-local ok,s=pcall(function()return raw_loadfile("/lib/core/splash.lua")(gfx).start(gpu)end)
-splash=ok and s or nil
+local k=g("/lib/gfx.lua")()
+local c
+if a then
+local e,f=pcall(function()return g("/lib/core/splash.lua")(k).start(a)end)
+c=e and f or nil
 end
-local uptime,pull=computer.uptime,computer.pullSignal
-local last_sleep=uptime()
-local line,progress=1,0
-local function status(msg,frac)
-progress=frac or progress
-if splash then
-local ok=pcall(splash.status,splash,msg,progress)
-if not ok then splash=nil end
-elseif gpu and msg then
-local w,h=gpu.getResolution()
-gpu.set(1,line,msg)
-if line==h then
-gpu.copy(1,2,w,h-1,0,-1)
-gpu.fill(1,h,w,1," ")
+local h,o=b.uptime,b.pullSignal
+local l=h()
+local f,i=1,0
+local function e(j,m)
+i=m or i
+if c then
+local m=pcall(c.status,c,j,i)
+if not m then c=nil end
+elseif a and j then
+local m,i=a.getResolution()
+a.set(1,f,j)
+if f==i then
+a.copy(1,2,m,i-1,0,-1)
+a.fill(1,i,m,1," ")
 else
-line=line+1
+f=f+1
 end
 end
-if uptime()-last_sleep>1 then
-local signal=table.pack(pull(0))
-if signal.n>0 then computer.pushSignal(table.unpack(signal,1,signal.n))end
-last_sleep=uptime()
+if h()-l>1 then
+local a=table.pack(o(0))
+if a.n>0 then b.pushSignal(table.unpack(a,1,a.n))end
+l=h()
 end
 end
-status("Booting ".._OSVERSION.."...",0.02)
-local function dofile(file)
-local program,reason=raw_loadfile(file)
-if not program then error(reason)end
-local result=table.pack(pcall(program))
-if not result[1]then error(result[2])end
-return table.unpack(result,2,result.n)
+e("Booting ".._OSVERSION.."...",0.02)
+local function f(a)
+local h,i=g(a)
+if not h then error(i)end
+local a=table.pack(pcall(h))
+if not a[1]then error(a[2])end
+return table.unpack(a,2,a.n)
 end
-status("Packages",0.08)
-local package=dofile("/lib/package.lua")
+e("Packages",0.08)
+local g=f("/lib/package.lua")
 do
 _G.component,_G.computer,_G.process,_G.unicode=nil,nil,nil,nil
-_G.package=package
-local loaded=package.loaded
-loaded.component=component
-loaded.computer=computer
-loaded.unicode=unicode
-loaded.gfx=gfx
-loaded.buffer=dofile("/lib/buffer.lua")
-loaded.filesystem=dofile("/lib/filesystem.lua")
-_G.io=dofile("/lib/io.lua")
+_G.package=g
+local a=g.loaded
+a.component=d
+a.computer=b
+a.unicode=n
+a.gfx=k
+a.buffer=f("/lib/buffer.lua")
+a.filesystem=f("/lib/filesystem.lua")
+_G.io=f("/lib/io.lua")
 end
-status("File system",0.16)
-require("filesystem").mount(computer.getBootAddress(),"/")
-local scripts={}
-for _,file in ipairs(component.invoke(computer.getBootAddress(),"list","boot"))do
-if file:sub(-1)~="/"then scripts[#scripts+1]="boot/"..file end
+e("File system",0.16)
+require("filesystem").mount(b.getBootAddress(),"/")
+local a={}
+for g,g in ipairs(d.invoke(b.getBootAddress(),"list","boot"))do
+if g:sub(-1)~="/"then a[#a+1]="boot/"..g end
 end
-table.sort(scripts)
-for i=1,#scripts do
-status(scripts[i],0.2+0.6*(i-1)/#scripts)
-dofile(scripts[i])
+table.sort(a)
+for g=1,#a do
+e(a[g],0.2+0.6*(g-1)/#a)
+f(a[g])
 end
-status("Components",0.85)
-for c,t in component.list()do
-computer.pushSignal("component_added",c,t)
+e("Components",0.85)
+for a,f in d.list()do
+b.pushSignal("component_added",a,f)
 end
-status("Starting",0.93)
-computer.pushSignal("init")
+e("Starting",0.93)
+b.pushSignal("init")
 require("event").pull(1,"init")
 _G.runlevel=1
-if splash then pcall(splash.finish,splash)end
+if c then pcall(c.finish,c)end

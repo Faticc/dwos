@@ -1,90 +1,90 @@
-local io={}
-function io.close(file)
-return(file or io.output()):close()
+local a={}
+function a.close(b)
+return(b or a.output()):close()
 end
-function io.flush()
-return io.output():flush()
+function a.flush()
+return a.output():flush()
 end
-function io.lines(filename,...)
-if not filename then
-return io.input():lines()
+function a.lines(b,...)
+if not b then
+return a.input():lines()
 end
-local file,reason=io.open(filename)
-if not file then
-error(reason,2)
+local c,d=a.open(b)
+if not c then
+error(d,2)
 end
-local args=table.pack(...)
+local d=table.pack(...)
 return function()
-local result=table.pack(file:read(table.unpack(args,1,args.n)))
-if not result[1]then
-if result[2]then
-error(result[2],2)
+local b=table.pack(c:read(table.unpack(d,1,d.n)))
+if not b[1]then
+if b[2]then
+error(b[2],2)
 end
-file:close()
+c:close()
 return nil
 end
-return table.unpack(result,1,result.n)
+return table.unpack(b,1,b.n)
 end
 end
-function io.open(path,mode)
-local resolved_path=require("shell").resolve(path)
-local stream,result=require("filesystem").open(resolved_path,mode)
-if stream then
-return require("buffer").new(mode,stream)
+function a.open(c,b)
+local d=require("shell").resolve(c)
+local c,e=require("filesystem").open(d,b)
+if c then
+return require("buffer").new(b,c)
 end
-return nil,result
+return nil,e
 end
-function io.stream(fd,file,mode)
-checkArg(1,fd,"number")
-checkArg(2,file,"table","string","nil")
-assert(fd>=0,"fd must be >= 0. 0 is input, 1 is stdout, 2 is stderr")
-local dio=require("process").info().data.io
-if file then
-if type(file)=="string"then
-file=assert(io.open(file,mode))
+function a.stream(c,b,e)
+checkArg(1,c,"number")
+checkArg(2,b,"table","string","nil")
+assert(c>=0,"fd must be >= 0. 0 is input, 1 is stdout, 2 is stderr")
+local d=require("process").info().data.io
+if b then
+if type(b)=="string"then
+b=assert(a.open(b,e))
 end
-dio[fd]=file
+d[c]=b
 end
-return dio[fd]
+return d[c]
 end
-function io.input(file)return io.stream(0,file,"r")end
-function io.output(file)return io.stream(1,file,"w")end
-function io.error(file)return io.stream(2,file,"w")end
-function io.popen(prog,mode,env)
-return require("pipe").popen(prog,mode,env)
+function a.input(b)return a.stream(0,b,"r")end
+function a.output(b)return a.stream(1,b,"w")end
+function a.error(b)return a.stream(2,b,"w")end
+function a.popen(b,c,d)
+return require("pipe").popen(b,c,d)
 end
-function io.read(...)
-return io.input():read(...)
+function a.read(...)
+return a.input():read(...)
 end
-function io.tmpfile()
-local name=os.tmpname()
-if name then
-return io.open(name,"a")
+function a.tmpfile()
+local b=os.tmpname()
+if b then
+return a.open(b,"a")
 end
 end
-function io.type(object)
-if type(object)=="table"and getmetatable(object)=="file"then
-return object.stream.handle and"file"or"closed file"
+function a.type(b)
+if type(b)=="table"and getmetatable(b)=="file"then
+return b.stream.handle and"file"or"closed file"
 end
 return nil
 end
-function io.write(...)
-return io.output():write(...)
+function a.write(...)
+return a.output():write(...)
 end
-local dup_mt={
-__index=function(dfd,key)
-local fd_value=dfd.fd[key]
-if key~="close"and type(fd_value)~="function"then return fd_value end
-return function(self,...)
-if key=="close"or self._closed then self._closed=true return end
-return fd_value(self.fd,...)
+local e={
+__index=function(d,b)
+local c=d.fd[b]
+if b~="close"and type(c)~="function"then return c end
+return function(d,...)
+if b=="close"or d._closed then d._closed=true return end
+return c(d.fd,...)
 end
 end,
-__newindex=function(dfd,key,value)
-dfd.fd[key]=value
+__newindex=function(b,c,d)
+b.fd[c]=d
 end,
 }
-function io.dup(fd)
-return setmetatable({fd=fd,_closed=false},dup_mt)
+function a.dup(b)
+return setmetatable({fd=b,_closed=false},e)
 end
-return io
+return a

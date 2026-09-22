@@ -1,457 +1,457 @@
-local M={}
-local KW={}
-for w in("and break do else elseif end false for function goto if in local nil not or "..
-"repeat return then true until while"):gmatch("%S+")do KW[w]=true end
-local OPS2={}
-for o in(".. == ~= <= >= :: // << >>"):gmatch("%S+")do OPS2[o]=true end
-function M.lexer(src)
-local i,len,line,ls=1,#src,1,1
-local function long(pos,eq)
-local _,b=src:find("]"..eq.."]",pos,true)
-local stop=b or len
-local from=pos
+local n={}
+local j={}
+for a in("and break do else elseif end false for function goto if in local nil not or "..
+"repeat return then true until while"):gmatch("%S+")do j[a]=true end
+local k={}
+for a in(".. == ~= <= >= :: // << >>"):gmatch("%S+")do k[a]=true end
+function n.lexer(b)
+local a,i,e,g=1,#b,1,1
+local function l(c,d)
+local f,f=b:find("]"..d.."]",c,true)
+local d=f or i
+local f=c
 while true do
-local nl=src:find("\n",from,true)
-if not nl or nl>stop then break end
-line,ls,from=line+1,nl+1,nl+1
+local c=b:find("\n",f,true)
+if not c or c>d then break end
+e,g,f=e+1,c+1,c+1
 end
-return stop+1
+return d+1
 end
 return function()
-while i<=len do
-local b=src:byte(i)
-if b==10 then
-line,i=line+1,i+1
-ls=i
-elseif b==32 or b==9 or b==13 or b==11 or b==12 then
-i=i+1
-elseif b==45 and src:byte(i+1)==45 then
-local eq=src:match("^%[(=*)%[",i+2)
-if eq then i=long(i+4+#eq,eq)
-else i=src:find("\n",i,true)or len+1 end
+while a<=i do
+local c=b:byte(a)
+if c==10 then
+e,a=e+1,a+1
+g=a
+elseif c==32 or c==9 or c==13 or c==11 or c==12 then
+a=a+1
+elseif c==45 and b:byte(a+1)==45 then
+local d=b:match("^%[(=*)%[",a+2)
+if d then a=l(a+4+#d,d)
+else a=b:find("\n",a,true)or i+1 end
 else
-local at,l,t,v=i,line
-if(b>=65 and b<=90)or(b>=97 and b<=122)or b==95 or b>=128 then
-local _,e=src:find("^[%w_\128-\255]+",i)
-v=src:sub(i,e)
-t=KW[v]and"kw"or"name"
-i=e+1
-elseif(b>=48 and b<=57)or(b==46 and(src:byte(i+1)or 0)>=48 and(src:byte(i+1)or 0)<=57)then
-local _,e=src:find("^0[xX][%x%.]*[pP][-+]?%d+",i)
-if not e then _,e=src:find("^0[xX][%x%.]*",i)end
-if not e then _,e=src:find("^[%d%.]*[eE][-+]?%d+",i)end
-if not e then _,e=src:find("^[%d%.]+",i)end
-t,v,i="num","0",e+1
-elseif b==34 or b==39 then
-local j=i+1
-while j<=len do
-local d=src:byte(j)
-if d==92 then
-if src:byte(j+1)==10 then line,ls=line+1,j+2 end
-if src:byte(j+1)==122 then
-local _,e=src:find("^%s*",j+2)
-local from=j+2
+local q,m,h,f=a,e
+if(c>=65 and c<=90)or(c>=97 and c<=122)or c==95 or c>=128 then
+local d,d=b:find("^[%w_\128-\255]+",a)
+f=b:sub(a,d)
+h=j[f]and"kw"or"name"
+a=d+1
+elseif(c>=48 and c<=57)or(c==46 and(b:byte(a+1)or 0)>=48 and(b:byte(a+1)or 0)<=57)then
+local j,d=b:find("^0[xX][%x%.]*[pP][-+]?%d+",a)
+if not d then j,d=b:find("^0[xX][%x%.]*",a)end
+if not d then j,d=b:find("^[%d%.]*[eE][-+]?%d+",a)end
+if not d then j,d=b:find("^[%d%.]+",a)end
+h,f,a="num","0",d+1
+elseif c==34 or c==39 then
+local d=a+1
+while d<=i do
+local j=b:byte(d)
+if j==92 then
+if b:byte(d+1)==10 then e,g=e+1,d+2 end
+if b:byte(d+1)==122 then
+local i,o=b:find("^%s*",d+2)
+local p=d+2
 while true do
-local nl=src:find("\n",from,true)
-if not nl or nl>e then break end
-line,ls,from=line+1,nl+1,nl+1
+local i=b:find("\n",p,true)
+if not i or i>o then break end
+e,g,p=e+1,i+1,i+1
 end
-j=e+1
+d=o+1
 else
-j=j+2
+d=d+2
 end
-elseif d==b then
-j=j+1
+elseif j==c then
+d=d+1
 break
-elseif d==10 then
+elseif j==10 then
 break
 else
-j=j+1
+d=d+1
 end
 end
-t,v,i="str","",j
-elseif b==91 and src:find("^%[=*%[",i)then
-local eq=src:match("^%[(=*)%[",i)
-local c0=i-ls+1
-i=long(i+2+#eq,eq)
-return{t="str",v="",l=l,c=c0}
+h,f,a="str","",d
+elseif c==91 and b:find("^%[=*%[",a)then
+local c=b:match("^%[(=*)%[",a)
+local d=a-g+1
+a=l(a+2+#c,c)
+return{t="str",v="",l=m,c=d}
 else
-local two=src:sub(i,i+1)
-if src:sub(i,i+2)=="..."then v="..."
-elseif OPS2[two]then v=two
-else v=src:sub(i,i)end
-t,i="op",i+#v
+local c=b:sub(a,a+1)
+if b:sub(a,a+2)=="..."then f="..."
+elseif k[c]then f=c
+else f=b:sub(a,a)end
+h,a="op",a+#f
 end
-return{t=t,v=v,l=l,c=at-ls+1}
-end
-end
-return{t="eof",v="",l=line,c=i-ls+1}
+return{t=h,v=f,l=m,c=q-g+1}
 end
 end
-local ENDS={["then"]=true,["do"]=true,["else"]=true,["repeat"]=true,
+return{t="eof",v="",l=e,c=a-g+1}
+end
+end
+local C={["then"]=true,["do"]=true,["else"]=true,["repeat"]=true,
 ["break"]=true,["end"]=true,["true"]=true,["false"]=true,["nil"]=true,
 [")"]=true,["]"]=true,["}"]=true,["..."]=true,[";"]=true}
-local STARTS={["local"]=true,["if"]=true,["for"]=true,["while"]=true,
+local H={["local"]=true,["if"]=true,["for"]=true,["while"]=true,
 ["repeat"]=true,["return"]=true,["function"]=true,["do"]=true,
 ["end"]=true,["else"]=true,["elseif"]=true,["until"]=true,
 ["break"]=true,["goto"]=true,["::"]=true,[";"]=true}
-local STMT={["local"]=true,["if"]=true,["for"]=true,["while"]=true,
+local I={["local"]=true,["if"]=true,["for"]=true,["while"]=true,
 ["repeat"]=true,["return"]=true,["end"]=true,["do"]=true,
 ["break"]=true,["goto"]=true,[";"]=true,["else"]=true,["elseif"]=true}
-local function isOp(tok,v)return tok.t=="op"and tok.v==v end
-function M.analyze(src,opt)
-opt=opt or{}
-local want=opt.name
-local R={diags={},funcs={},blocks={},refs={},decls={},globals={}}
-if opt.hooks then R.hooks={}end
-local nextTok=M.lexer(src)
-local ahead,back={},{}
-local function peek(n)
-while#ahead<=n do ahead[#ahead+1]=nextTok()end
-return ahead[n+1]
+local function f(a,b)return a.t=="op"and a.v==b end
+function n.analyze(a,g)
+g=g or{}
+local r=g.name
+local b={diags={},funcs={},blocks={},refs={},decls={},globals={}}
+if g.hooks then b.hooks={}end
+local e=n.lexer(a)
+local c,a={},{}
+local function d(h)
+while#c<=h do c[#c+1]=e()end
+return c[h+1]
 end
-local function skip(n)
-for _=1,n do
-local t=table.remove(ahead,1)or nextTok()
-back[#back+1]=t
-if#back>16 then table.remove(back,1)end
-end
-end
-local function behind(n)return back[#back-n+1]end
-local scope={vars={},fn=true,list={}}
-local scopes={scope}
-local cons={}
-local brk={}
-local brkStack={}
-local pending,pendingLine
-local lingering
-local fnDepth=0
-local globalWrites,globalReads={},{}
-local known=opt.known or function()return false end
-local head
-local function declare(name,tok,kind,into)
-local d={name=name,l=tok.l,c=tok.c,kind=kind,used=false,up=head}
-head=d
-if name==want then R.decls[#R.decls+1]=d end
-into=into or scope
-into.vars[name]=d
-into.list[#into.list+1]=d
-return d
-end
-local function ref(tok,d,write)
-if tok.v==want then
-R.refs[#R.refs+1]={l=tok.l,c=tok.c,len=#tok.v,name=tok.v,decl=d,write=write}
+local function D(h)
+for i=1,h do
+local h=table.remove(c,1)or e()
+a[#a+1]=h
+if#a>16 then table.remove(a,1)end
 end
 end
-local function activate()
-if pending then
-for _,p in ipairs(pending)do declare(p[1],p[2],"local",p.scope)end
-pending=nil
+local function c(e)return a[#a-e+1]end
+local e={vars={},fn=true,list={}}
+local i={e}
+local h={}
+local j={}
+local q={}
+local o,v
+local k
+local l=0
+local w,s={},{}
+local x=g.known or function()return false end
+local g
+local function t(p,u,y,a)
+local m={name=p,l=u.l,c=u.c,kind=y,used=false,up=g}
+g=m
+if p==r then b.decls[#b.decls+1]=m end
+a=a or e
+a.vars[p]=m
+a.list[#a.list+1]=m
+return m
+end
+local function E(a,m,p)
+if a.v==r then
+b.refs[#b.refs+1]={l=a.l,c=a.c,len=#a.v,name=a.v,decl=m,write=p}
 end
 end
-local function lookup(name)
-if lingering and lingering[name]then return lingering[name]end
-for k=#scopes,1,-1 do
-local d=scopes[k].vars[name]
-if d then return d end
+local function y()
+if o then
+for a,a in ipairs(o)do t(a[1],a[2],"local",a.scope)end
+o=nil
 end
 end
-local function push(fn)
-scope={vars={},fn=fn,list={},base=head}
-scopes[#scopes+1]=scope
-if fn then
-brkStack[#brkStack+1]=brk
-brk={}
-fnDepth=fnDepth+1
+local function F(a)
+if k and k[a]then return k[a]end
+for p=#i,1,-1 do
+local m=i[p].vars[a]
+if m then return m end
 end
 end
-local function unused(sc)
-for _,d in ipairs(sc.list)do
-if not d.used and(d.kind=="local"or d.kind=="fn")and d.name:sub(1,1)~="_"then
-R.diags[#R.diags+1]={l=d.l,c=d.c,len=#d.name,
-msg=d.name.." объявлена, но не используется"}
+local function p(a)
+e={vars={},fn=a,list={},base=g}
+i[#i+1]=e
+if a then
+q[#q+1]=j
+j={}
+l=l+1
+end
+end
+local function z(m)
+for a,a in ipairs(m.list)do
+if not a.used and(a.kind=="local"or a.kind=="fn")and a.name:sub(1,1)~="_"then
+b.diags[#b.diags+1]={l=a.l,c=a.c,len=#a.name,
+msg=a.name.." объявлена, но не используется"}
 end
 end
 end
-local function endLinger()
-if lingering then unused(lingering._scope)end
-lingering=nil
+local function A()
+if k then z(k._scope)end
+k=nil
 end
-local function pop(later)
-if#scopes==1 then return end
-activate()
-if not later then unused(scope)end
-local was=table.remove(scopes)
-scope=scopes[#scopes]
-head=was.base
-if was.fn then
-brk=table.remove(brkStack)or{}
-fnDepth=fnDepth-1
+local function u(a)
+if#i==1 then return end
+y()
+if not a then z(e)end
+local a=table.remove(i)
+e=i[#i]
+g=a.base
+if a.fn then
+j=table.remove(q)or{}
+l=l-1
 end
-return was
+return a
 end
-local function openCons(kind,tok)
-cons[#cons+1]={l=tok.l,kind=kind}
-return cons[#cons]
+local function q(a,m)
+h[#h+1]={l=m.l,kind=a}
+return h[#h]
 end
-local function closeCons(tok)
-local c=table.remove(cons)
-if c and tok.l>c.l then R.blocks[#R.blocks+1]={first=c.l,last=tok.l,kind=c.kind}end
+local function G(m)
+local a=table.remove(h)
+if a and m.l>a.l then b.blocks[#b.blocks+1]={first=a.l,last=m.l,kind=a.kind}end
 end
-local function params(n,into,method)
-if method then declare("self",peek(n),"param",into)end
-if not isOp(peek(n),"(")then return n end
-n=n+1
-while peek(n).t~="eof"and not isOp(peek(n),")")do
-if peek(n).t=="name"then declare(peek(n).v,peek(n),"param",into)end
-n=n+1
+local function B(a,h,m)
+if m then t("self",d(a),"param",h)end
+if not f(d(a),"(")then return a end
+a=a+1
+while d(a).t~="eof"and not f(d(a),")")do
+if d(a).t=="name"then t(d(a).v,d(a),"param",h)end
+a=a+1
 end
-return n+1
+return a+1
 end
-local function fnName()
-if not(behind(1)and isOp(behind(1),"="))then return nil end
-local j,parts=2,{}
-while behind(j)and(behind(j).t=="name"or isOp(behind(j),".")or isOp(behind(j),":"))do
-table.insert(parts,1,behind(j).v)
-j=j+1
+local function J()
+if not(c(1)and f(c(1),"="))then return nil end
+local a,h=2,{}
+while c(a)and(c(a).t=="name"or f(c(a),".")or f(c(a),":"))do
+table.insert(h,1,c(a).v)
+a=a+1
 end
-if#parts==0 then return nil end
-local b=behind(j)
-return((b and b.t=="kw"and b.v=="local")and"local "or"")..table.concat(parts)
+if#h==0 then return nil end
+local m=c(a)
+return((m and m.t=="kw"and m.v=="local")and"local "or"")..table.concat(h)
 end
-local lastLine=0
-local prev={t="op",v=";"}
+local r=0
+local h={t="op",v=";"}
 while true do
-local tok=peek(0)
-if tok.t=="eof"then break end
-local v=tok.v
-local step=1
-if pending and(tok.l>pendingLine or(STMT[v]and(tok.t=="kw"or tok.t=="op")))then
-activate()
+local a=d(0)
+if a.t=="eof"then break end
+local c=a.v
+local m=1
+if o and(a.l>v or(I[c]and(a.t=="kw"or a.t=="op")))then
+y()
 end
-if lingering and tok.l>lingering._line then endLinger()end
-if R.hooks and tok.l>lastLine then
-local okPrev=prev.t=="name"or prev.t=="num"or prev.t=="str"or ENDS[prev.v]
-local okCur=tok.t=="name"or STARTS[v]
-if okPrev and okCur and#brk==0 and not scope.ret then
-R.hooks[tok.l]={c=tok.c,at=head}
+if k and a.l>k._line then A()end
+if b.hooks and a.l>r then
+local I=h.t=="name"or h.t=="num"or h.t=="str"or C[h.v]
+local C=a.t=="name"or H[c]
+if I and C and#j==0 and not e.ret then
+b.hooks[a.l]={c=a.c,at=g}
 end
 end
-lastLine=tok.l
-if tok.t=="kw"then
-if v=="local"then
-local nx=peek(1)
-if nx.t=="kw"and nx.v=="function"then
-local nm=peek(2)
-if nm.t=="name"then
-declare(nm.v,nm,"fn")
-R.funcs[#R.funcs+1]={name="local "..nm.v,l=tok.l,depth=fnDepth}
+r=a.l
+if a.t=="kw"then
+if c=="local"then
+local r=d(1)
+if r.t=="kw"and r.v=="function"then
+local g=d(2)
+if g.t=="name"then
+t(g.v,g,"fn")
+b.funcs[#b.funcs+1]={name="local "..g.v,l=a.l,depth=l}
 end
-openCons("function",nx)
-push(true)
-step=params(3,scope)
+q("function",r)
+p(true)
+m=B(3,e)
 else
-pending,pendingLine={},tok.l
-local n=1
-while peek(n).t=="name"do
-pending[#pending+1]={peek(n).v,peek(n),scope=scope}
-n=n+1
-if isOp(peek(n),"<")and isOp(peek(n+2),">")then n=n+3 end
-if isOp(peek(n),",")then n=n+1 else break end
+o,v={},a.l
+local g=1
+while d(g).t=="name"do
+o[#o+1]={d(g).v,d(g),scope=e}
+g=g+1
+if f(d(g),"<")and f(d(g+2),">")then g=g+3 end
+if f(d(g),",")then g=g+1 else break end
 end
-step=n
+m=g
 end
-elseif v=="function"then
-local nx=peek(1)
-openCons("function",tok)
-if nx.t=="name"then
-local n,parts,method=1,{},false
+elseif c=="function"then
+local g=d(1)
+q("function",a)
+if g.t=="name"then
+local o,r,H=1,{},false
 while true do
-parts[#parts+1]=peek(n).v
-local s=peek(n+1)
-if s.t=="op"and(s.v=="."or s.v==":")and peek(n+2).t=="name"then
-parts[#parts+1]=s.v
-method=s.v==":"
-n=n+2
+r[#r+1]=d(o).v
+local v=d(o+1)
+if v.t=="op"and(v.v=="."or v.v==":")and d(o+2).t=="name"then
+r[#r+1]=v.v
+H=v.v==":"
+o=o+2
 else
 break
 end
 end
-R.funcs[#R.funcs+1]={name=table.concat(parts),l=tok.l,depth=fnDepth}
-local d=lookup(nx.v)
-local single=#parts==1
-ref(nx,d,single)
-if d then
-if not single then d.used=true end
-elseif single then
-R.globals[nx.v]=R.globals[nx.v]or{l=nx.l,c=nx.c}
-elseif not known(nx.v)then
-globalReads[#globalReads+1]={name=nx.v,l=nx.l,c=nx.c}
+b.funcs[#b.funcs+1]={name=table.concat(r),l=a.l,depth=l}
+local v=F(g.v)
+local C=#r==1
+E(g,v,C)
+if v then
+if not C then v.used=true end
+elseif C then
+b.globals[g.v]=b.globals[g.v]or{l=g.l,c=g.c}
+elseif not x(g.v)then
+s[#s+1]={name=g.v,l=g.l,c=g.c}
 end
-push(true)
-step=params(n+1,scope,method)
+p(true)
+m=B(o+1,e,H)
 else
-local name=fnName()
-if name then R.funcs[#R.funcs+1]={name=name,l=tok.l,depth=fnDepth}end
-push(true)
-step=params(1,scope)
+local g=J()
+if g then b.funcs[#b.funcs+1]={name=g,l=a.l,depth=l}end
+p(true)
+m=B(1,e)
 end
-elseif v=="for"then
-local c=openCons("for",tok)
-local n,vars=1,{}
-while peek(n).t=="name"do
-vars[#vars+1]=peek(n)
-n=n+1
-if isOp(peek(n),",")then n=n+1 else break end
+elseif c=="for"then
+local r=q("for",a)
+local g,o=1,{}
+while d(g).t=="name"do
+o[#o+1]=d(g)
+g=g+1
+if f(d(g),",")then g=g+1 else break end
 end
-scope.pend={vars=vars,cons=c}
-step=n
-elseif v=="while"then
-scope.pend={vars={},cons=openCons("while",tok)}
-elseif v=="do"then
-local p=scope.pend
-scope.pend=nil
-if not p then openCons("do",tok)end
-push(false)
-if p then for _,t in ipairs(p.vars)do declare(t.v,t,"for")end end
-elseif v=="if"then
-openCons("if",tok)
-elseif v=="then"then
-push(false)
-elseif v=="elseif"then
-pop()
-elseif v=="else"then
-pop()
-push(false)
-elseif v=="repeat"then
-openCons("repeat",tok)
-push(false)
-elseif v=="until"then
-endLinger()
-local was=pop(true)
-closeCons(tok)
-if was then
-lingering={_line=tok.l,_scope=was}
-for nm,d in pairs(was.vars)do lingering[nm]=d end
+e.pend={vars=o,cons=r}
+m=g
+elseif c=="while"then
+e.pend={vars={},cons=q("while",a)}
+elseif c=="do"then
+local g=e.pend
+e.pend=nil
+if not g then q("do",a)end
+p(false)
+if g then for o,o in ipairs(g.vars)do t(o.v,o,"for")end end
+elseif c=="if"then
+q("if",a)
+elseif c=="then"then
+p(false)
+elseif c=="elseif"then
+u()
+elseif c=="else"then
+u()
+p(false)
+elseif c=="repeat"then
+q("repeat",a)
+p(false)
+elseif c=="until"then
+A()
+local g=u(true)
+G(a)
+if g then
+k={_line=a.l,_scope=g}
+for o,p in pairs(g.vars)do k[o]=p end
 end
-elseif v=="end"then
-pop()
-closeCons(tok)
-elseif v=="return"then
-scope.ret=true
-elseif v=="goto"then
-step=2
+elseif c=="end"then
+u()
+G(a)
+elseif c=="return"then
+e.ret=true
+elseif c=="goto"then
+m=2
 end
-elseif tok.t=="op"then
-if v=="("or v=="["or v=="{"then
-brk[#brk+1]={v=v,l=tok.l}
-elseif v==")"or v=="]"or v=="}"then
-local o=table.remove(brk)
-if o and o.v=="{"and tok.l>o.l then
-R.blocks[#R.blocks+1]={first=o.l,last=tok.l,kind="table"}
+elseif a.t=="op"then
+if c=="("or c=="["or c=="{"then
+j[#j+1]={v=c,l=a.l}
+elseif c==")"or c=="]"or c=="}"then
+local g=table.remove(j)
+if g and g.v=="{"and a.l>g.l then
+b.blocks[#b.blocks+1]={first=g.l,last=a.l,kind="table"}
 end
-elseif v=="::"then
-step=3
+elseif c=="::"then
+m=3
 end
-elseif tok.t=="name"then
-local nx=peek(1)
-local field=prev.t=="op"and(prev.v=="."or prev.v==":")
-local top=brk[#brk]
-local key=top and top.v=="{"and prev.t=="op"and(prev.v=="{"or prev.v==","or prev.v==";")
-and isOp(nx,"=")
-if not field and not key then
-local write=false
-if#brk==0 then
-if isOp(nx,"=")then
-write=true
-elseif isOp(nx,",")and not scope.ret then
-local n=1
-while isOp(peek(n),",")and peek(n+1).t=="name"do
-n=n+2
-while isOp(peek(n),".")and peek(n+1).t=="name"do n=n+2 end
+elseif a.t=="name"then
+local k=d(1)
+local o=h.t=="op"and(h.v=="."or h.v==":")
+local g=j[#j]
+local p=g and g.v=="{"and h.t=="op"and(h.v=="{"or h.v==","or h.v==";")
+and f(k,"=")
+if not o and not p then
+local g=false
+if#j==0 then
+if f(k,"=")then
+g=true
+elseif f(k,",")and not e.ret then
+local e=1
+while f(d(e),",")and d(e+1).t=="name"do
+e=e+2
+while f(d(e),".")and d(e+1).t=="name"do e=e+2 end
 end
-write=isOp(peek(n),"=")
-end
-end
-local d=lookup(v)
-ref(tok,d,write)
-if d then
-if not write then d.used=true end
-elseif write then
-if fnDepth==0 then
-R.globals[v]=R.globals[v]or{l=tok.l,c=tok.c}
-elseif not known(v)then
-globalWrites[#globalWrites+1]={name=v,l=tok.l,c=tok.c}
-end
-elseif not known(v)then
-globalReads[#globalReads+1]={name=v,l=tok.l,c=tok.c}
+g=f(d(e),"=")
 end
 end
+local e=F(c)
+E(a,e,g)
+if e then
+if not g then e.used=true end
+elseif g then
+if l==0 then
+b.globals[c]=b.globals[c]or{l=a.l,c=a.c}
+elseif not x(c)then
+w[#w+1]={name=c,l=a.l,c=a.c}
 end
-for _=1,step-1 do skip(1)end
-prev=peek(0)
-skip(1)
-end
-endLinger()
-while#scopes>1 do pop()end
-activate()
-unused(scopes[1])
-local everWritten={}
-for _,w in ipairs(globalWrites)do everWritten[w.name]=true end
-for _,w in ipairs(globalWrites)do
-if not R.globals[w.name]then
-R.diags[#R.diags+1]={l=w.l,c=w.c,len=#w.name,
-msg="глобальная "..w.name.." внутри функции - забыт local?"}
-end
-end
-for _,r in ipairs(globalReads)do
-if not everWritten[r.name]and not R.globals[r.name]and r.name~="_ENV"then
-R.diags[#R.diags+1]={l=r.l,c=r.c,len=#r.name,msg="неизвестное имя "..r.name}
-end
-end
-table.sort(R.diags,function(a,b)return a.l<b.l or(a.l==b.l and a.c<b.c)end)
-return R
-end
-function M.names(at,max)
-local out,seen={},{}
-while at and#out<(max or 60)do
-if not seen[at.name]then
-seen[at.name]=true
-out[#out+1]=at.name
-end
-at=at.up
-end
-return out
-end
-function M.refAt(R,l,c)
-for _,r in ipairs(R.refs)do
-if r.l==l and c>=r.c and c<=r.c+r.len then return r end
-end
-for _,d in ipairs(R.decls)do
-if d.l==l and c>=d.c and c<=d.c+#d.name then
-return{l=d.l,c=d.c,len=#d.name,name=d.name,decl=d}
+elseif not x(c)then
+s[#s+1]={name=c,l=a.l,c=a.c}
 end
 end
 end
-function M.occurrences(R,ref)
-local out={}
-if ref.decl then
-local d=ref.decl
-out[1]={l=d.l,c=d.c,len=#d.name}
-for _,r in ipairs(R.refs)do
-if r.decl==d then out[#out+1]={l=r.l,c=r.c,len=r.len}end
+for a=1,m-1 do D(1)end
+h=d(0)
+D(1)
+end
+A()
+while#i>1 do u()end
+y()
+z(i[1])
+local c={}
+for a,a in ipairs(w)do c[a.name]=true end
+for a,a in ipairs(w)do
+if not b.globals[a.name]then
+b.diags[#b.diags+1]={l=a.l,c=a.c,len=#a.name,
+msg="глобальная "..a.name.." внутри функции - забыт local?"}
+end
+end
+for a,a in ipairs(s)do
+if not c[a.name]and not b.globals[a.name]and a.name~="_ENV"then
+b.diags[#b.diags+1]={l=a.l,c=a.c,len=#a.name,msg="неизвестное имя "..a.name}
+end
+end
+table.sort(b.diags,function(a,c)return a.l<c.l or(a.l==c.l and a.c<c.c)end)
+return b
+end
+function n.names(a,d)
+local b,c={},{}
+while a and#b<(d or 60)do
+if not c[a.name]then
+c[a.name]=true
+b[#b+1]=a.name
+end
+a=a.up
+end
+return b
+end
+function n.refAt(c,d,b)
+for a,a in ipairs(c.refs)do
+if a.l==d and b>=a.c and b<=a.c+a.len then return a end
+end
+for a,a in ipairs(c.decls)do
+if a.l==d and b>=a.c and b<=a.c+#a.name then
+return{l=a.l,c=a.c,len=#a.name,name=a.name,decl=a}
+end
+end
+end
+function n.occurrences(e,d)
+local a={}
+if d.decl then
+local b=d.decl
+a[1]={l=b.l,c=b.c,len=#b.name}
+for c,c in ipairs(e.refs)do
+if c.decl==b then a[#a+1]={l=c.l,c=c.c,len=c.len}end
 end
 else
-for _,r in ipairs(R.refs)do
-if not r.decl and r.name==ref.name then out[#out+1]={l=r.l,c=r.c,len=r.len}end
+for b,b in ipairs(e.refs)do
+if not b.decl and b.name==d.name then a[#a+1]={l=b.l,c=b.c,len=b.len}end
 end
 end
-table.sort(out,function(a,b)return a.l<b.l or(a.l==b.l and a.c<b.c)end)
-local uniq={}
-for _,o in ipairs(out)do
-local last=uniq[#uniq]
-if not(last and last.l==o.l and last.c==o.c)then uniq[#uniq+1]=o end
+table.sort(a,function(b,c)return b.l<c.l or(b.l==c.l and b.c<c.c)end)
+local b={}
+for c,c in ipairs(a)do
+local a=b[#b]
+if not(a and a.l==c.l and a.c==c.c)then b[#b+1]=c end
 end
-return uniq
+return b
 end
-return M
+return n

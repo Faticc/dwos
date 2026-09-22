@@ -1,8 +1,8 @@
-local args={...}
-if#args<1 then
+local a={...}
+if#a<1 then
 io.write("Usage: unset <varname>[ <varname2> [...]]\n")
 else
-for _,k in ipairs(args)do
-os.setenv(k,nil)
+for b,b in ipairs(a)do
+os.setenv(b,nil)
 end
 end

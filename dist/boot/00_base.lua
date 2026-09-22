@@ -1,89 +1,89 @@
-local computer=require("computer")
-local fs=require("filesystem")
-local READ=math.maxinteger or math.huge
-function loadfile(filename,...)
-if filename:sub(1,1)~="/"then
-filename=(os.getenv("PWD")or"/").."/"..filename
+local d=require("computer")
+local e=require("filesystem")
+local i=math.maxinteger or math.huge
+function loadfile(a,...)
+if a:sub(1,1)~="/"then
+a=(os.getenv("PWD")or"/").."/"..a
 end
-local handle,open_reason=fs.open(filename)
-if not handle then
-return nil,open_reason
+local b,c=e.open(a)
+if not b then
+return nil,c
 end
-local buffer,n={},0
+local f,c={},0
 while true do
-local data,reason=handle:read(READ)
-if not data then
-handle:close()
-if reason then
-return nil,reason
+local g,h=b:read(i)
+if not g then
+b:close()
+if h then
+return nil,h
 end
 break
 end
-n=n+1
-buffer[n]=data
+c=c+1
+f[c]=g
 end
-return load(table.concat(buffer),"="..filename,...)
+return load(table.concat(f),"="..a,...)
 end
-function dofile(filename)
-local program,reason=loadfile(filename)
-if not program then
-return error(reason..":"..filename,0)
+function dofile(a)
+local b,c=loadfile(a)
+if not b then
+return error(c..":"..a,0)
 end
-return program()
+return b()
 end
 function print(...)
-local args=table.pack(...)
-local out={}
-for i=1,args.n do
-out[i]=assert(tostring(args[i]),"'tostring' must return a string to 'print'")
+local a=table.pack(...)
+local b={}
+for c=1,a.n do
+b[c]=assert(tostring(a[c]),"'tostring' must return a string to 'print'")
 end
-local stdout=io.stdout
-stdout:write(table.concat(out,"\t",1,args.n),"\n")
-stdout:flush()
+local c=io.stdout
+c:write(table.concat(b,"\t",1,a.n),"\n")
+c:flush()
 end
-local process=require("process")
-local _coroutine=coroutine
+local b=require("process")
+local a=coroutine
 _G.coroutine=setmetatable({
-resume=function(co,...)
-local proc=process.info(co)
-return(proc and proc.data.coroutine_handler.resume or _coroutine.resume)(co,...)
+resume=function(c,...)
+local f=b.info(c)
+return(f and f.data.coroutine_handler.resume or a.resume)(c,...)
 end,
 },{
-__index=function(_,key)
-local proc=process.info(_coroutine.running())
-return(proc and proc.data.coroutine_handler or _coroutine)[key]
+__index=function(c,f)
+local c=b.info(a.running())
+return(c and c.data.coroutine_handler or a)[f]
 end,
 })
 package.loaded.coroutine=_G.coroutine
-local kernel_load=_G.load
-_G.load=function(source,label,mode,env)
-local prev_load=env and env.load or _G.load
-local e=env and setmetatable({
-load=function(_source,_label,_mode,_env)
-return prev_load(_source,_label,_mode,_env or env)
+local f=_G.load
+_G.load=function(g,h,i,c)
+local j=c and c.load or _G.load
+local k=c and setmetatable({
+load=function(l,m,n,o)
+return j(l,m,n,o or c)
 end,
 },{
-__index=env,
-__pairs=function(...)return pairs(env,...)end,
-__newindex=function(_,key,value)env[key]=value end,
+__index=c,
+__pairs=function(...)return pairs(c,...)end,
+__newindex=function(j,j,l)c[j]=l end,
 })
-return kernel_load(source,label,mode,e or process.info().env)
+return f(g,h,i,k or b.info().env)
 end
-local kernel_create=_coroutine.create
-_coroutine.create=function(f,standAlone)
-local co=kernel_create(f)
-if not standAlone then
-table.insert(process.findProcess().instances,co)
+local f=a.create
+a.create=function(g,h)
+local c=f(g)
+if not h then
+table.insert(b.findProcess().instances,c)
 end
-return co
+return c
 end
-_coroutine.wrap=function(f)
-local thread=coroutine.create(f)
+a.wrap=function(c)
+local f=coroutine.create(c)
 return function(...)
-return select(2,coroutine.resume(thread,...))
+return select(2,coroutine.resume(f,...))
 end
 end
-process.list[_coroutine.running()]={
+b.list[a.running()]={
 path="/init.lua",
 command="init",
 env=_ENV,
@@ -91,75 +91,75 @@ data={
 vars={},
 handles={},
 io={},
-coroutine_handler=_coroutine,
+coroutine_handler=a,
 signal=error,
 },
 instances=setmetatable({},{__mode="v"}),
 }
-local fs_open=fs.open
-fs.open=function(...)
-local result=table.pack(fs_open(...))
-if result[1]then
-process.addHandle(result[1])
+local c=e.open
+e.open=function(...)
+local a=table.pack(c(...))
+if a[1]then
+b.addHandle(a[1])
 end
-return table.unpack(result,1,result.n)
+return table.unpack(a,1,a.n)
 end
-local event=require("event")
-local info=process.info
-function os.getenv(varname)
-local env=info().data.vars
-if not varname then
-return env
-elseif varname=="#"then
-return#env
+local f=require("event")
+local c=b.info
+function os.getenv(a)
+local b=c().data.vars
+if not a then
+return b
+elseif a=="#"then
+return#b
 end
-return env[varname]
+return b[a]
 end
-function os.setenv(varname,value)
-checkArg(1,varname,"string","number")
-if value~=nil then
-value=tostring(value)
+function os.setenv(b,a)
+checkArg(1,b,"string","number")
+if a~=nil then
+a=tostring(a)
 end
-info().data.vars[varname]=value
-return value
+c().data.vars[b]=a
+return a
 end
-function os.sleep(timeout)
-checkArg(1,timeout,"number","nil")
-local deadline=computer.uptime()+(timeout or 0)
+function os.sleep(a)
+checkArg(1,a,"number","nil")
+local b=d.uptime()+(a or 0)
 repeat
-event.pull(deadline-computer.uptime())
-until computer.uptime()>=deadline
+f.pull(b-d.uptime())
+until d.uptime()>=b
 end
 os.setenv("PATH","/bin:/usr/bin:/home/bin:.")
 os.setenv("TMP","/tmp")
 os.setenv("TMPDIR","/tmp")
-if computer.tmpAddress()then
-fs.mount(computer.tmpAddress(),"/tmp")
+if d.tmpAddress()then
+e.mount(d.tmpAddress(),"/tmp")
 end
 require("package").delay(os,"/lib/core/full_filesystem.lua")
-local buffer=require("buffer")
-local tty_stream=require("tty").stream
-local core_stdin=buffer.new("r",tty_stream)
-local core_stdout=buffer.new("w",tty_stream)
-local core_stderr=buffer.new("w",setmetatable({
-write=function(_,str)
-return tty_stream:write("\27[31m"..str.."\27[37m")
+local d=require("buffer")
+local a=require("tty").stream
+local e=d.new("r",a)
+local b=d.new("w",a)
+local c=d.new("w",setmetatable({
+write=function(d,d)
+return a:write("\27[31m"..d.."\27[37m")
 end,
-},{__index=tty_stream}))
-core_stdout:setvbuf("no")
-core_stderr:setvbuf("no")
-core_stdin.tty,core_stdout.tty,core_stderr.tty=true,true,true
-core_stdin.close=tty_stream.close
-core_stdout.close=tty_stream.close
-core_stderr.close=tty_stream.close
-local io_mt=getmetatable(io)or{}
-io_mt.__index=function(_,k)
-return k=="stdin"and io.input()or
-k=="stdout"and io.output()or
-k=="stderr"and io.error()or
+},{__index=a}))
+b:setvbuf("no")
+c:setvbuf("no")
+e.tty,b.tty,c.tty=true,true,true
+e.close=a.close
+b.close=a.close
+c.close=a.close
+local d=getmetatable(io)or{}
+d.__index=function(a,a)
+return a=="stdin"and io.input()or
+a=="stdout"and io.output()or
+a=="stderr"and io.error()or
 nil
 end
-setmetatable(io,io_mt)
-io.input(core_stdin)
-io.output(core_stdout)
-io.error(core_stderr)
+setmetatable(io,d)
+io.input(e)
+io.output(b)
+io.error(c)

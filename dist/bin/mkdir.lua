@@ -1,25 +1,25 @@
-local fs=require("filesystem")
-local shell=require("shell")
-local args,options=shell.parse(...)
-if#args==0 then
+local c=require("filesystem")
+local b=require("shell")
+local a,h=b.parse(...)
+if#a==0 then
 io.write("Usage: mkdir [-p] <dirname1> [<dirname2> [...]]\n")
 return 1
 end
-local ec=0
-for i=1,#args do
-local path=shell.resolve(args[i])
-local result,reason
-if options.p and fs.isDirectory(path)then
-result=true
+local f=0
+for g=1,#a do
+local d=b.resolve(a[g])
+local e,b
+if h.p and c.isDirectory(d)then
+e=true
 else
-result,reason=fs.makeDirectory(path)
+e,b=c.makeDirectory(d)
 end
-if not result then
-if not reason then
-reason=fs.exists(path)and"file or folder with that name already exists"or"unknown reason"
+if not e then
+if not b then
+b=c.exists(d)and"file or folder with that name already exists"or"unknown reason"
 end
-io.stderr:write("mkdir: cannot create directory '"..tostring(args[i]).."': "..reason.."\n")
-ec=1
+io.stderr:write("mkdir: cannot create directory '"..tostring(a[g]).."': "..b.."\n")
+f=1
 end
 end
-return ec
+return f

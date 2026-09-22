@@ -1,67 +1,67 @@
-local fs=require("filesystem")
-local shell=require("shell")
-local text=require("text")
-local args,options=shell.parse(...)
-local function formatSize(size)
-if not options.h or type(size)=="string"then
-return tostring(size)
+local d=require("filesystem")
+local e=require("shell")
+local j=require("text")
+local b,f=e.parse(...)
+local function g(a)
+if not f.h or type(a)=="string"then
+return tostring(a)
 end
-local sizes={"","K","M","G"}
-local unit=1
-local power=options.si and 1000 or 1024
-while size>power and unit<#sizes do
-unit=unit+1
-size=size/power
+local h={"","K","M","G"}
+local c=1
+local i=f.si and 1000 or 1024
+while a>i and c<#h do
+c=c+1
+a=a/i
 end
-return math.floor(size*10)/10 ..sizes[unit]
+return math.floor(a*10)/10 ..h[c]
 end
-local mounts={}
-if#args==0 then
-for proxy,path in fs.mounts()do
-if not mounts[proxy]or mounts[proxy]:len()>path:len()then
-mounts[proxy]=path
+local a={}
+if#b==0 then
+for c,f in d.mounts()do
+if not a[c]or a[c]:len()>f:len()then
+a[c]=f
 end
 end
 else
-for i=1,#args do
-local proxy,path=fs.get(shell.resolve(args[i]))
-if not proxy then
-io.stderr:write(args[i],": no such file or directory\n")
+for c=1,#b do
+local f,h=d.get(e.resolve(b[c]))
+if not f then
+io.stderr:write(b[c],": no such file or directory\n")
 else
-mounts[proxy]=path
+a[f]=h
 end
 end
 end
-local result={{"Filesystem","Used","Available","Use%","Mounted on"}}
-for proxy,path in pairs(mounts)do
-local label=proxy.getLabel()or proxy.address
-local used,total=proxy.spaceUsed(),proxy.spaceTotal()
-local available,percent
-if total==math.huge then
-used=used or"N/A"
-available="unlimited"
-percent="0%"
+local c={{"Filesystem","Used","Available","Use%","Mounted on"}}
+for d,f in pairs(a)do
+local h=d.getLabel()or d.address
+local b,e=d.spaceUsed(),d.spaceTotal()
+local d,a
+if e==math.huge then
+b=b or"N/A"
+d="unlimited"
+a="0%"
 else
-available=total-used
-percent=used/total
-if percent~=percent then
-available="N/A"
-percent="N/A"
+d=e-b
+a=b/e
+if a~=a then
+d="N/A"
+a="N/A"
 else
-percent=math.ceil(percent*100).."%"
+a=math.ceil(a*100).."%"
 end
 end
-result[#result+1]={label,formatSize(used),formatSize(available),tostring(percent),path}
+c[#c+1]={h,g(b),g(d),tostring(a),f}
 end
-local m={}
-for _,row in ipairs(result)do
-for col,value in ipairs(row)do
-m[col]=math.max(m[col]or 1,value:len())
+local a={}
+for b,d in ipairs(c)do
+for b,e in ipairs(d)do
+a[b]=math.max(a[b]or 1,e:len())
 end
 end
-for _,row in ipairs(result)do
-for col,value in ipairs(row)do
-io.write(text.padRight(value,m[col]+(col==#row and 0 or 2)))
+for b,b in ipairs(c)do
+for c,d in ipairs(b)do
+io.write(j.padRight(d,a[c]+(c==#b and 0 or 2)))
 end
 print()
 end

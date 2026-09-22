@@ -1,45 +1,45 @@
-local component=require("component")
-local shell=require("shell")
-local text=require("text")
-local args,options=shell.parse(...)
-local count=tonumber(options.limit)or math.huge
-local components={}
-local padTo=1
-if#args==0 then
-args[1]=""
+local c=require("component")
+local a=require("shell")
+local g=require("text")
+local b,f=a.parse(...)
+local d=tonumber(f.limit)or math.huge
+local h={}
+local a=1
+if#b==0 then
+b[1]=""
 end
-for _,filter in ipairs(args)do
-for address,name in component.list(filter)do
-if name:len()>padTo then
-padTo=name:len()+2
+for e,e in ipairs(b)do
+for i,b in c.list(e)do
+if b:len()>a then
+a=b:len()+2
 end
-components[address]=name
-end
-end
-padTo=padTo+8-padTo%8
-for address,name in pairs(components)do
-io.write(text.padRight(name,padTo)..address.."\n")
-if options.l then
-local proxy=component.proxy(address)
-local width=1
-local methods={}
-for mname,member in pairs(proxy)do
-if type(member)=="table"or type(member)=="function"then
-if mname:len()>width then
-width=mname:len()+2
-end
-methods[#methods+1]=mname
+h[i]=b
 end
 end
-table.sort(methods)
-width=width+8-width%8
-for _,mname in ipairs(methods)do
-local doc=component.doc(address,mname)or tostring(proxy[mname])
-io.write("  "..text.padRight(mname,width)..doc.."\n")
+a=a+8-a%8
+for e,b in pairs(h)do
+io.write(g.padRight(b,a)..e.."\n")
+if f.l then
+local h=c.proxy(e)
+local a=1
+local b={}
+for f,i in pairs(h)do
+if type(i)=="table"or type(i)=="function"then
+if f:len()>a then
+a=f:len()+2
+end
+b[#b+1]=f
 end
 end
-count=count-1
-if count<=0 then
+table.sort(b)
+a=a+8-a%8
+for f,f in ipairs(b)do
+local b=c.doc(e,f)or tostring(h[f])
+io.write("  "..g.padRight(f,a)..b.."\n")
+end
+end
+d=d-1
+if d<=0 then
 break
 end
 end

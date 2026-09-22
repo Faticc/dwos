@@ -1,217 +1,217 @@
-local fs=require("filesystem")
-local shell=require("shell")
-local lib={}
-local function perr(ops,format,...)
-if format then
-io.stderr:write(ops.cmd..string.format(": "..format,...).."\n")
-ops.exit_code=1
+local a=require("filesystem")
+local m=require("shell")
+local e={}
+local function f(b,c,...)
+if c then
+io.stderr:write(b.cmd..string.format(": "..c,...).."\n")
+b.exit_code=1
 return 1
 end
 end
-local function contents_check(arg,options,bMustExist)
-if arg==""then
-return perr(options,"cannot create regular file '' No such file or directory")
+local function s(b,h,i)
+if b==""then
+return f(h,"cannot create regular file '' No such file or directory")
 end
-local path=shell.resolve(arg)
-local contents_of,of_dir=arg:reverse():match("^(%.*)(.?)")
-of_dir=of_dir:match("^/?$")
-local dots=contents_of and contents_of:len()or 0
-contents_of=of_dir and({true,true})[dots]
-if(not bMustExist or fs.exists(path))and of_dir and not fs.isDirectory(path)then
-perr(options,"'%s' is not a directory",arg)
+local g=m.resolve(b)
+local c,d=b:reverse():match("^(%.*)(.?)")
+d=d:match("^/?$")
+local j=c and c:len()or 0
+c=d and({true,true})[j]
+if(not i or a.exists(g))and d and not a.isDirectory(g)then
+f(h,"'%s' is not a directory",b)
 os.exit(1)
 end
-return contents_of,path
+return c,g
 end
-local function areEqual(path1,path2)
-local f1,f2=fs.open(path1,"rb")
-local result=true
-if f1 then
-f2=fs.open(path2,"rb")
-if f2 then
+local function w(d,g)
+local c,b=a.open(d,"rb")
+local h=true
+if c then
+b=a.open(g,"rb")
+if b then
 repeat
-local s1,s2=f1:read(2048),f2:read(2048)
-if s1~=s2 then
-result=false
+local i,j=c:read(2048),b:read(2048)
+if i~=j then
+h=false
 break
 end
-until not s1 or not s2
-f2:close()
+until not i or not j
+b:close()
 end
-f1:close()
+c:close()
 end
-assert(f1 and f2,"could not open files for reading: "..path1 ..", "..path2)
-return result
+assert(c and b,"could not open files for reading: "..d ..", "..g)
+return h
 end
-local uptime=require("computer").uptime
-local lastYield=uptime()
-local function status(verbose,from,to)
-if verbose then
-io.write(from..(to and(" -> "..to)or"").."\n")
+local b=require("computer").uptime
+local d=b()
+local function g(i,h,c)
+if i then
+io.write(h..(c and(" -> "..c)or"").."\n")
 end
-if lib.onFile then lib.onFile(from,to)end
-if uptime()-lastYield>=0.5 then
+if e.onFile then e.onFile(h,c)end
+if b()-d>=0.5 then
 os.sleep(0)
-lastYield=uptime()
+d=b()
 end
 end
-local function prompt(message)
-io.write(message.." [Y/n] ")
-local result=io.read()
-if not result then
+local function x(b)
+io.write(b.." [Y/n] ")
+local b=io.read()
+if not b then
 os.exit(1)
 end
-return result==""or result:sub(1,1):lower()=="y"
+return b==""or b:sub(1,1):lower()=="y"
 end
-local function stat(path,ops,P)
-local real,reason=fs.realPath(path)
-if not real and not P then
-perr(ops,"cannot read '%s': '%s'",path,reason)
+local function t(b,h,i)
+local c,d=a.realPath(b)
+if not c and not i then
+f(h,"cannot read '%s': '%s'",b,d)
 return false
 end
-local isLink,linkTarget=fs.isLink(path)
-return true,real,reason,isLink,linkTarget,fs.exists(path),fs.get(path),real and fs.isDirectory(real)
+local h,i=a.isLink(b)
+return true,c,d,h,i,a.exists(b),a.get(b),c and a.isDirectory(c)
 end
-function lib.recurse(fromPath,toPath,options,origin,top)
-fromPath=fromPath:gsub("/+","/")
-toPath=toPath:gsub("/+","/")
-local fromPathFull=shell.resolve(fromPath)
-local toPathFull=shell.resolve(toPath)
-local mv=options.cmd=="mv"
-local verbose=options.v and(not mv or top)
-if options.skip[fromPathFull]then
-status(verbose,string.format("skipping %s",fromPath))
+function e.recurse(b,d,c,u,p)
+b=b:gsub("/+","/")
+d=d:gsub("/+","/")
+local h=m.resolve(b)
+local k=m.resolve(d)
+local n=c.cmd=="mv"
+local i=c.v and(not n or p)
+if c.skip[h]then
+g(i,string.format("skipping %s",b))
 return true
 end
-local function release(result,reason)
-if result and mv and top then
-if fs.get(fromPathFull).isReadOnly()or not fs.remove(fromPathFull)then
-perr(options,"cannot remove '%s': filesystem is readonly",fromPath)
-result=false
+local function q(j,l)
+if j and n and p then
+if a.get(h).isReadOnly()or not a.remove(h)then
+f(c,"cannot remove '%s': filesystem is readonly",b)
+j=false
 end
 end
-return result,reason
+return j,l
 end
-local ok,fromReal,_,fromIsLink,fromLinkTarget,fromExists,fromFs,fromIsDir=stat(fromPathFull,options,options.P)
-if not ok then return nil end
-local ok2,toReal,_,toIsLink,_,toExists,toFs,toIsDir=stat(toPathFull,options)
-if not ok2 then os.exit(1)end
-if toFs.isReadOnly()then
-perr(options,"cannot create target '%s': filesystem is readonly",toPath)
+local j,o,l,y,z,A,B,C=t(h,c,c.P)
+if not j then return nil end
+local D,l,j,E,j,j,v,r=t(k,c)
+if not D then os.exit(1)end
+if v.isReadOnly()then
+f(c,"cannot create target '%s': filesystem is readonly",d)
 return
 end
-local same_path=fromReal==toReal
-local same_fs=fromFs==toFs
-local is_mount=origin[fromReal]
-if mv and is_mount then
-return false,string.format("cannot move '%s', it is a mount point",fromPath)
+local t=o==l
+local D=B==v
+local v=u[o]
+if n and v then
+return false,string.format("cannot move '%s', it is a mount point",b)
 end
-if fromIsLink and options.P and not(toExists and same_path and not toIsLink)then
-if toExists and options.n then
+if y and c.P and not(j and t and not E)then
+if j and c.n then
 return true
 end
-fs.remove(toPathFull)
-if toExists then
-status(verbose,string.format("removed '%s'",toPath))
+a.remove(k)
+if j then
+g(i,string.format("removed '%s'",d))
 end
-status(verbose,fromPath,toPath)
-return release(fs.link(fromLinkTarget,toPathFull))
-elseif fromIsDir then
-if not options.r then
-status(true,string.format("omitting directory '%s'",fromPath))
-options.exit_code=1
+g(i,b,d)
+return q(a.link(z,k))
+elseif C then
+if not c.r then
+g(true,string.format("omitting directory '%s'",b))
+c.exit_code=1
 return true
 end
-if toExists and not toIsDir then
-return nil,"cannot overwrite non-directory '"..toPath.."' with directory '"..fromPath.."'"
+if j and not r then
+return nil,"cannot overwrite non-directory '"..d.."' with directory '"..b.."'"
 end
-if options.x and not top and is_mount then
+if c.x and not p and v then
 return true
 end
-if same_fs and(toReal.."/"):find(fromReal.."/",1,true)then
-return nil,"cannot write a directory, '"..fromPath.."', into itself, '"..toPath.."'"
+if D and(l.."/"):find(o.."/",1,true)then
+return nil,"cannot write a directory, '"..b.."', into itself, '"..d.."'"
 end
-if mv then
-if fs.list(toReal)()then
-return nil,"cannot move '"..fromPath.."' to '"..toPath.."': Directory not empty"
+if n then
+if a.list(l)()then
+return nil,"cannot move '"..b.."' to '"..d.."': Directory not empty"
 end
-status(verbose,fromPath,toPath)
+g(i,b,d)
 end
-if not toExists then
-status(verbose,fromPath,toPath)
-fs.makeDirectory(toPathFull)
+if not j then
+g(i,b,d)
+a.makeDirectory(k)
 end
-for file in fs.list(fromPathFull)do
-local result,reason=lib.recurse(fromPath.."/"..file,toPath.."/"..file,options,origin,false)
-if not result then
-return false,reason
+for n in a.list(h)do
+local p,v=e.recurse(b.."/"..n,d.."/"..n,c,u,false)
+if not p then
+return false,v
 end
 end
-return release(true)
-elseif fromExists then
-if toExists then
-if same_path then
-return nil,"'"..fromPath.."' and '"..toPath.."' are the same file"
+return q(true)
+elseif A then
+if j then
+if t then
+return nil,"'"..b.."' and '"..d.."' are the same file"
 end
-if options.n then
+if c.n then
 return true
 end
-if options.u and not toIsDir and areEqual(fromReal,toReal)then
+if c.u and not r and w(o,l)then
 return true
 end
-if options.i and not prompt("overwrite '"..toPath.."'?")then
+if c.i and not x("overwrite '"..d.."'?")then
 return true
 end
-if toIsDir then
-return nil,"cannot overwrite directory '"..toPath.."' with non-directory"
+if r then
+return nil,"cannot overwrite directory '"..d.."' with non-directory"
 end
-fs.remove(toReal)
+a.remove(l)
 end
-status(verbose,fromPath,toPath)
-return release(fs.copy(fromPathFull,toPathFull))
+g(i,b,d)
+return q(a.copy(h,k))
 end
-return nil,"'"..fromPath.."': No such file or directory"
+return nil,"'"..b.."': No such file or directory"
 end
-function lib.batch(args,options)
-options.exit_code=0
-options.i=options.i and not options.f
-options.P=options.P or options.r
-local skips=options.skip or{}
-options.skip={}
-for _,skip_item in ipairs(skips)do
-options.skip[shell.resolve(skip_item)]=true
+function e.batch(g,b)
+b.exit_code=0
+b.i=b.i and not b.f
+b.P=b.P or b.r
+local c=b.skip or{}
+b.skip={}
+for d,d in ipairs(c)do
+b.skip[m.resolve(d)]=true
 end
-local origin={}
-for dev,path in fs.mounts()do
-origin[path]=dev
+local h={}
+for c,d in a.mounts()do
+h[d]=c
 end
-local toArg=table.remove(args)
-local _,ok=contents_check(toArg,options)
-if not ok then
+local i=table.remove(g)
+local c,c=s(i,b)
+if not c then
 return 1
 end
-local originalToIsDir=fs.isDirectory(ok)
-for _,fromArg in ipairs(args)do
-local contents_of
-contents_of,ok=contents_check(fromArg,options,true)
-if ok then
-local toPath=toArg
-if contents_of and options.cmd=="mv"then
-perr(options,"invalid move path '%s'",fromArg)
+local j=a.isDirectory(c)
+for d,d in ipairs(g)do
+local g
+g,c=s(d,b,true)
+if c then
+local c=i
+if g and b.cmd=="mv"then
+f(b,"invalid move path '%s'",d)
 else
-if not contents_of and originalToIsDir then
-local fromName=fs.name(fromArg)
-if fromName then
-toPath=toPath.."/"..fromName
+if not g and j then
+local g=a.name(d)
+if g then
+c=c.."/"..g
 end
 end
-local result,reason=lib.recurse(fromArg,toPath,options,origin,true)
-if not result then
-perr(options,reason)
+local a,g=e.recurse(d,c,b,h,true)
+if not a then
+f(b,g)
 end
 end
 end
 end
-return options.exit_code
+return b.exit_code
 end
-return lib
+return e

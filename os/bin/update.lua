@@ -2,15 +2,17 @@
 --
 -- В manifest.lua у каждого файла записаны размер и CRC32 (их проставляет
 -- tools/dwosbuild.py). Обновлялка сверяет их со своими файлами и качает
--- только то, что отличается или чего нет. Скачанное ложится сначала в
--- .part и заменяет старый файл, только если размер и хэш сошлись, -
--- оборванная загрузка рабочую систему не портит.
+-- только то, что отличается или чего нет. Скачанное поверх стоящего
+-- ложится сначала в .part и заменяет старый файл, только если размер и хэш
+-- сошлись, - оборванная загрузка рабочую систему не портит.
+--
+-- Качает lib/fetch.lua: сжатым gzip, по четыре запроса разом, а если
+-- меняется почти всё - одним сжатым пакетом всей системы (all.gz).
 --
 -- Что и с каким хэшем стоит, записано в <корень>/.dwos; там же помнится,
 -- откуда обновлялись, чтобы в следующий раз хватило одного "update".
 
 local component = require("component")
-local computer = require("computer")
 local shell = require("shell")
 local fs = require("filesystem")
 
@@ -34,60 +36,7 @@ local STATE = ".dwos"
 
 local function die(s) io.stderr:write(s .. "\n") os.exit(1) end
 
------------------------------------------------------------------- CRC32
-
---- Процессор бывает и на Lua 5.3 (операторы & ~ >>), и на 5.2 (bit32):
---- код под 5.3 в 5.2 даже не разберётся, поэтому он собирается через load.
-local crc32
-do
-  local f = load([[
-    local T = {}
-    for i = 0, 255 do
-      local c = i
-      for _ = 1, 8 do
-        if c & 1 == 1 then c = 0xEDB88320 ~ (c >> 1) else c = c >> 1 end
-      end
-      T[i] = c
-    end
-    local byte = string.byte
-    return function(crc, s)
-      crc = ~crc & 0xFFFFFFFF
-      for i = 1, #s do crc = T[(crc ~ byte(s, i)) & 0xFF] ~ (crc >> 8) end
-      return ~crc & 0xFFFFFFFF
-    end]])
-  if f then
-    crc32 = f()
-  elseif bit32 then
-    local band, bxor, rshift, bnot = bit32.band, bit32.bxor, bit32.rshift, bit32.bnot
-    local T = {}
-    for i = 0, 255 do
-      local c = i
-      for _ = 1, 8 do
-        if band(c, 1) == 1 then c = bxor(0xEDB88320, rshift(c, 1)) else c = rshift(c, 1) end
-      end
-      T[i] = c
-    end
-    local byte = string.byte
-    crc32 = function(crc, s)
-      crc = bnot(crc)
-      for i = 1, #s do crc = bxor(T[band(bxor(crc, byte(s, i)), 0xFF)], rshift(crc, 8)) end
-      return bnot(crc)
-    end
-  else
-    die("нет ни битовых операций, ни bit32 - хэш считать нечем")
-  end
-end
-
-local function hex(crc) return ("%08x"):format(crc) end
-
--- машину, которая долго не уступает управление, мод убивает
-local lastYield = computer.uptime()
-local function breathe()
-  if computer.uptime() - lastYield > 1 then
-    os.sleep(0)
-    lastYield = computer.uptime()
-  end
-end
+local fetch = require("fetch")
 
 local function hashFile(path)
   local f = io.open(path, "rb")
@@ -96,11 +45,10 @@ local function hashFile(path)
   while true do
     local s = f:read(16384)
     if not s then break end
-    crc, n = crc32(crc, s), n + #s
-    breathe()
+    crc, n = fetch.crc32(crc, s), n + #s
   end
   f:close()
-  return hex(crc), n
+  return fetch.hex(crc), n
 end
 
 ------------------------------------------------------------------ состояние
@@ -157,7 +105,6 @@ end
 ------------------------------------------------------------------ сеть
 
 if not component.isAvailable("internet") then die("нужна интернет-карта") end
-local internet = require("internet")
 
 -- raw.githubusercontent.com держит файлы в кэше до пяти минут (max-age=300):
 -- сразу после публикации по имени ветки может прийти старый манифест, и
@@ -166,100 +113,19 @@ local internet = require("internet")
 -- нет сети до api.github.com) - качаем по имени ветки, как раньше.
 local REF = BRANCH
 do
-  local ok, h = pcall(internet.request,
-    ("https://api.github.com/repos/%s/commits/%s"):format(REPO, BRANCH), nil,
-    { ["user-agent"] = "dwos", ["accept"] = "application/vnd.github.sha" })
-  if ok and h then
-    local body = {}
-    pcall(function() for chunk in h do body[#body + 1] = chunk end end)
-    pcall(h.close)
-    local sha = table.concat(body):match("^%s*(%x+)%s*$")
-    if sha and #sha == 40 then REF = sha end
-  end
+  local sha = fetch.get(("https://api.github.com/repos/%s/commits/%s"):format(REPO, BRANCH),
+    { headers = { ["accept"] = "application/vnd.github.sha" } })
+  sha = sha and sha:match("^%s*(%x+)%s*$")
+  if sha and #sha == 40 then REF = sha end
 end
-
-local function open(path)
-  local url = ("https://raw.githubusercontent.com/%s/%s/%s%s"):format(REPO, REF, SUB, path)
-  local ok, h = pcall(internet.request, url, nil, { ["user-agent"] = "dwos" })
-  if not ok then return nil, tostring(h) end
-  local code
-  for _ = 1, 200 do
-    code = h.response()
-    if code then break end
-    os.sleep(0.05)
-  end
-  if code and code ~= 200 then pcall(h.close) return nil, "HTTP " .. code, code end
-  return h
-end
-
-local function fetch(path)
-  local h, why = open(path)
-  if not h then return nil, why end
-  local parts = {}
-  local got, err = pcall(function()
-    for chunk in h do parts[#parts + 1] = chunk end
-  end)
-  pcall(h.close)
-  if not got then return nil, tostring(err) end
-  return table.concat(parts)
-end
-
-local function mkdir(path)
-  local dir = path:match("^(.*)/[^/]*$")
-  if dir and dir ~= "" and not fs.exists(dir) then fs.makeDirectory(dir) end
-end
-
-local function download(path, to)
-  local h, why, code = open(path)
-  if not h then return nil, why, code end
-  mkdir(to)
-  local f, werr = io.open(to, "wb")
-  if not f then pcall(h.close) return nil, tostring(werr) end
-  local n, crc = 0, 0
-  local got, err = pcall(function()
-    for chunk in h do
-      f:write(chunk)
-      n, crc = n + #chunk, crc32(crc, chunk)
-      breathe()
-    end
-  end)
-  f:close()
-  pcall(h.close)
-  if not got then return nil, tostring(err) end
-  return n, hex(crc)
-end
-
---- Скачать в .part, сверить с манифестом и только тогда подменить файл.
-local function install(entry, to)
-  local part = to .. ".part"
-  local last
-  for try = 1, 2 do
-    local n, crc, code = download(entry[1], part)
-    if not n then
-      fs.remove(part)
-      if code == 404 then return nil, crc, 404 end
-      last = crc
-    elseif (entry.size and n ~= entry.size) or (entry.crc and crc ~= entry.crc) then
-      fs.remove(part)
-      last = ("пришло %d Б с хэшем %s, а ждали %s Б с хэшем %s")
-        :format(n, crc, tostring(entry.size), tostring(entry.crc))
-    else
-      if fs.exists(to) then fs.remove(to) end
-      local ok, rerr = fs.rename(part, to)
-      if not ok then fs.remove(part) return nil, "не переименовать .part: " .. tostring(rerr) end
-      return n, crc
-    end
-    if try == 1 then print("   повтор: " .. tostring(last)) end
-  end
-  return nil, last
-end
+local BASE = ("https://raw.githubusercontent.com/%s/%s/%s"):format(REPO, REF, SUB)
 
 ------------------------------------------------------------------ манифест
 
 print(("DwOS: %s@%s%s/%s"):format(REPO, BRANCH, REF ~= BRANCH and (" (" .. REF:sub(1, 7) .. ")") or "",
   SUB ~= "" and SUB or "."))
 
-local src, why = fetch("manifest.lua")
+local src, why = fetch.get(BASE .. "manifest.lua")
 if not src then die("manifest.lua: " .. tostring(why)) end
 local chunk, perr = load("return " .. src, "=manifest", "t", {})
 if not chunk then die("manifest.lua не читается: " .. tostring(perr)) end
@@ -298,7 +164,7 @@ local function upToDate(entry, to)
 end
 
 local got, same, fresh, gone, kept = 0, 0, 0, 0, 0
-local wanted = {}
+local wanted, todo, had = {}, {}, {}
 
 for _, entry in ipairs(manifest.files) do
   local name = entry[1]
@@ -306,29 +172,44 @@ for _, entry in ipairs(manifest.files) do
   wanted[name] = true
   if keep[name] and fs.exists(to) then
     kept = kept + 1
+  elseif name == ".prop" and not fs.exists(to) then
+    -- .prop есть только у установочного носителя: install его на HDD не
+    -- переносит, и update не должен превращать HDD в "дискету"
+    wanted[name] = nil
   elseif upToDate(entry, to) then
     same = same + 1
-  elseif DRY then
-    io.write(("  %-28s "):format(name))
-    print(fs.exists(to) and "обновится" or "скачается")
   else
-    io.write(("  %-28s "):format(name))
-    local had = fs.exists(to)
-    local n, crc, code = install(entry, to)
-    if n then
-      got, fresh = got + n, fresh + 1
-      new.files[name] = { size = n, crc = crc, mtime = fs.lastModified(to) }
-      print(("%s, %d Б"):format(had and "обновлён" or "скачан", n))
-    elseif code == 404 then
-      print("в репозитории нет, пропускаю")
-    else
-      print("")
-      for k, v in pairs(oldFiles) do
-        if not new.files[k] and wanted[k] then new.files[k] = v end
+    todo[#todo + 1] = entry
+    had[name] = fs.exists(to)
+    if DRY then print(("  %-28s %s"):format(name, had[name] and "обновится" or "скачается")) end
+  end
+end
+
+if not DRY and #todo > 0 then
+  -- пакетом, если меняется почти всё, иначе по файлу, по четыре разом
+  local _, bad = fetch.files{
+    base = BASE, need = todo, all = manifest.files, pack = manifest.pack,
+    path = function(e) return at(e[1]) end,
+    done = function(e, n, err, code)
+      if n then
+        got, fresh = got + n, fresh + 1
+        new.files[e[1]] = { size = n, crc = e.crc, mtime = fs.lastModified(at(e[1])) }
+        print(("  %-28s %s, %d Б"):format(e[1], had[e[1]] and "обновлён" or "скачан", n))
+      elseif code == 404 then
+        print(("  %-28s в репозитории нет, пропускаю"):format(e[1]))
       end
-      writeState(TO, new)
-      die("не скачался " .. name .. ": " .. tostring(crc))
+    end,
+  }
+  local fatal
+  for _, b in ipairs(bad) do
+    if b.code ~= 404 then fatal = fatal or b end
+  end
+  if fatal then
+    for k, v in pairs(oldFiles) do
+      if not new.files[k] and wanted[k] then new.files[k] = v end
     end
+    writeState(TO, new)
+    die("не скачался " .. fatal.entry[1] .. ": " .. tostring(fatal.err))
   end
 end
 

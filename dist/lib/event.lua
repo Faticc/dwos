@@ -1,136 +1,136 @@
-local computer=require("computer")
-local keyboard=require("keyboard")
-local event={}
-local handlers={}
-local lastInterrupt=-math.huge
-event.handlers=handlers
-function event.register(key,callback,interval,times,opt_handlers)
-local handler={
-key=key,
-times=times or 1,
-callback=callback,
-interval=interval or math.huge,
+local d=require("computer")
+local f=require("keyboard")
+local a={}
+local c={}
+local g=-math.huge
+a.handlers=c
+function a.register(b,i,j,k,e)
+local h={
+key=b,
+times=k or 1,
+callback=i,
+interval=j or math.huge,
 }
-handler.timeout=computer.uptime()+handler.interval
-opt_handlers=opt_handlers or handlers
-local id=0
+h.timeout=d.uptime()+h.interval
+e=e or c
+local b=0
 repeat
-id=id+1
-until not opt_handlers[id]
-opt_handlers[id]=handler
-return id
+b=b+1
+until not e[b]
+e[b]=h
+return b
 end
-local _pullSignal=computer.pullSignal
-setmetatable(handlers,{__call=function(_,...)return _pullSignal(...)end})
-computer.pullSignal=function(seconds)
-checkArg(1,seconds,"number","nil")
-seconds=seconds or math.huge
-local uptime=computer.uptime
-local deadline=uptime()+seconds
+local b=d.pullSignal
+setmetatable(c,{__call=function(e,...)return b(...)end})
+d.pullSignal=function(b)
+checkArg(1,b,"number","nil")
+b=b or math.huge
+local e=d.uptime
+local h=e()+b
 repeat
-if keyboard.isControlDown()and keyboard.isKeyDown(keyboard.keys.c)and uptime()-lastInterrupt>1 then
-lastInterrupt=uptime()
-if keyboard.isAltDown()then
-local p=require("process").findProcess()
-if p and p.parent and p.data.killable~=false then
-p.data.signal("interrupted",0)
+if f.isControlDown()and f.isKeyDown(f.keys.c)and e()-g>1 then
+g=e()
+if f.isAltDown()then
+local b=require("process").findProcess()
+if b and b.parent and b.data.killable~=false then
+b.data.signal("interrupted",0)
 return
 end
 end
-event.push("interrupted",lastInterrupt)
+a.push("interrupted",g)
 end
-local closest=deadline
-for _,handler in pairs(handlers)do
-if handler.timeout<closest then closest=handler.timeout end
+local b=h
+for f,f in pairs(c)do
+if f.timeout<b then b=f.timeout end
 end
-local event_data=table.pack(handlers(closest-uptime()))
-local signal=event_data[1]
-local copy={}
-for id,handler in pairs(handlers)do
-copy[id]=handler
+local f=table.pack(c(b-e()))
+local i=f[1]
+local j={}
+for b,g in pairs(c)do
+j[b]=g
 end
-for id,handler in pairs(copy)do
-if handler.key==nil or handler.key==signal or uptime()>=handler.timeout then
-handler.times=handler.times-1
-handler.timeout=handler.timeout+handler.interval
-if handler.times<=0 and handlers[id]==handler then
-handlers[id]=nil
+for g,b in pairs(j)do
+if b.key==nil or b.key==i or e()>=b.timeout then
+b.times=b.times-1
+b.timeout=b.timeout+b.interval
+if b.times<=0 and c[g]==b then
+c[g]=nil
 end
-local result,message=pcall(handler.callback,table.unpack(event_data,1,event_data.n))
-if not result then
-pcall(event.onError,message)
-elseif message==false and handlers[id]==handler then
-handlers[id]=nil
+local k,j=pcall(b.callback,table.unpack(f,1,f.n))
+if not k then
+pcall(a.onError,j)
+elseif j==false and c[g]==b then
+c[g]=nil
 end
 end
 end
-if signal then
-return table.unpack(event_data,1,event_data.n)
+if i then
+return table.unpack(f,1,f.n)
 end
-until uptime()>=deadline
+until e()>=h
 end
-local function createPlainFilter(name,...)
-local filter=table.pack(...)
-if name==nil and filter.n==0 then
+local function g(e,...)
+local b=table.pack(...)
+if e==nil and b.n==0 then
 return nil
 end
 return function(...)
-local signal=table.pack(...)
-if name and not(type(signal[1])=="string"and signal[1]:match(name))then
+local f=table.pack(...)
+if e and not(type(f[1])=="string"and f[1]:match(e))then
 return false
 end
-for i=1,filter.n do
-if filter[i]~=nil and filter[i]~=signal[i+1]then
+for e=1,b.n do
+if b[e]~=nil and b[e]~=f[e+1]then
 return false
 end
 end
 return true
 end
 end
-function event.listen(name,callback)
-checkArg(1,name,"string")
-checkArg(2,callback,"function")
-for _,handler in pairs(handlers)do
-if handler.key==name and handler.callback==callback then
+function a.listen(b,e)
+checkArg(1,b,"string")
+checkArg(2,e,"function")
+for f,f in pairs(c)do
+if f.key==b and f.callback==e then
 return false
 end
 end
-return event.register(name,callback,math.huge,math.huge)
+return a.register(b,e,math.huge,math.huge)
 end
-function event.pull(...)
-local args=table.pack(...)
-if type(args[1])=="string"then
-return event.pullFiltered(createPlainFilter(...))
+function a.pull(...)
+local b=table.pack(...)
+if type(b[1])=="string"then
+return a.pullFiltered(g(...))
 end
-checkArg(1,args[1],"number","nil")
-checkArg(2,args[2],"string","nil")
-return event.pullFiltered(args[1],createPlainFilter(select(2,...)))
+checkArg(1,b[1],"number","nil")
+checkArg(2,b[2],"string","nil")
+return a.pullFiltered(b[1],g(select(2,...)))
 end
-function event.pullFiltered(...)
-local args=table.pack(...)
-local seconds,filter=math.huge
-if type(args[1])=="function"then
-filter=args[1]
+function a.pullFiltered(...)
+local b=table.pack(...)
+local e,c=math.huge
+if type(b[1])=="function"then
+c=b[1]
 else
-checkArg(1,args[1],"number","nil")
-checkArg(2,args[2],"function","nil")
-seconds=args[1]
-filter=args[2]
+checkArg(1,b[1],"number","nil")
+checkArg(2,b[2],"function","nil")
+e=b[1]
+c=b[2]
 end
-local deadline=computer.uptime()+(seconds or math.huge)
+local b=d.uptime()+(e or math.huge)
 repeat
-local waitTime=deadline-computer.uptime()
-if waitTime<=0 then
+local f=b-d.uptime()
+if f<=0 then
 break
 end
-local signal=table.pack(computer.pullSignal(waitTime))
-if signal.n>0 then
-if not(seconds or filter)or filter==nil or filter(table.unpack(signal,1,signal.n))then
-return table.unpack(signal,1,signal.n)
+local b=table.pack(d.pullSignal(f))
+if b.n>0 then
+if not(e or c)or c==nil or c(table.unpack(b,1,b.n))then
+return table.unpack(b,1,b.n)
 end
 end
-until signal.n==0
+until b.n==0
 end
-event.push=computer.pushSignal
-require("package").delay(event,"/lib/core/full_event.lua")
-return event
+a.push=d.pushSignal
+require("package").delay(a,"/lib/core/full_event.lua")
+return a

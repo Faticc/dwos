@@ -1,5 +1,5 @@
-local keys=require("keyboard").keys
-local LIST=[[
+local a=require("keyboard").keys
+local b=[[
 1=02 2=03 3=04 4=05 5=06 6=07 7=08 8=09 9=0A 0=0B
 a=1E b=30 c=2E d=20 e=12 f=21 g=22 h=23 i=17 j=24 k=25 l=26 m=32
 n=31 o=18 p=19 q=10 r=13 s=1F t=14 u=16 v=2F w=11 x=2D y=15 z=2C
@@ -17,15 +17,15 @@ numpad6=4D numpad7=47 numpad8=48 numpad9=49 numpadmul=37 numpaddiv=B5
 numpadsub=4A numpadadd=4E numpaddecimal=53 numpadcomma=B3 numpadenter=9C
 numpadequals=8D
 ]]
-for name,code in LIST:gmatch("(%S+)=(%x%x)")do
-keys[name]=tonumber(code,16)
+for c,d in b:gmatch("(%S+)=(%x%x)")do
+a[c]=tonumber(d,16)
 end
-setmetatable(keys,{
-__index=function(tbl,k)
-if type(k)~="number"then return end
-for name,value in pairs(tbl)do
-if value==k then
-return name
+setmetatable(a,{
+__index=function(b,a)
+if type(a)~="number"then return end
+for c,d in pairs(b)do
+if d==a then
+return c
 end
 end
 end,

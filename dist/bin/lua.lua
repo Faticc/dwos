@@ -1,29 +1,29 @@
-local shell=require("shell")
-local args=shell.parse(...)
-if#args==0 then
-args={"/lib/core/lua_shell.lua"}
+local a=require("shell")
+local c=a.parse(...)
+if#c==0 then
+c={"/lib/core/lua_shell.lua"}
 end
-local filename=args[1]
-local script,reason
-local buffer
-local file=io.open(filename)
-if file then
-buffer=file:read("*a")
-file:close()
+local d=c[1]
+local e,a
+local b
+local f=io.open(d)
+if f then
+b=f:read("*a")
+f:close()
 end
-if buffer then
-buffer=buffer:gsub("^#![^\n]+","")
-script,reason=load(buffer,"="..filename)
+if b then
+b=b:gsub("^#![^\n]+","")
+e,a=load(b,"="..d)
 else
-reason=string.format("could not open %s for reading",filename)
+a=string.format("could not open %s for reading",d)
 end
-if not script then
-io.stderr:write(tostring(reason).."\n")
+if not e then
+io.stderr:write(tostring(a).."\n")
 os.exit(false)
 end
-local ok
-ok,reason=pcall(script,table.unpack(args,2))
-if not ok then
-io.stderr:write(type(reason)=="table"and reason.reason or tostring(reason),"\n")
+local b
+b,a=pcall(e,table.unpack(c,2))
+if not b then
+io.stderr:write(type(a)=="table"and a.reason or tostring(a),"\n")
 os.exit(false)
 end

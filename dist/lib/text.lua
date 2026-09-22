@@ -1,87 +1,87 @@
-local unicode=require("unicode")
-local text={}
-text.internal={}
-text.syntax={"^%d?>>?&%d+","^%d?>>?",">>?","<%&%d+","<",";","&&","||?"}
-function text.trim(value)
-local from=value:match("^%s*()")
-return from>#value and""or value:match(".*%S",from)
+local a=require("unicode")
+local b={}
+b.internal={}
+b.syntax={"^%d?>>?&%d+","^%d?>>?",">>?","<%&%d+","<",";","&&","||?"}
+function b.trim(a)
+local c=a:match("^%s*()")
+return c>#a and""or a:match(".*%S",c)
 end
-function text.escapeMagic(txt)
-return txt:gsub("[%(%)%.%%%+%-%*%?%[%^%$]","%%%1")
+function b.escapeMagic(a)
+return a:gsub("[%(%)%.%%%+%-%*%?%[%^%$]","%%%1")
 end
-function text.removeEscapes(txt)
-return txt:gsub("%%([%(%)%.%%%+%-%*%?%[%^%$])","%1")
+function b.removeEscapes(a)
+return a:gsub("%%([%(%)%.%%%+%-%*%?%[%^%$])","%1")
 end
-function text.internal.tokenize(value,options)
-checkArg(1,value,"string")
-checkArg(2,options,"table","nil")
-options=options or{}
-local delimiters=options.delimiters
-local custom=not not delimiters
-delimiters=delimiters or text.syntax
-local words,reason=text.internal.words(value,options)
-local splitter=text.escapeMagic(custom and table.concat(delimiters)or"<>|;&")
-if type(words)~="table"or#splitter==0 or not value:find("["..splitter.."]")then
-return words,reason
+function b.internal.tokenize(d,a)
+checkArg(1,d,"string")
+checkArg(2,a,"table","nil")
+a=a or{}
+local c=a.delimiters
+local f=not not c
+c=c or b.syntax
+local e,g=b.internal.words(d,a)
+local a=b.escapeMagic(f and table.concat(c)or"<>|;&")
+if type(e)~="table"or#a==0 or not d:find("["..a.."]")then
+return e,g
 end
-return text.internal.splitWords(words,delimiters)
+return b.internal.splitWords(e,c)
 end
-local QUOTES={{"'","'",true},{'"','"'},{"`","`"}}
-function text.internal.words(input,options)
-checkArg(1,input,"string")
-checkArg(2,options,"table","nil")
-options=options or{}
-local quotes=options.quotes or QUOTES
-local show_escapes=options.show_escapes
-local qr=nil
-local function append(dst,txt,_qr)
-local size=#dst
-if size==0 or dst[size].qr~=_qr then
-dst[size+1]={txt=txt,qr=_qr}
+local c={{"'","'",true},{'"','"'},{"`","`"}}
+function b.internal.words(i,a)
+checkArg(1,i,"string")
+checkArg(2,a,"table","nil")
+a=a or{}
+local k=a.quotes or c
+local l=a.show_escapes
+local a=nil
+local function f(c,e,g)
+local d=#c
+if d==0 or c[d].qr~=g then
+c[d+1]={txt=e,qr=g}
 else
-dst[size].txt=dst[size].txt..txt
+c[d].txt=c[d].txt..e
 end
 end
-local tokens,token={},{}
-local escaped,start=false,-1
-local i=0
-for char in input:gmatch(".[\128-\191]*")do
-i=i+1
-if escaped then
-escaped=false
-if show_escapes or(qr and not qr[3]and qr[2]~=char)then
-append(token,"\\",qr)
+local e,c={},{}
+local g,j=false,-1
+local h=0
+for d in i:gmatch(".[\128-\191]*")do
+h=h+1
+if g then
+g=false
+if l or(a and not a[3]and a[2]~=d)then
+f(c,"\\",a)
 end
-append(token,char,qr)
-elseif char=="\\"and(not qr or not qr[3])then
-escaped=true
-elseif qr and qr[2]==char then
-if#token==0 or#token[#token]==0 then
-append(token,"",qr)
+f(c,d,a)
+elseif d=="\\"and(not a or not a[3])then
+g=true
+elseif a and a[2]==d then
+if#c==0 or#c[#c]==0 then
+f(c,"",a)
 end
-qr=nil
-elseif not qr and(function()
-for _,Q in ipairs(quotes)do
-if Q[1]==char then qr=Q return true end
+a=nil
+elseif not a and(function()
+for g,g in ipairs(k)do
+if g[1]==d then a=g return true end
 end
 end)()then
-start=i
-elseif not qr and char:find("^%s$")then
-if#token>0 then
-tokens[#tokens+1]=token
+j=h
+elseif not a and d:find("^%s$")then
+if#c>0 then
+e[#e+1]=c
 end
-token={}
+c={}
 else
-append(token,char,qr)
+f(c,d,a)
 end
 end
-if qr then
-return nil,"unclosed quote at index "..start
+if a then
+return nil,"unclosed quote at index "..j
 end
-if#token>0 then
-tokens[#tokens+1]=token
+if#c>0 then
+e[#e+1]=c
 end
-return tokens
+return e
 end
-require("package").delay(text,"/lib/core/full_text.lua")
-return text
+require("package").delay(b,"/lib/core/full_text.lua")
+return b

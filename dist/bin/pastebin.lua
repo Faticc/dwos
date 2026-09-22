@@ -1,115 +1,115 @@
-local component=require("component")
-local fs=require("filesystem")
-local internet=require("internet")
-local shell=require("shell")
-if not component.isAvailable("internet")then
+local a=require("component")
+local c=require("filesystem")
+local g=require("internet")
+local d=require("shell")
+if not a.isAvailable("internet")then
 io.stderr:write("This program requires an internet card to run.")
 return
 end
-local args,options=shell.parse(...)
-local function get(pasteId,filename)
-local f,reason=io.open(filename,"w")
-if not f then
-io.stderr:write("Failed opening file for writing: "..reason)
+local a,h=d.parse(...)
+local function i(f,e)
+local b,j=io.open(e,"w")
+if not b then
+io.stderr:write("Failed opening file for writing: "..j)
 return
 end
 io.write("Downloading from pastebin.com... ")
-local ok,response=pcall(internet.request,"https://pastebin.com/raw/"..pasteId)
-if ok then
+local k,j=pcall(g.request,"https://pastebin.com/raw/"..f)
+if k then
 io.write("success.\n")
-for chunk in response do
-if not options.k then
-chunk=chunk:gsub("\r\n","\n")
+for f in j do
+if not h.k then
+f=f:gsub("\r\n","\n")
 end
-f:write(chunk)
+b:write(f)
 end
-f:close()
-io.write("Saved data to "..filename.."\n")
+b:close()
+io.write("Saved data to "..e.."\n")
 else
 io.write("failed.\n")
-f:close()
-fs.remove(filename)
-io.stderr:write("HTTP request failed: "..response.."\n")
+b:close()
+c.remove(e)
+io.stderr:write("HTTP request failed: "..j.."\n")
 end
 end
-local function encode(code)
-if code then
-code=code:gsub("([^%w ])",function(c)return string.format("%%%02X",string.byte(c))end)
-code=code:gsub(" ","+")
+local function f(b)
+if b then
+b=b:gsub("([^%w ])",function(e)return string.format("%%%02X",string.byte(e))end)
+b=b:gsub(" ","+")
 end
-return code
+return b
 end
-local function run(pasteId,...)
-local tmpFile=os.tmpname()
-get(pasteId,tmpFile)
+local function k(e,...)
+local b=os.tmpname()
+i(e,b)
 io.write("Running...\n")
-local success,reason=shell.execute(tmpFile,nil,...)
-if not success then
-io.stderr:write(reason)
+local e,j=d.execute(b,nil,...)
+if not e then
+io.stderr:write(j)
 end
-fs.remove(tmpFile)
+c.remove(b)
 end
-local function put(path)
-local config={}
-local configFile=loadfile("/etc/pastebin.conf","t",config)
-if configFile then
-local ok,reason=pcall(configFile)
-if not ok then
-io.stderr:write("Failed loading config: "..reason)
+local function l(j)
+local b={}
+local e=loadfile("/etc/pastebin.conf","t",b)
+if e then
+local m,n=pcall(e)
+if not m then
+io.stderr:write("Failed loading config: "..n)
 end
 end
-config.key=config.key or"fd92bd40a84c127eeb6804b146793c97"
-local file,reason=io.open(path,"r")
-if not file then
-io.stderr:write("Failed opening file for reading: "..reason)
+b.key=b.key or"fd92bd40a84c127eeb6804b146793c97"
+local e,m=io.open(j,"r")
+if not e then
+io.stderr:write("Failed opening file for reading: "..m)
 return
 end
-local data=file:read("*a")
-file:close()
+local m=e:read("*a")
+e:close()
 io.write("Uploading to pastebin.com... ")
-local ok,response=pcall(internet.request,
+local n,e=pcall(g.request,
 "https://pastebin.com/api/api_post.php",
 "api_option=paste&"..
-"api_dev_key="..config.key.."&"..
+"api_dev_key="..b.key.."&"..
 "api_paste_format=lua&"..
 "api_paste_expire_date=N&"..
-"api_paste_name="..encode(fs.name(path)).."&"..
-"api_paste_code="..encode(data))
-if not ok then
+"api_paste_name="..f(c.name(j)).."&"..
+"api_paste_code="..f(m))
+if not n then
 io.write("failed.\n")
-io.stderr:write(response)
+io.stderr:write(e)
 return
 end
-local info=""
-for chunk in response do
-info=info..chunk
+local b=""
+for f in e do
+b=b..f
 end
-if info:match("^Bad API request, ")then
+if b:match("^Bad API request, ")then
 io.write("failed.\n")
-io.write(info)
+io.write(b)
 else
 io.write("success.\n")
-local pasteId=info:match("[^/]+$")
-io.write("Uploaded as "..info.."\n")
-io.write('Run "pastebin get '..pasteId..'" to download anywhere.')
+local e=b:match("[^/]+$")
+io.write("Uploaded as "..b.."\n")
+io.write('Run "pastebin get '..e..'" to download anywhere.')
 end
 end
-local command=args[1]
-if command=="put"and#args==2 then
-put(shell.resolve(args[2]))
+local b=a[1]
+if b=="put"and#a==2 then
+l(d.resolve(a[2]))
 return
-elseif command=="get"and#args==3 then
-local path=shell.resolve(args[3])
-if fs.exists(path)then
-if not options.f or not os.remove(path)then
+elseif b=="get"and#a==3 then
+local e=d.resolve(a[3])
+if c.exists(e)then
+if not h.f or not os.remove(e)then
 io.stderr:write("file already exists")
 return
 end
 end
-get(args[2],path)
+i(a[2],e)
 return
-elseif command=="run"and#args>=2 then
-run(args[2],table.unpack(args,3))
+elseif b=="run"and#a>=2 then
+k(a[2],table.unpack(a,3))
 return
 end
 io.write("Usages:\n")

@@ -1,6 +1,6 @@
-local fs=require("filesystem")
-local shell=require("shell")
-local function usage()
+local d=require("filesystem")
+local h=require("shell")
+local function e()
 io.stderr:write([==[
 Usage: mount [OPTIONS] [device] [path]
   If no args are given, all current mount points are printed.
@@ -18,56 +18,56 @@ See `man mount` for more details
 ]==])
 os.exit(1)
 end
-local args,opts=shell.parse(...)
-opts.readonly=opts.r or opts.readonly
-if opts.h or opts.help then
-usage()
+local b,a=h.parse(...)
+a.readonly=a.r or a.readonly
+if a.h or a.help then
+e()
 end
-local function print_mounts()
-local mounts={}
-for proxy,path in fs.mounts()do
-local list=mounts[proxy.address]or{}
-mounts[proxy.address]=list
-list[#list+1]={
-mount_path=path,
-rw_ro=proxy.isReadOnly()and"ro"or"rw",
-fs_label=proxy.getLabel()or proxy.address,
+local function i()
+local f={}
+for c,j in d.mounts()do
+local g=f[c.address]or{}
+f[c.address]=g
+g[#g+1]={
+mount_path=j,
+rw_ro=c.isReadOnly()and"ro"or"rw",
+fs_label=c.getLabel()or c.address,
 }
 end
-local sorted={}
-for key,value in pairs(mounts)do
-sorted[#sorted+1]={key,value}
+local c={}
+for g,j in pairs(f)do
+c[#c+1]={g,j}
 end
-table.sort(sorted,function(a,b)return a[1]<b[1]end)
-for _,dev in ipairs(sorted)do
-for _,device in ipairs(dev[2])do
+table.sort(c,function(f,g)return f[1]<g[1]end)
+for f,f in ipairs(c)do
+for c,c in ipairs(f[2])do
 io.write(string.format("%-8s on %-10s %s %s\n",
-dev[1]:sub(1,8),device.mount_path,"("..device.rw_ro..")","\""..device.fs_label.."\""))
+f[1]:sub(1,8),c.mount_path,"("..c.rw_ro..")","\""..c.fs_label.."\""))
 end
 end
 end
-local function do_mount()
-local proxy,reason=fs.proxy(args[1],opts)
-if not proxy then
-io.stderr:write("Failed to mount: ",tostring(reason),"\n")
+local function f()
+local c,g=d.proxy(b[1],a)
+if not c then
+io.stderr:write("Failed to mount: ",tostring(g),"\n")
 os.exit(1)
 end
-local result,mount_failure=fs.mount(proxy,shell.resolve(args[2]))
-if not result then
-io.stderr:write(mount_failure,"\n")
+local g,j=d.mount(c,h.resolve(b[2]))
+if not g then
+io.stderr:write(j,"\n")
 os.exit(2)
 end
 end
-if#args==0 then
-if next(opts)then
+if#b==0 then
+if next(a)then
 io.stderr:write("Missing argument\n")
-usage()
+e()
 else
-print_mounts()
+i()
 end
-elseif#args==2 then
-do_mount()
+elseif#b==2 then
+f()
 else
-io.stderr:write("wrong number of arguments: ",#args,"\n")
-usage()
+io.stderr:write("wrong number of arguments: ",#b,"\n")
+e()
 end

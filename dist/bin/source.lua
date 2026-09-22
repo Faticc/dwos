@@ -1,23 +1,23 @@
-local shell=require("shell")
-local process=require("process")
-local args,options=shell.parse(...)
-if#args~=1 then
+local c=require("shell")
+local a=require("process")
+local b,d=c.parse(...)
+if#b~=1 then
 io.stderr:write("specify a single file to source\n")
 return 1
 end
-local file,open_reason=io.open(args[1],"r")
-if not file then
-if not options.q then
-io.stderr:write(string.format("could not source %s because: %s\n",args[1],open_reason))
+local c,e=io.open(b[1],"r")
+if not c then
+if not d.q then
+io.stderr:write(string.format("could not source %s because: %s\n",b[1],e))
 end
 return 1
 end
-for line in file:lines()do
-local current_data=process.info().data
-local source_proc=process.load((assert(os.getenv("SHELL"),"no $SHELL set")))
-local source_data=process.list[source_proc].data
-source_data.aliases=current_data.aliases
-source_data.vars=current_data.vars
-process.internal.continue(source_proc,_ENV,line)
+for f in c:lines()do
+local b=a.info().data
+local d=a.load((assert(os.getenv("SHELL"),"no $SHELL set")))
+local e=a.list[d].data
+e.aliases=b.aliases
+e.vars=b.vars
+a.internal.continue(d,_ENV,f)
 end
-file:close()
+c:close()

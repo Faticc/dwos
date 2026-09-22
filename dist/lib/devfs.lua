@@ -1,255 +1,255 @@
-local fs=require("filesystem")
-local text=require("text")
-local api={}
-local function new_node(proxy)
-local node={proxy=proxy}
-if not proxy or not proxy.list then
-node.children={}
+local b=require("filesystem")
+local j=require("text")
+local a={}
+local function d(c)
+local e={proxy=c}
+if not c or not c.list then
+e.children={}
 end
-return node
+return e
 end
-local function array_read(array,separator)
-local builder={}
-for _,value in ipairs(array)do
-builder[#builder+1]=tostring(value)
+local function k(e,f)
+local c={}
+for g,g in ipairs(e)do
+c[#c+1]=tostring(g)
 end
-return table.concat(builder,separator or" ")
+return table.concat(c,f or" ")
 end
-local function child_iterator(node)
-local listed={}
-if node then
-if node.proxy and node.proxy.list then
-local list=node.proxy.list
-listed=type(list)=="table"and list or list()
-elseif node.children then
-listed=node.children
-end
-end
-local availables={}
-for name,item in pairs(listed)do
-if name:len()>0 then
-if not item.proxy then item=new_node(item)end
-if not item.proxy.isAvailable or item.proxy.isAvailable()then
-availables[name]=item
+local function i(c)
+local e={}
+if c then
+if c.proxy and c.proxy.list then
+local f=c.proxy.list
+e=type(f)=="table"and f or f()
+elseif c.children then
+e=c.children
 end
 end
-end
-return pairs(availables)
-end
-local function get_child(node,name)
-for child_name,child in child_iterator(node)do
-if child_name==name then
-return child
+local f={}
+for g,c in pairs(e)do
+if g:len()>0 then
+if not c.proxy then c=d(c)end
+if not c.proxy.isAvailable or c.proxy.isAvailable()then
+f[g]=c
 end
 end
 end
-local function add_child(node,name,proxy)
-if not node or node.proxy and node.proxy.list then
+return pairs(f)
+end
+local function f(c,e)
+for g,h in i(c)do
+if g==e then
+return h
+end
+end
+end
+local function l(c,g,h)
+if not c or c.proxy and c.proxy.list then
 return nil,"cannot add child to listing proxy"
 end
-local child=new_node(proxy)
-node.children[name]=child
-return child
+local e=d(h)
+c.children[g]=e
+return e
 end
-local function findNode(path,bCreate)
-local node=api.root
-for _,name in ipairs(fs.segments(path))do
-local nxt=get_child(node,name)
-if not nxt then
-if not bCreate then
+local function e(h,m)
+local c=a.root
+for g,g in ipairs(b.segments(h))do
+local h=f(c,g)
+if not h then
+if not m then
 return nil,"no such file or directory"
 end
-if not add_child(node,name)then
+if not l(c,g)then
 return nil,"cannot create child node"
 end
-nxt=get_child(node,name)
+h=f(c,g)
 end
-node=nxt
+c=h
 end
-return node
+return c
 end
-api.root=new_node()
-function api.create(path,proxy)
-checkArg(1,path,"string")
-checkArg(2,proxy,"table","nil")
-local name=fs.name(path)
-if not name then return nil,"invalid devfs path"end
-local pnode,why=findNode(fs.path(path),true)
-if not pnode then
-return nil,why
+a.root=d()
+function a.create(c,h)
+checkArg(1,c,"string")
+checkArg(2,h,"table","nil")
+local d=b.name(c)
+if not d then return nil,"invalid devfs path"end
+local g,m=e(b.path(c),true)
+if not g then
+return nil,m
 end
-if get_child(pnode,name)then
+if f(g,d)then
 return nil,"file or directory exists"
 end
-return add_child(pnode,name,proxy)
+return l(g,d,h)
 end
-api.proxy={}
-local inject_dynamic_pairs
-local function dynamic_list(path,fsnode)
-local nodes,links,dirs={},{},{}
-local node=findNode(path)
-if node then
-for name,cnode in child_iterator(node)do
-if cnode.proxy and cnode.proxy.link then
-links[name]=cnode.proxy.link
-elseif cnode.proxy and cnode.proxy.list then
-local child={name=name,parent=fsnode}
-inject_dynamic_pairs(child,path.."/"..name,true)
-dirs[name]=child
+a.proxy={}
+local f
+local function g(h,p)
+local l,m,n={},{},{}
+local o=e(h)
+if o then
+for d,c in i(o)do
+if c.proxy and c.proxy.link then
+m[d]=c.proxy.link
+elseif c.proxy and c.proxy.list then
+local i={name=d,parent=p}
+f(i,h.."/"..d,true)
+n[d]=i
 else
-nodes[name]=cnode
+l[d]=c
 end
 end
 end
-return nodes,links,dirs
+return l,m,n
 end
-inject_dynamic_pairs=function(fsnode,path,bStoreUse)
-if getmetatable(fsnode)then return end
-fsnode.children=nil
-fsnode.links=nil
-setmetatable(fsnode,{
-__index=function(tbl,key)
-local bLinks=key=="links"
-if not bLinks and key~="children"then return end
-local _,links,dirs=dynamic_list(path,tbl)
-if bStoreUse then
-tbl.children=dirs
-tbl.links=links
+f=function(c,l,m)
+if getmetatable(c)then return end
+c.children=nil
+c.links=nil
+setmetatable(c,{
+__index=function(c,d)
+local h=d=="links"
+if not h and d~="children"then return end
+local d,d,i=g(l,c)
+if m then
+c.children=i
+c.links=d
 end
-return bLinks and links or dirs
+return h and d or i
 end,
 })
 end
-local label_lib=dofile("/lib/core/device_labeling.lua")
-label_lib.loadRules()
-api.getDeviceLabel=label_lib.getDeviceLabel
-api.setDeviceLabel=label_lib.setDeviceLabel
-local registered=false
-function api.register(public_proxy)
-if registered then return end
-registered=true
-local start_path="/lib/core/devfs/"
-for starter in fs.list(start_path)do
-if starter:match("%.lua$")then
-for name,entry in pairs(dofile(start_path..starter))do
-api.create(name,entry)
+local c=dofile("/lib/core/device_labeling.lua")
+c.loadRules()
+a.getDeviceLabel=c.getDeviceLabel
+a.setDeviceLabel=c.setDeviceLabel
+local c=false
+function a.register(d)
+if c then return end
+c=true
+local c="/lib/core/devfs/"
+for h in b.list(c)do
+if h:match("%.lua$")then
+for i,l in pairs(dofile(c..h))do
+a.create(i,l)
 end
 end
 end
-if rawget(public_proxy,"fsnode")then
-inject_dynamic_pairs(public_proxy.fsnode,"")
+if rawget(d,"fsnode")then
+f(d.fsnode,"")
 end
 end
-function api.proxy.list(path)
-local result={}
-for name in pairs(dynamic_list(path,false))do
-result[#result+1]=name
+function a.proxy.list(d)
+local c={}
+for f in pairs(g(d,false))do
+c[#c+1]=f
 end
-return result
+return c
 end
-function api.proxy.isDirectory(path)
-local node=findNode(path)
-return node and node.proxy and node.proxy.list
+function a.proxy.isDirectory(d)
+local c=e(d)
+return c and c.proxy and c.proxy.list
 end
-function api.proxy.size(path)
-checkArg(1,path,"string")
-local node=findNode(path)
-if not node or not node.proxy then
+function a.proxy.size(c)
+checkArg(1,c,"string")
+local d=e(c)
+if not d or not d.proxy then
 return 0
 end
-local proxy=node.proxy
-if proxy.list then return 0 end
-if proxy.size then return proxy.size()end
-if proxy.open then return 0 end
-if proxy.read then return proxy.read():len()end
-if proxy[1]~=nil then return array_read(proxy):len()end
+local c=d.proxy
+if c.list then return 0 end
+if c.size then return c.size()end
+if c.open then return 0 end
+if c.read then return c.read():len()end
+if c[1]~=nil then return k(c):len()end
 return 0
 end
-function api.proxy.lastModified()
+function a.proxy.lastModified()
 return 0
 end
-function api.proxy.exists(path)
-checkArg(1,path,"string")
-return not not findNode(path)
+function a.proxy.exists(c)
+checkArg(1,c,"string")
+return not not e(c)
 end
-function api.getDevice(path)
-checkArg(1,path,"string")
-local device
-local reason="no such device"
-local real,why=fs.realPath(require("shell").resolve(path))
-if not real then return nil,why end
-if fs.exists(real)then
-real=fs.path(real)..(fs.name(real)or"")
-local part,subbed=real:gsub("^/dev/","")
-if subbed>0 and part:len()>0 then
-local node=findNode(part)
-if node and node.proxy then
-device=node.proxy.device
+function a.getDevice(g)
+checkArg(1,g,"string")
+local d
+local f="no such device"
+local c,h=b.realPath(require("shell").resolve(g))
+if not c then return nil,h end
+if b.exists(c)then
+c=b.path(c)..(b.name(c)or"")
+local h,g=c:gsub("^/dev/","")
+if g>0 and h:len()>0 then
+local g=e(h)
+if g and g.proxy then
+d=g.proxy.device
 end
-if not device then
-reason="not a device"
+if not d then
+f="not a device"
 end
 else
-device,reason=fs.get(real)
+d,f=b.get(c)
 end
 end
-return device,reason
+return d,f
 end
-function api.proxy.open(path,mode)
-checkArg(1,path,"string")
-checkArg(2,mode,"string","nil")
-mode=mode or"r"
-local bRead=mode:match("[ra]")
-local bWrite=mode:match("[wa]")
-if not bRead and not bWrite then
+function a.proxy.open(g,d)
+checkArg(1,g,"string")
+checkArg(2,d,"string","nil")
+d=d or"r"
+local h=d:match("[ra]")
+local i=d:match("[wa]")
+if not h and not i then
 return nil,"invalid mode"
 end
-local node,why=findNode(path)
-if not node then
-return nil,why
-elseif not node.proxy or node.proxy.list then
+local f,c=e(g)
+if not f then
+return nil,c
+elseif not f.proxy or f.proxy.list then
 return nil,"is a directory"
 end
-local proxy=node.proxy
-if proxy.link then
-return fs.open("/dev/"..path,mode)
+local c=f.proxy
+if c.link then
+return b.open("/dev/"..g,d)
 end
-if proxy[1]~=nil then
-local array=proxy
-proxy.read=function()return array_read(array)end
+if c[1]~=nil then
+local b=c
+c.read=function()return k(b)end
 end
-if proxy.open then
-return proxy.open(mode)
+if c.open then
+return c.open(d)
 end
-if bRead and not proxy.read then
+if h and not c.read then
 return nil,"cannot open for read"
-elseif bWrite and not proxy.write then
+elseif i and not c.write then
 return nil,"cannot open for write"
 end
-local txtRead=bRead and proxy.read()
-if bWrite then
-return text.internal.writer(proxy.write,mode,txtRead)
+local b=h and c.read()
+if i then
+return j.internal.writer(c.write,d,b)
 end
-return text.internal.reader(txtRead,mode)
+return j.internal.reader(b,d)
 end
-local function checked_invoke(handle,method,...)
-checkArg(1,handle,"table")
-checkArg(2,method,"string")
-checkArg(3,handle[method],"function","table","nil")
-local m=handle[method]
-if not m then
+local function b(c,d,...)
+checkArg(1,c,"table")
+checkArg(2,d,"string")
+checkArg(3,c[d],"function","table","nil")
+local e=c[d]
+if not e then
 return nil,"bad file handle"
-elseif type(m)=="table"then
-local mm=getmetatable(m)
-assert(mm and mm.__call,string.format("FILE handle [%s] method defined, but is not callable",tostring(method)))
+elseif type(e)=="table"then
+local f=getmetatable(e)
+assert(f and f.__call,string.format("FILE handle [%s] method defined, but is not callable",tostring(d)))
 end
-return m(handle,...)
+return e(c,...)
 end
-function api.proxy.read(h,...)return checked_invoke(h,"read",...)end
-function api.proxy.close(h,...)return checked_invoke(h,"close",...)end
-function api.proxy.write(h,...)return checked_invoke(h,"write",...)end
-function api.proxy.seek(h,...)return checked_invoke(h,"seek",...)end
-function api.proxy.remove()return nil,"cannot remove file or directory"end
-function api.proxy.makeDirectory()return nil,"use create in the devfs api"end
-function api.proxy.setLabel()return nil,"cannot set label on devfs"end
-return api
+function a.proxy.read(c,...)return b(c,"read",...)end
+function a.proxy.close(c,...)return b(c,"close",...)end
+function a.proxy.write(c,...)return b(c,"write",...)end
+function a.proxy.seek(c,...)return b(c,"seek",...)end
+function a.proxy.remove()return nil,"cannot remove file or directory"end
+function a.proxy.makeDirectory()return nil,"use create in the devfs api"end
+function a.proxy.setLabel()return nil,"cannot set label on devfs"end
+return a

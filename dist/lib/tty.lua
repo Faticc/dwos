@@ -1,9 +1,9 @@
-local unicode=require("unicode")
-local event=require("event")
-local component=require("component")
-local computer=require("computer")
-local tty={}
-tty.window={
+local q=require("unicode")
+local b=require("event")
+local k=require("component")
+local t=require("computer")
+local a={}
+a.window={
 fullscreen=true,
 blink=true,
 dx=0,
@@ -12,227 +12,227 @@ x=1,
 y=1,
 output_buffer="",
 }
-tty.stream={}
-local screen_cache={}
-local function screen_reset(gpu,addr)
-screen_cache[addr or gpu.getScreen()or false]=nil
+a.stream={}
+local c={}
+local function m(d,e)
+c[e or d.getScreen()or false]=nil
 end
-event.listen("screen_resized",screen_reset)
-function tty.getViewport()
-local window=tty.window
-local screen=tty.screen()
-if window.fullscreen and screen and not screen_cache[screen]then
-screen_cache[screen]=true
-window.width,window.height=window.gpu.getViewport()
+b.listen("screen_resized",m)
+function a.getViewport()
+local b=a.window
+local d=a.screen()
+if b.fullscreen and d and not c[d]then
+c[d]=true
+b.width,b.height=b.gpu.getViewport()
 end
-return window.width,window.height,window.dx,window.dy,window.x,window.y
+return b.width,b.height,b.dx,b.dy,b.x,b.y
 end
-function tty.setViewport(width,height,dx,dy,x,y)
-checkArg(1,width,"number")
-checkArg(2,height,"number")
-local window=tty.window
-dx,dy,x,y=dx or 0,dy or 0,x or 1,y or 1
-window.width,window.height,window.dx,window.dy,window.x,window.y=width,height,dx,dy,x,y
+function a.setViewport(g,h,c,d,e,f)
+checkArg(1,g,"number")
+checkArg(2,h,"number")
+local b=a.window
+c,d,e,f=c or 0,d or 0,e or 1,f or 1
+b.width,b.height,b.dx,b.dy,b.x,b.y=g,h,c,d,e,f
 end
-function tty.gpu()
-return tty.window.gpu
+function a.gpu()
+return a.window.gpu
 end
-function tty.clear()
-tty.stream.scroll(math.huge)
-tty.setCursor(1,1)
+function a.clear()
+a.stream.scroll(math.huge)
+a.setCursor(1,1)
 end
-function tty.isAvailable()
-local gpu=tty.gpu()
-return not not(gpu and gpu.getScreen())
+function a.isAvailable()
+local b=a.gpu()
+return not not(b and b.getScreen())
 end
-function tty.stream.read()
-local core=require("core/cursor")
-local cursor=core.new(tty.window.cursor)
-tty.window.cursor=cursor
-local ok,result,reason=xpcall(core.read,debug.traceback,cursor)
-if not ok or not result then
-pcall(cursor.update,cursor)
+function a.stream.read()
+local c=require("core/cursor")
+local b=c.new(a.window.cursor)
+a.window.cursor=b
+local d,e,f=xpcall(c.read,debug.traceback,b)
+if not d or not e then
+pcall(b.update,b)
 end
-return select(2,assert(ok,result,reason))
+return select(2,assert(d,e,f))
 end
-local DELIMS="[\27\t\r\n\a\b\v\15]"
-function tty.stream:write(value)
-local gpu=tty.gpu()
-if not gpu then
+local h="[\27\t\r\n\a\b\v\15]"
+function a.stream:write(b)
+local u=a.gpu()
+if not u then
 return
 end
-local window=tty.window
-local cursor=window.cursor or{}
-cursor.sy=cursor.sy or 0
-cursor.tails=cursor.tails or{}
-local vt100=require("vt100")
-local beeped
-local uptime=computer.uptime
-local last_sleep=uptime()
-local buf=window.output_buffer..value
-local pos,len=1,#buf
+local c=a.window
+local f=c.cursor or{}
+f.sy=f.sy or 0
+f.tails=f.tails or{}
+local g=require("vt100")
+local v
+local d=t.uptime
+local e=d()
+local i=c.output_buffer..b
+local b,r=1,#i
 while true do
-if uptime()-last_sleep>3 then
+if d()-e>3 then
 os.sleep(0)
-last_sleep=uptime()
+e=d()
 end
-local prefix=""
-if buf:byte(pos)==27 then
-local consumed,literal=vt100.consume(window,buf,pos)
-if not consumed then
+local n=""
+if i:byte(b)==27 then
+local d,e=g.consume(c,i,b)
+if not d then
 break
 end
-pos=pos+consumed
-prefix=literal or""
+b=b+d
+n=e or""
 end
-cursor.sy=cursor.sy+self.scroll()
-if pos>len and prefix==""then
+f.sy=f.sy+self.scroll()
+if b>r and n==""then
 break
 end
-local x,y=window.x,window.y
-local width=window.width
-local d=buf:find(DELIMS,pos)
-local delim=d and buf:sub(d,d)
-local stop=d and d-1 or len
-local limit=pos+width*4-1
-local cut=stop>limit
-local segment=prefix..buf:sub(pos,cut and limit or stop)
-local consumed=stop-pos+1
-if segment~=""then
-local tail=""
-local remaining=width-x+1
-local ascii=not segment:find("[\128-\255]")
-local wlen_needed=ascii and#segment or unicode.wlen(segment)
-if cut or remaining<wlen_needed then
-if ascii then
-segment=segment:sub(1,math.max(remaining,0))
-wlen_needed=#segment
+local d,j=c.x,c.y
+local w=c.width
+local g=i:find(h,b)
+local h=g and i:sub(g,g)
+local l=g and g-1 or r
+local o=b+w*4-1
+local x=l>o
+local e=n..i:sub(b,x and o or l)
+local o=l-b+1
+if e~=""then
+local s=""
+local p=w-d+1
+local w=not e:find("[\128-\255]")
+local l=w and#e or q.wlen(e)
+if x or p<l then
+if w then
+e=e:sub(1,math.max(p,0))
+l=#e
 else
-segment=unicode.wtrunc(segment,remaining+1)
-wlen_needed=unicode.wlen(segment)
+e=q.wtrunc(e,p+1)
+l=q.wlen(e)
 end
-tail=wlen_needed<remaining and" "or""
-cursor.tails[y+window.dy-cursor.sy]=tail
-if not window.nowrap then
-consumed=#segment-#prefix
-if consumed<0 then consumed=0 end
-delim="\n"
-d=nil
-end
-end
-gpu.set(x+window.dx,y+window.dy,segment..tail)
-x=x+wlen_needed
-end
-pos=pos+consumed
-if d then pos=d+1 end
-if delim=="\t"then
-x=((x-1)-((x-1)%8))+9
-elseif delim=="\r"then
-x=1
-elseif delim=="\n"then
-x=1
-y=y+1
-elseif delim=="\b"then
-x=x-1
-elseif delim=="\v"then
-y=y+1
-elseif delim=="\a"and not beeped then
-computer.beep()
-beeped=true
-elseif delim=="\27"then
-pos=pos-1
-end
-window.x,window.y=x,y
-end
-window.output_buffer=pos<=len and buf:sub(pos)or""
-return cursor.sy
-end
-function tty.getCursor()
-local window=tty.window
-return window.x,window.y
-end
-function tty.setCursor(x,y)
-checkArg(1,x,"number")
-checkArg(2,y,"number")
-local window=tty.window
-window.x,window.y=x,y
-end
-local gpu_intercept={}
-function tty.bind(gpu)
-checkArg(1,gpu,"table")
-if not gpu_intercept[gpu]then
-gpu_intercept[gpu]=true
-local setr,setv=gpu.setResolution,gpu.setViewport
-gpu.setResolution=function(...)
-screen_reset(gpu)
-return setr(...)
-end
-gpu.setViewport=function(...)
-screen_reset(gpu)
-return setv(...)
+s=l<p and" "or""
+f.tails[j+c.dy-f.sy]=s
+if not c.nowrap then
+o=#e-#n
+if o<0 then o=0 end
+h="\n"
+g=nil
 end
 end
-local window=tty.window
-if window.gpu~=gpu then
-window.gpu=gpu
-window.keyboard=nil
-tty.getViewport()
+u.set(d+c.dx,j+c.dy,e..s)
+d=d+l
 end
-screen_reset(gpu)
+b=b+o
+if g then b=g+1 end
+if h=="\t"then
+d=((d-1)-((d-1)%8))+9
+elseif h=="\r"then
+d=1
+elseif h=="\n"then
+d=1
+j=j+1
+elseif h=="\b"then
+d=d-1
+elseif h=="\v"then
+j=j+1
+elseif h=="\a"and not v then
+t.beep()
+v=true
+elseif h=="\27"then
+b=b-1
 end
-function tty.keyboard()
-local window=tty.window
-if window.keyboard then
-return window.keyboard
+c.x,c.y=d,j
 end
-local system_keyboard=component.isAvailable("keyboard")and component.keyboard
-system_keyboard=system_keyboard and system_keyboard.address or"no_system_keyboard"
-local screen=tty.screen()
-if not screen then
-return system_keyboard
+c.output_buffer=b<=r and i:sub(b)or""
+return f.sy
 end
-if component.isAvailable("screen")and component.screen.address==screen then
-window.keyboard=system_keyboard
+function a.getCursor()
+local b=a.window
+return b.x,b.y
+end
+function a.setCursor(b,c)
+checkArg(1,b,"number")
+checkArg(2,c,"number")
+local d=a.window
+d.x,d.y=b,c
+end
+local c={}
+function a.bind(b)
+checkArg(1,b,"table")
+if not c[b]then
+c[b]=true
+local c,d=b.setResolution,b.setViewport
+b.setResolution=function(...)
+m(b)
+return c(...)
+end
+b.setViewport=function(...)
+m(b)
+return d(...)
+end
+end
+local c=a.window
+if c.gpu~=b then
+c.gpu=b
+c.keyboard=nil
+a.getViewport()
+end
+m(b)
+end
+function a.keyboard()
+local c=a.window
+if c.keyboard then
+return c.keyboard
+end
+local b=k.isAvailable("keyboard")and k.keyboard
+b=b and b.address or"no_system_keyboard"
+local d=a.screen()
+if not d then
+return b
+end
+if k.isAvailable("screen")and k.screen.address==d then
+c.keyboard=b
 else
-window.keyboard=component.invoke(screen,"getKeyboards")[1]or system_keyboard
+c.keyboard=k.invoke(d,"getKeyboards")[1]or b
 end
-return window.keyboard
+return c.keyboard
 end
-function tty.screen()
-local gpu=tty.gpu()
-if not gpu then
+function a.screen()
+local b=a.gpu()
+if not b then
 return nil
 end
-return gpu.getScreen()
+return b.getScreen()
 end
-function tty.stream.scroll(lines)
-local gpu=tty.gpu()
-if not gpu then
+function a.stream.scroll(b)
+local e=a.gpu()
+if not e then
 return 0
 end
-local width,height,dx,dy,x,y=tty.getViewport()
-if not lines then
-if y<1 then
-lines=y-1
-elseif y>height then
-lines=y-height
+local g,c,h,i,k,d=a.getViewport()
+if not b then
+if d<1 then
+b=d-1
+elseif d>c then
+b=d-c
 else
 return 0
 end
 end
-lines=math.max(math.min(lines,height),-height)
-local abs_lines=math.abs(lines)
-local box_height=height-abs_lines
-local fill_top=dy+1+(lines<0 and 0 or box_height)
-if box_height>0 then
-gpu.copy(dx+1,dy+1+math.max(0,lines),width,box_height,0,-lines)
+b=math.max(math.min(b,c),-c)
+local j=math.abs(b)
+local f=c-j
+local l=i+1+(b<0 and 0 or f)
+if f>0 then
+e.copy(h+1,i+1+math.max(0,b),g,f,0,-b)
 end
-gpu.fill(dx+1,fill_top,width,abs_lines," ")
-tty.setCursor(x,math.max(1,math.min(y,height)))
-return lines
+e.fill(h+1,l,g,j," ")
+a.setCursor(k,math.max(1,math.min(d,c)))
+return b
 end
-local function bfd()return nil,"tty: invalid operation"end
-tty.stream.close=bfd
-tty.stream.seek=bfd
-tty.stream.handle="tty"
-return tty
+local function b()return nil,"tty: invalid operation"end
+a.stream.close=b
+a.stream.seek=b
+a.stream.handle="tty"
+return a

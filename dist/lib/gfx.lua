@@ -1,500 +1,500 @@
-local gfx={}
-local BLOCK="\226\150\132"
-local rep,floor,max,min=string.rep,math.floor,math.max,math.min
-local move=table.move or function(a,f,e,t)
-if t>f then
-for i=e-f,0,-1 do a[t+i]=a[f+i]end
+local d={}
+local z="\226\150\132"
+local u,h,q,i=string.rep,math.floor,math.max,math.min
+local m=table.move or function(a,b,e,c)
+if c>b then
+for f=e-b,0,-1 do a[c+f]=a[b+f]end
 else
-for i=0,e-f do a[t+i]=a[f+i]end
+for f=0,e-b do a[c+f]=a[b+f]end
 end
 return a
 end
-local COST={
+local c={
 set={1/64,1/128,1/256},copy={1/16,1/32,1/64},
 fill={1/32,1/64,1/128},color={1/32,1/64,1/128},
 blit={0.5,1,2},
 }
-gfx.budget=0.9
-local function tierOf(gpu)
-local w=gpu.maxResolution()
-return w>=160 and 3 or w>=80 and 2 or 1
+d.budget=0.9
+local function k(b)
+local a=b.maxResolution()
+return a>=160 and 3 or a>=80 and 2 or 1
 end
-local function allocate(gpu,w,h)
-if not gpu.allocateBuffer then return nil end
-local ok,id=pcall(gpu.allocateBuffer,w,h)
-return ok and id or nil
+local function l(a,b,e)
+if not a.allocateBuffer then return nil end
+local f,g=pcall(a.allocateBuffer,b,e)
+return f and g or nil
 end
-function gfx.art(rows)
-local h,w=#rows,#rows[1]
-local a={w=w,h=h}
-for y=1,h do
-local r=rows[y]
-if#r~=w then error(("row %d is %d wide, not %d"):format(y,#r,w))end
-for x=1,w do
-local c=r:sub(x,x)
-a[(y-1)*w+x]=c~="."and tonumber(c,16)or false
+function d.art(b)
+local f,a=#b,#b[1]
+local g={w=a,h=f}
+for e=1,f do
+local f=b[e]
+if#f~=a then error(("row %d is %d wide, not %d"):format(e,#f,a))end
+for b=1,a do
+local j=f:sub(b,b)
+g[(e-1)*a+b]=j~="."and tonumber(j,16)or false
 end
 end
-return a
+return g
 end
-function gfx.flip(a)
+function d.flip(a)
 local b={w=a.w,h=a.h}
-for y=0,a.h-1 do
-for x=1,a.w do b[y*a.w+x]=a[y*a.w+(a.w+1-x)]end
+for e=0,a.h-1 do
+for f=1,a.w do b[e*a.w+f]=a[e*a.w+(a.w+1-f)]end
 end
 return b
 end
-local Log={}
-local function logInit(s,gpu,x,y,w,h,pal)
-s.gpu,s.ox,s.oy,s.bw,s.bh=gpu,x,y,w,h
-s.pal=pal
-s.cost,s.log,s.ln=0,{},0
-s.fg,s.bg=nil,nil
-s.lfg,s.lbg=nil,nil
-local t=tierOf(gpu)
-s.cset,s.ccopy,s.cfill,s.ccolor=COST.set[t],COST.copy[t],COST.fill[t],COST.color[t]
-local mw,mh=gpu.maxResolution()
-s.cblit=COST.blit[t]*(w*h)/(mw*mh)
-s.limit=min(s.cblit,gfx.budget)
-s.buf=allocate(gpu,w,h)
-s.calls,s.screenCalls=0,0
-s.was={fg={gpu.getForeground()},bg={gpu.getBackground()}}
+local j={}
+local function r(a,b,e,n,f,g,o)
+a.gpu,a.ox,a.oy,a.bw,a.bh=b,e,n,f,g
+a.pal=o
+a.cost,a.log,a.ln=0,{},0
+a.fg,a.bg=nil,nil
+a.lfg,a.lbg=nil,nil
+local e=k(b)
+a.cset,a.ccopy,a.cfill,a.ccolor=c.set[e],c.copy[e],c.fill[e],c.color[e]
+local k,n=b.maxResolution()
+a.cblit=c.blit[e]*(f*g)/(k*n)
+a.limit=i(a.cblit,d.budget)
+a.buf=l(b,f,g)
+a.calls,a.screenCalls=0,0
+a.was={fg={b.getForeground()},bg={b.getBackground()}}
 end
-local function target(s)
-if s.buf then s.gpu.setActiveBuffer(s.buf)end
+local function k(a)
+if a.buf then a.gpu.setActiveBuffer(a.buf)end
 end
-local function colors(s,fg,bg)
-local g=s.gpu
-if bg~=s.bg then g.setBackground(bg,s.pal)s.bg=bg s.calls=s.calls+1 end
-if fg~=s.fg then g.setForeground(fg,s.pal)s.fg=fg s.calls=s.calls+1 end
+local function s(a,b,c)
+local e=a.gpu
+if c~=a.bg then e.setBackground(c,a.pal)a.bg=c a.calls=a.calls+1 end
+if b~=a.fg then e.setForeground(b,a.pal)a.fg=b a.calls=a.calls+1 end
 end
-local function logOp(s,op,a,b,c,d,e,f)
-if not s.buf then return end
-local n=s.ln+1
-s.log[n]={op,a,b,c,d,e,f}
-s.ln=n
-if op=="s"or op=="f"then
-if e~=s.lbg then s.cost=s.cost+s.ccolor s.lbg=e end
-if op=="s"and d~=s.lfg then s.cost=s.cost+s.ccolor s.lfg=d end
-if op=="f"and f~=" "and d~=s.lfg then s.cost=s.cost+s.ccolor s.lfg=d end
-s.cost=s.cost+(op=="s"and s.cset or s.cfill)
+local function g(a,b,n,o,p,c,e,f)
+if not a.buf then return end
+local l=a.ln+1
+a.log[l]={b,n,o,p,c,e,f}
+a.ln=l
+if b=="s"or b=="f"then
+if e~=a.lbg then a.cost=a.cost+a.ccolor a.lbg=e end
+if b=="s"and c~=a.lfg then a.cost=a.cost+a.ccolor a.lfg=c end
+if b=="f"and f~=" "and c~=a.lfg then a.cost=a.cost+a.ccolor a.lfg=c end
+a.cost=a.cost+(b=="s"and a.cset or a.cfill)
 else
-s.cost=s.cost+s.ccopy
+a.cost=a.cost+a.ccopy
 end
 end
-function Log.present(s,force)
-local g=s.gpu
-if not s.buf then return end
-if s.ln==0 and not s.stale then g.setActiveBuffer(0)return end
-g.setActiveBuffer(0)
-if force~="blit"and not s.stale and(force=="replay"or s.cost<=s.limit)then
-local fg,bg,ox,oy=nil,nil,s.ox-1,s.oy-1
-local log=s.log
-for i=1,s.ln do
-local o=log[i]
-local op=o[1]
-if op=="c"then
-g.copy(ox+o[2],oy+o[3],o[4],o[5],o[6],o[7])
+function j.present(a,b)
+local c=a.gpu
+if not a.buf then return end
+if a.ln==0 and not a.stale then c.setActiveBuffer(0)return end
+c.setActiveBuffer(0)
+if b~="blit"and not a.stale and(b=="replay"or a.cost<=a.limit)then
+local e,f,l,n=nil,nil,a.ox-1,a.oy-1
+local o=a.log
+for p=1,a.ln do
+local b=o[p]
+local t=b[1]
+if t=="c"then
+c.copy(l+b[2],n+b[3],b[4],b[5],b[6],b[7])
 else
-if o[6]~=bg then g.setBackground(o[6],s.pal)bg=o[6]end
-if op=="s"then
-if o[5]~=fg then g.setForeground(o[5],s.pal)fg=o[5]end
-g.set(ox+o[2],oy+o[3],o[4])
+if b[6]~=f then c.setBackground(b[6],a.pal)f=b[6]end
+if t=="s"then
+if b[5]~=e then c.setForeground(b[5],a.pal)e=b[5]end
+c.set(l+b[2],n+b[3],b[4])
 else
-if o[7]~=" "and o[5]~=fg then g.setForeground(o[5],s.pal)fg=o[5]end
-g.fill(ox+o[2],oy+o[3],o[4],o[5+3]or 1,o[7])
+if b[7]~=" "and b[5]~=e then c.setForeground(b[5],a.pal)e=b[5]end
+c.fill(l+b[2],n+b[3],b[4],b[5+3]or 1,b[7])
 end
 end
-s.screenCalls=s.screenCalls+1
-log[i]=nil
+a.screenCalls=a.screenCalls+1
+o[p]=nil
 end
-s.fg,s.bg=fg or s.fg,bg or s.bg
+a.fg,a.bg=e or a.fg,f or a.bg
 else
-g.bitblt(0,s.ox,s.oy,s.bw,s.bh,s.buf,1,1)
-s.screenCalls=s.screenCalls+1
-for i=1,s.ln do s.log[i]=nil end
+c.bitblt(0,a.ox,a.oy,a.bw,a.bh,a.buf,1,1)
+a.screenCalls=a.screenCalls+1
+for b=1,a.ln do a.log[b]=nil end
 end
-s.ln,s.cost,s.stale=0,0,false
-s.lfg,s.lbg=nil,nil
+a.ln,a.cost,a.stale=0,0,false
+a.lfg,a.lbg=nil,nil
 end
-function Log.close(s)
-if s.buf then
-s.gpu.setActiveBuffer(0)
-pcall(s.gpu.freeBuffer,s.buf)
-s.buf=nil
+function j.close(a)
+if a.buf then
+a.gpu.setActiveBuffer(0)
+pcall(a.gpu.freeBuffer,a.buf)
+a.buf=nil
 end
-if s.was then
-pcall(s.gpu.setBackground,table.unpack(s.was.bg))
-pcall(s.gpu.setForeground,table.unpack(s.was.fg))
-s.fg,s.bg,s.was=nil,nil,nil
+if a.was then
+pcall(a.gpu.setBackground,table.unpack(a.was.bg))
+pcall(a.gpu.setForeground,table.unpack(a.was.fg))
+a.fg,a.bg,a.was=nil,nil,nil
 end
 end
-local T={}
-T.__index=T
-function gfx.surface(gpu,o)
-o=o or{}
-local sw,sh=gpu.getResolution()
-local s=setmetatable({},T)
-logInit(s,gpu,o.x or 1,o.y or 1,o.w or sw,o.h or sh,o.palette and true or false)
-s.w,s.h=s.bw,s.bh
-return s
+local a={}
+a.__index=a
+function d.surface(e,b)
+b=b or{}
+local f,l=e.getResolution()
+local c=setmetatable({},a)
+r(c,e,b.x or 1,b.y or 1,b.w or f,b.h or l,b.palette and true or false)
+c.w,c.h=c.bw,c.bh
+return c
 end
-local function direct(s)return not s.buf end
-function T:set(x,y,str,fg,bg,vertical)
-fg,bg=fg or self.fg or 0xFFFFFF,bg or self.bg or 0
-target(self)
-colors(self,fg,bg)
-if direct(self)then
-self.gpu.set(self.ox+x-1,self.oy+y-1,str,vertical)
+local function c(b)return not b.buf end
+function a:set(f,l,n,b,e,o)
+b,e=b or self.fg or 0xFFFFFF,e or self.bg or 0
+k(self)
+s(self,b,e)
+if c(self)then
+self.gpu.set(self.ox+f-1,self.oy+l-1,n,o)
 else
-self.gpu.set(x,y,str,vertical)
-if vertical then self.stale=true else logOp(self,"s",x,y,str,fg,bg)end
+self.gpu.set(f,l,n,o)
+if o then self.stale=true else g(self,"s",f,l,n,b,e)end
 end
 self.calls=self.calls+1
 end
-function T:fill(x,y,w,h,ch,fg,bg)
-if w<=0 or h<=0 then return end
-fg,bg=fg or self.fg or 0xFFFFFF,bg or self.bg or 0
-ch=ch or" "
-target(self)
-colors(self,fg,bg)
-if direct(self)then
-self.gpu.fill(self.ox+x-1,self.oy+y-1,w,h,ch)
+function a:fill(o,p,e,f,b,l,n)
+if e<=0 or f<=0 then return end
+l,n=l or self.fg or 0xFFFFFF,n or self.bg or 0
+b=b or" "
+k(self)
+s(self,l,n)
+if c(self)then
+self.gpu.fill(self.ox+o-1,self.oy+p-1,e,f,b)
 else
-self.gpu.fill(x,y,w,h,ch)
-local n=self.ln
-logOp(self,"f",x,y,w,fg,bg,ch)
-self.log[n+1][8]=h
+self.gpu.fill(o,p,e,f,b)
+local s=self.ln
+g(self,"f",o,p,e,l,n,b)
+self.log[s+1][8]=f
 end
 self.calls=self.calls+1
 end
-function T:copy(x,y,w,h,tx,ty)
-target(self)
-if direct(self)then
-self.gpu.copy(self.ox+x-1,self.oy+y-1,w,h,tx,ty)
+function a:copy(b,e,f,l,n,o)
+k(self)
+if c(self)then
+self.gpu.copy(self.ox+b-1,self.oy+e-1,f,l,n,o)
 else
-self.gpu.copy(x,y,w,h,tx,ty)
-logOp(self,"c",x,y,w,h,tx,ty)
+self.gpu.copy(b,e,f,l,n,o)
+g(self,"c",b,e,f,l,n,o)
 end
 self.calls=self.calls+1
 end
-function T:get(x,y)
-target(self)
-if direct(self)then return self.gpu.get(self.ox+x-1,self.oy+y-1)end
-return self.gpu.get(x,y)
+function a:get(b,e)
+k(self)
+if c(self)then return self.gpu.get(self.ox+b-1,self.oy+e-1)end
+return self.gpu.get(b,e)
 end
-function T:sync()
+function a:sync()
 if self.buf then
 self.gpu.bitblt(self.buf,1,1,self.bw,self.bh,0,self.ox,self.oy)
 self.fg,self.bg=nil,nil
 end
 end
-function T:release()
+function a:release()
 if self.buf then self.gpu.setActiveBuffer(0)end
 end
-T.present=Log.present
-T.close=Log.close
-local S={}
-S.__index=S
-function gfx.new(gpu,w,h,o)
-o=o or{}
-local mw,mh=gpu.maxResolution()
-local ox,oy=o.x or 1,o.y or 1
-w=min(w or mw,mw-ox+1)
-h=min(h or mh,mh-oy+1)
-if not o.keepResolution and ox==1 and oy==1 then
-local cw,ch=gpu.getResolution()
-if cw~=w or ch~=h then gpu.setResolution(w,h)end
+a.present=j.present
+a.close=j.close
+local b={}
+b.__index=b
+function d.new(l,c,e,f)
+f=f or{}
+local a,p=l.maxResolution()
+local n,o=f.x or 1,f.y or 1
+c=i(c or a,a-n+1)
+e=i(e or p,p-o+1)
+if not f.keepResolution and n==1 and o==1 then
+local a,p=l.getResolution()
+if a~=c or p~=e then l.setResolution(c,e)end
 end
-local s=setmetatable({
-w=w,h=h,pw=w,ph=h*2,
+local a=setmetatable({
+w=c,h=e,pw=c,ph=e*2,
 fb={},shown={},saved={},top=1,
 sp={},bl={},
 dr={},dn=0,rmin={},rmax={},rlist={},
-rgb=o.rgb and true or false,
-},S)
-logInit(s,gpu,ox,oy,w,h,not s.rgb)
-s.mul=s.rgb and 16777216 or 16
-local bgc=o.background or 0
-for i=1,s.pw*s.ph do s.fb[i]=bgc end
-for i=1,w*h do s.shown[i]=-1 end
-return s
+rgb=f.rgb and true or false,
+},b)
+r(a,l,n,o,c,e,not a.rgb)
+a.mul=a.rgb and 16777216 or 16
+local l=f.background or 0
+for f=1,a.pw*a.ph do a.fb[f]=l end
+for f=1,c*e do a.shown[f]=-1 end
+return a
 end
-function S:palette(pal)
-local g=self.gpu
-for i=0,15 do
-local c=pal[i]
+function b:palette(f)
+local e=self.gpu
+for a=0,15 do
+local c=f[a]
 if c then
-local ok,cur=pcall(g.getPaletteColor,i)
-if not ok or cur~=c then pcall(g.setPaletteColor,i,c)end
+local f,l=pcall(e.getPaletteColor,a)
+if not f or l~=c then pcall(e.setPaletteColor,a,c)end
 end
 end
 self.fg,self.bg=nil,nil
 end
-function S:reserveTop(rows)self.top=rows+1 end
-function S:touch(x,y,w,h)
-local x2,y2=x+w-1,y+h-1
-local ytop=(self.top-1)*2+1
-if x<1 then x=1 end
-if y<ytop then y=ytop end
-if x2>self.pw then x2=self.pw end
-if y2>self.ph then y2=self.ph end
-if x2<x or y2<y then return end
-local n,dr=self.dn,self.dr
-dr[n+1],dr[n+2],dr[n+3],dr[n+4]=x,y,x2,y2
-self.dn=n+4
+function b:reserveTop(a)self.top=a+1 end
+function b:touch(a,c,e,n)
+local f,l=a+e-1,c+n-1
+local e=(self.top-1)*2+1
+if a<1 then a=1 end
+if c<e then c=e end
+if f>self.pw then f=self.pw end
+if l>self.ph then l=self.ph end
+if f<a or l<c then return end
+local e,n=self.dn,self.dr
+n[e+1],n[e+2],n[e+3],n[e+4]=a,c,f,l
+self.dn=e+4
 end
-function S:clear(c)
-local fb=self.fb
-for i=1,self.pw*self.ph do fb[i]=c end
+function b:clear(a)
+local c=self.fb
+for e=1,self.pw*self.ph do c[e]=a end
 self.dn=0
 self:touch(1,1,self.pw,self.ph)
 end
-function S:rect(x,y,w,h,c)
-local fb,pw,ph=self.fb,self.pw,self.ph
-if x<1 then w=w+x-1 x=1 end
-if y<1 then h=h+y-1 y=1 end
-if x+w-1>pw then w=pw-x+1 end
-if y+h-1>ph then h=ph-y+1 end
-if w<=0 or h<=0 then return end
-self:touch(x,y,w,h)
-for yy=y,y+h-1 do
-local o=(yy-1)*pw
-for xx=x,x+w-1 do fb[o+xx]=c end
+function b:rect(a,c,e,f,o)
+local p,l,n=self.fb,self.pw,self.ph
+if a<1 then e=e+a-1 a=1 end
+if c<1 then f=f+c-1 c=1 end
+if a+e-1>l then e=l-a+1 end
+if c+f-1>n then f=n-c+1 end
+if e<=0 or f<=0 then return end
+self:touch(a,c,e,f)
+for n=c,c+f-1 do
+local c=(n-1)*l
+for f=a,a+e-1 do p[c+f]=o end
 end
 end
-function S:pixel(x,y,c)
-if x>=1 and y>=1 and x<=self.pw and y<=self.ph then
-self.fb[(y-1)*self.pw+x]=c
-self:touch(x,y,1,1)
+function b:pixel(a,c,e)
+if a>=1 and c>=1 and a<=self.pw and c<=self.ph then
+self.fb[(c-1)*self.pw+a]=e
+self:touch(a,c,1,1)
 end
 end
-function S:tile(x,y,a)
-local fb,pw,ph=self.fb,self.pw,self.ph
-local aw=a.w
-self:touch(x,y,aw,a.h)
-for ay=0,a.h-1 do
-local yy=y+ay
-if yy>=1 and yy<=ph then
-local o,ao=(yy-1)*pw,ay*aw
-for ax=1,aw do
-local xx=x+ax-1
-if xx>=1 and xx<=pw then
-local c=a[ao+ax]
-if c then fb[o+xx]=c end
+function b:tile(f,l,a)
+local p,n,r=self.fb,self.pw,self.ph
+local c=a.w
+self:touch(f,l,c,a.h)
+for o=0,a.h-1 do
+local e=l+o
+if e>=1 and e<=r then
+local l,r=(e-1)*n,o*c
+for e=1,c do
+local c=f+e-1
+if c>=1 and c<=n then
+local f=a[r+e]
+if f then p[l+c]=f end
 end
 end
 end
 end
 end
-S.blit=S.tile
-function S:stamp(x,y,a)
-local fb,pw,ph=self.fb,self.pw,self.ph
-local x0,y0=max(1,x),max(1,y)
-local x1,y1=min(pw,x+a.w-1),min(ph,y+a.h-1)
-if x1<x0 or y1<y0 then return end
-local box={x=x0,y=y0,w=x1-x0+1,h=y1-y0+1}
-local k=0
-for yy=y0,y1 do
-local o=(yy-1)*pw
-for xx=x0,x1 do k=k+1 box[k]=fb[o+xx]end
+b.blit=b.tile
+function b:stamp(e,f,l)
+local s,r,p=self.fb,self.pw,self.ph
+local a,c=q(1,e),q(1,f)
+local n,o=i(r,e+l.w-1),i(p,f+l.h-1)
+if n<a or o<c then return end
+local q={x=a,y=c,w=n-a+1,h=o-c+1}
+local p=0
+for t=c,o do
+local c=(t-1)*r
+for o=a,n do p=p+1 q[p]=s[c+o]end
 end
-self.saved[#self.saved+1]=box
-self:tile(x,y,a)
+self.saved[#self.saved+1]=q
+self:tile(e,f,l)
 end
-function S:restore()
-local fb,pw,saved=self.fb,self.pw,self.saved
-for i=#saved,1,-1 do
-local b=saved[i]
-self:touch(b.x,b.y,b.w,b.h)
-local k=0
-for yy=b.y,b.y+b.h-1 do
-local o=(yy-1)*pw
-for xx=b.x,b.x+b.w-1 do k=k+1 fb[o+xx]=b[k]end
+function b:restore()
+local l,n,c=self.fb,self.pw,self.saved
+for f=#c,1,-1 do
+local a=c[f]
+self:touch(a.x,a.y,a.w,a.h)
+local e=0
+for o=a.y,a.y+a.h-1 do
+local p=(o-1)*n
+for n=a.x,a.x+a.w-1 do e=e+1 l[p+n]=a[e]end
 end
-saved[i]=nil
+c[f]=nil
 end
 end
-function S:scroll(dx)
-if dx==0 then return end
-local pw,ph,w,h=self.pw,self.ph,self.w,self.h
-local fb,sh=self.fb,self.shown
-local y0=(self.top-1)*2
-local rows=h-self.top+1
-if math.abs(dx)>=pw then
-for i=(self.top-1)*w+1,w*h do sh[i]=-1 end
+function b:scroll(a)
+if a==0 then return end
+local f,o,c,p=self.pw,self.ph,self.w,self.h
+local q,l=self.fb,self.shown
+local e=(self.top-1)*2
+local n=p-self.top+1
+if math.abs(a)>=f then
+for r=(self.top-1)*c+1,c*p do l[r]=-1 end
 return
 end
-for y=y0,ph-1 do
-local o=y*pw
-if dx>0 then move(fb,o+1+dx,o+pw,o+1)
-else move(fb,o+1,o+pw+dx,o+1-dx)end
+for r=e,o-1 do
+local e=r*f
+if a>0 then m(q,e+1+a,e+f,e+1)
+else m(q,e+1,e+f+a,e+1-a)end
 end
-for row=self.top-1,h-1 do
-local o=row*w
-if dx>0 then
-move(sh,o+1+dx,o+w,o+1)
-for i=o+w-dx+1,o+w do sh[i]=-1 end
+for q=self.top-1,p-1 do
+local e=q*c
+if a>0 then
+m(l,e+1+a,e+c,e+1)
+for p=e+c-a+1,e+c do l[p]=-1 end
 else
-move(sh,o+1,o+w+dx,o+1-dx)
-for i=o+1,o-dx do sh[i]=-1 end
+m(l,e+1,e+c+a,e+1-a)
+for m=e+1,e-a do l[m]=-1 end
 end
 end
-local dr=self.dr
-for i=1,self.dn,4 do dr[i],dr[i+2]=dr[i]-dx,dr[i+2]-dx end
-if dx>0 then self:touch(pw-dx+1,1,dx,ph)else self:touch(1,1,-dx,ph)end
-local g=self.gpu
+local e=self.dr
+for l=1,self.dn,4 do e[l],e[l+2]=e[l]-a,e[l+2]-a end
+if a>0 then self:touch(f-a+1,1,a,o)else self:touch(1,1,-a,o)end
+local e=self.gpu
 if self.buf then
-g.setActiveBuffer(self.buf)
-if dx>0 then g.bitblt(self.buf,1,self.top,w-dx,rows,self.buf,1+dx,self.top)
-else g.bitblt(self.buf,1-dx,self.top,w+dx,rows,self.buf,1,self.top)end
-logOp(self,"c",1,self.top,w,rows,-dx,0)
+e.setActiveBuffer(self.buf)
+if a>0 then e.bitblt(self.buf,1,self.top,c-a,n,self.buf,1+a,self.top)
+else e.bitblt(self.buf,1-a,self.top,c+a,n,self.buf,1,self.top)end
+g(self,"c",1,self.top,c,n,-a,0)
 self.calls=self.calls+2
 else
-g.copy(self.ox,self.oy+self.top-1,w,rows,-dx,0)
+e.copy(self.ox,self.oy+self.top-1,c,n,-a,0)
 self.screenCalls=self.screenCalls+1
 end
 end
-function S:setfg(c)
-if c~=self.fg then self.gpu.setForeground(c,not self.rgb)self.fg=c self.calls=self.calls+1 end
+function b:setfg(a)
+if a~=self.fg then self.gpu.setForeground(a,not self.rgb)self.fg=a self.calls=self.calls+1 end
 end
-function S:setbg(c)
-if c~=self.bg then self.gpu.setBackground(c,not self.rgb)self.bg=c self.calls=self.calls+1 end
+function b:setbg(a)
+if a~=self.bg then self.gpu.setBackground(a,not self.rgb)self.bg=a self.calls=self.calls+1 end
 end
-local function run(self,n,ch)
-local cache=ch==" "and self.sp or self.bl
-local s=cache[n]
-if not s then s=rep(ch,n)cache[n]=s end
-return s
+local function s(a,c,e)
+local f=e==" "and a.sp or a.bl
+local a=f[c]
+if not a then a=u(e,c)f[c]=a end
+return a
 end
-function S:text(x,row,str,fg,bg)
-local g=self.gpu
-fg,bg=fg or(self.rgb and 0xFFFFFF or 15),bg or 0
-target(self)
-self:setbg(bg)
-self:setfg(fg)
+function b:text(a,c,e,f,l)
+local m=self.gpu
+f,l=f or(self.rgb and 0xFFFFFF or 15),l or 0
+k(self)
+self:setbg(l)
+self:setfg(f)
 if self.buf then
-g.set(x,row,str)
-logOp(self,"s",x,row,str,fg,bg)
+m.set(a,c,e)
+g(self,"s",a,c,e,f,l)
 else
-g.set(self.ox+x-1,self.oy+row-1,str)
+m.set(self.ox+a-1,self.oy+c-1,e)
 self.screenCalls=self.screenCalls+1
 end
 self.calls=self.calls+1
-if row>=self.top then
-local o=(row-1)*self.w
-for i=x,min(self.w,x+#str-1)do self.shown[o+i]=-1 end
-self:touch(x,row*2-1,#str,2)
+if c>=self.top then
+local f=(c-1)*self.w
+for l=a,i(self.w,a+#e-1)do self.shown[f+l]=-1 end
+self:touch(a,c*2-1,#e,2)
 end
 end
-local function scan(self,row1,row2,col1,col2)
-local g,fb,sh,mul=self.gpu,self.fb,self.shown,self.mul
-local w=self.w
-if row1<self.top then row1=self.top end
-if row2>self.h then row2=self.h end
-if col1<1 then col1=1 end
-if col2>w then col2=w end
-local buffered=self.buf~=nil
-local dx,dy=0,0
-if not buffered then dx,dy=self.ox-1,self.oy-1 end
-for row=row1,row2 do
-local o1=(row*2-2)*w
-local o2=o1+w
-local c0=(row-1)*w
-local x=col1
-while x<=col2 do
-local t,b=fb[o1+x],fb[o2+x]
-local cur=t*mul+b
-if cur==sh[c0+x]then
-x=x+1
+local function t(a,e,f,m,l)
+local u,n,v,A=a.gpu,a.fb,a.shown,a.mul
+local c=a.w
+if e<a.top then e=a.top end
+if f>a.h then f=a.h end
+if m<1 then m=1 end
+if l>c then l=c end
+local o=a.buf~=nil
+local p,q=0,0
+if not o then p,q=a.ox-1,a.oy-1 end
+for i=e,f do
+local r=(i*2-2)*c
+local w=r+c
+local x=(i-1)*c
+local c=m
+while c<=l do
+local f,m=n[r+c],n[w+c]
+local y=f*A+m
+if y==v[x+c]then
+c=c+1
 else
-local n=1
-while x+n<=col2 and fb[o1+x+n]==t and fb[o2+x+n]==b do n=n+1 end
-local str
-if t==b then
-self:setbg(t)
-str=run(self,n," ")
-g.set(x+dx,row+dy,str)
-if buffered then logOp(self,"s",x,row,str,self.fg or t,t)end
+local e=1
+while c+e<=l and n[r+c+e]==f and n[w+c+e]==m do e=e+1 end
+local l
+if f==m then
+a:setbg(f)
+l=s(a,e," ")
+u.set(c+p,i+q,l)
+if o then g(a,"s",c,i,l,a.fg or f,f)end
 else
-self:setbg(t)
-self:setfg(b)
-str=run(self,n,BLOCK)
-g.set(x+dx,row+dy,str)
-if buffered then logOp(self,"s",x,row,str,b,t)end
+a:setbg(f)
+a:setfg(m)
+l=s(a,e,z)
+u.set(c+p,i+q,l)
+if o then g(a,"s",c,i,l,m,f)end
 end
-self.calls=self.calls+1
-if not buffered then self.screenCalls=self.screenCalls+1 end
-for k=0,n-1 do sh[c0+x+k]=cur end
-x=x+n
-end
-end
+a.calls=a.calls+1
+if not o then a.screenCalls=a.screenCalls+1 end
+for a=0,e-1 do v[x+c+a]=y end
+c=c+e
 end
 end
-function S:present(force)
-Log.present(self,force)
 end
-function S:flush(hold)
-local dn,dr=self.dn,self.dr
-if dn==0 then
-if not hold then self:present()end
+end
+function b:present(a)
+j.present(self,a)
+end
+function b:flush(m)
+local c,a=self.dn,self.dr
+if c==0 then
+if not m then self:present()end
 return
 end
-target(self)
-local area=0
-for i=1,dn,4 do
-area=area+(dr[i+2]-dr[i]+1)*(dr[i+3]-dr[i+1]+1)
+k(self)
+local f=0
+for e=1,c,4 do
+f=f+(a[e+2]-a[e]+1)*(a[e+3]-a[e+1]+1)
 end
-if self.fullScan or area*2>self.pw*self.ph or dn>320 then
-scan(self,self.top,self.h,1,self.w)
+if self.fullScan or f*2>self.pw*self.ph or c>320 then
+t(self,self.top,self.h,1,self.w)
 else
-local rmin,rmax,rlist=self.rmin,self.rmax,self.rlist
-local n=0
-for i=1,dn,4 do
-local x1,x2=dr[i],dr[i+2]
-for r=floor((dr[i+1]+1)/2),floor((dr[i+3]+1)/2)do
-local lo=rmin[r]
-if lo==nil then
-n=n+1
-rlist[n]=r
-rmin[r],rmax[r]=x1,x2
+local e,f,n=self.rmin,self.rmax,self.rlist
+local g=0
+for i=1,c,4 do
+local k,l=a[i],a[i+2]
+for c=h((a[i+1]+1)/2),h((a[i+3]+1)/2)do
+local a=e[c]
+if a==nil then
+g=g+1
+n[g]=c
+e[c],f[c]=k,l
 else
-if x1<lo then rmin[r]=x1 end
-if x2>rmax[r]then rmax[r]=x2 end
+if k<a then e[c]=k end
+if l>f[c]then f[c]=l end
 end
 end
 end
-for k=1,n do
-local r=rlist[k]
-scan(self,r,r,rmin[r],rmax[r])
-rmin[r]=nil
+for c=1,g do
+local a=n[c]
+t(self,a,a,e[a],f[a])
+e[a]=nil
 end
 end
 self.dn=0
-if not hold then self:present()end
+if not m then self:present()end
 end
-S.close=Log.close
-function gfx.savePalette(gpu)
-local p={}
-for i=0,15 do
-local ok,v=pcall(gpu.getPaletteColor,i)
-p[i]=ok and v or nil
+b.close=j.close
+function d.savePalette(c)
+local a={}
+for b=0,15 do
+local e,f=pcall(c.getPaletteColor,b)
+a[b]=e and f or nil
 end
-return p
+return a
 end
-function gfx.restorePalette(gpu,p)
-for i=0,15 do
-if p[i]then
-local ok,cur=pcall(gpu.getPaletteColor,i)
-if not ok or cur~=p[i]then pcall(gpu.setPaletteColor,i,p[i])end
+function d.restorePalette(c,b)
+for a=0,15 do
+if b[a]then
+local e,f=pcall(c.getPaletteColor,a)
+if not e or f~=b[a]then pcall(c.setPaletteColor,a,b[a])end
 end
 end
 end
-function gfx.mix(a,b,t)
-local function ch(c,s)return floor(c/s)%256 end
-local r=floor(ch(a,65536)+(ch(b,65536)-ch(a,65536))*t+0.5)
-local g=floor(ch(a,256)+(ch(b,256)-ch(a,256))*t+0.5)
-local bl=floor(ch(a,1)+(ch(b,1)-ch(a,1))*t+0.5)
-return r*65536+g*256+bl
+function d.mix(b,c,e)
+local function a(f,g)return h(f/g)%256 end
+local f=h(a(b,65536)+(a(c,65536)-a(b,65536))*e+0.5)
+local g=h(a(b,256)+(a(c,256)-a(b,256))*e+0.5)
+local i=h(a(b,1)+(a(c,1)-a(b,1))*e+0.5)
+return f*65536+g*256+i
 end
-return gfx
+return d

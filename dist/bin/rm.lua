@@ -1,7 +1,7 @@
-local fs=require("filesystem")
-local shell=require("shell")
-local args,options=shell.parse(...)
-if#args==0 or options.help then
+local c=require("filesystem")
+local f=require("shell")
+local n,a=f.parse(...)
+if#n==0 or a.help then
 print([==[Usage: rm [options] <filename1> [<filename2> [...]]
 
   -f          ignore nonexistent files and arguments, never prompt
@@ -12,104 +12,104 @@ print([==[Usage: rm [options] <filename1> [<filename2> [...]]
 For complete documentation and more options, run: man rm]==])
 return 1
 end
-local bRec=options.r or options.R or options.recursive
-local bForce=options.f or options.force
-local bVerbose=(options.v or options.verbose)and not bForce
-local bEmptyDirs=options.d or options.dir
-local promptLevel=bForce and 0 or(options.I and 3)or(options.i and 1)or 0
-local function perr(...)
-if not bForce then io.stderr:write(...)end
+local o=a.r or a.R or a.recursive
+local d=a.f or a.force
+local s=(a.v or a.verbose)and not d
+local p=a.d or a.dir
+local h=d and 0 or(a.I and 3)or(a.i and 1)or 0
+local function g(...)
+if not d then io.stderr:write(...)end
 end
-local function pout(...)
-if not bForce then io.stdout:write(...)end
+local function e(...)
+if not d then io.stdout:write(...)end
 end
-local function _path(m)return shell.resolve(m.rel)end
-local function _link(m)return fs.isLink(_path(m))end
-local function _exists(m)return _link(m)or fs.exists(_path(m))end
-local function _dir(m)return not _link(m)and fs.isDirectory(_path(m))end
-local function _readonly(m)return not _exists(m)or fs.get(_path(m)).isReadOnly()end
-local function _empty(m)return _exists(m)and _dir(m)and fs.list(_path(m))()==nil end
-local function createMeta(origin,rel)
-local m={origin=origin,rel=rel:gsub("/+$","")}
-if _dir(m)then
-m.rel=m.rel.."/"
+local function b(a)return f.resolve(a.rel)end
+local function i(a)return c.isLink(b(a))end
+local function j(a)return i(a)or c.exists(b(a))end
+local function f(a)return not i(a)and c.isDirectory(b(a))end
+local function t(a)return not j(a)or c.get(b(a)).isReadOnly()end
+local function q(a)return j(a)and f(a)and c.list(b(a))()==nil end
+local function r(k,l)
+local a={origin=k,rel=l:gsub("/+$","")}
+if f(a)then
+a.rel=a.rel.."/"
+end
+return a
+end
+local function k()
+if d then
+return true
+end
+local a=io.read()
+return a=="y"or a=="yes"
+end
+local l
+local function u(a)
+if a==nil or not f(a)or q(a)then
+return true
+end
+local m=true
+if o and h==1 then
+e(string.format("rm: descend into directory `%s'? ",a.rel))
+if not k()then
+return false
+end
+for v in c.list(b(a))do
+m=l(r(a.origin,a.rel..v))and m
+end
 end
 return m
 end
-local function confirm()
-if bForce then
-return true
-end
-local r=io.read()
-return r=="y"or r=="yes"
-end
-local remove
-local function remove_all(parent)
-if parent==nil or not _dir(parent)or _empty(parent)then
-return true
-end
-local all_ok=true
-if bRec and promptLevel==1 then
-pout(string.format("rm: descend into directory `%s'? ",parent.rel))
-if not confirm()then
+l=function(a)
+if not u(a)then
 return false
 end
-for file in fs.list(_path(parent))do
-all_ok=remove(createMeta(parent.origin,parent.rel..file))and all_ok
-end
-end
-return all_ok
-end
-remove=function(meta)
-if not remove_all(meta)then
+if not j(a)then
+g(string.format("rm: cannot remove `%s': No such file or directory\n",a.rel))
 return false
-end
-if not _exists(meta)then
-perr(string.format("rm: cannot remove `%s': No such file or directory\n",meta.rel))
-return false
-elseif _dir(meta)and not bRec and not(_empty(meta)and bEmptyDirs)then
-if not bEmptyDirs then
-perr(string.format("rm: cannot remove `%s': Is a directory\n",meta.rel))
+elseif f(a)and not o and not(q(a)and p)then
+if not p then
+g(string.format("rm: cannot remove `%s': Is a directory\n",a.rel))
 else
-perr(string.format("rm: cannot remove `%s': Directory not empty\n",meta.rel))
+g(string.format("rm: cannot remove `%s': Directory not empty\n",a.rel))
 end
 return false
 end
-local ok=true
-if promptLevel==1 then
-if _dir(meta)then
-pout(string.format("rm: remove directory `%s'? ",meta.rel))
-elseif _link(meta)then
-pout(string.format("rm: remove symbolic link `%s'? ",meta.rel))
+local c=true
+if h==1 then
+if f(a)then
+e(string.format("rm: remove directory `%s'? ",a.rel))
+elseif i(a)then
+e(string.format("rm: remove symbolic link `%s'? ",a.rel))
 else
-pout(string.format("rm: remove regular file `%s'? ",meta.rel))
+e(string.format("rm: remove regular file `%s'? ",a.rel))
 end
-ok=confirm()
+c=k()
 end
-if ok then
-if _readonly(meta)then
-perr(string.format("rm: cannot remove `%s': Is read only\n",meta.rel))
+if c then
+if t(a)then
+g(string.format("rm: cannot remove `%s': Is read only\n",a.rel))
 return false
 end
-os.remove(_path(meta))
-if bVerbose then
-pout("removed '"..meta.rel.."'\n")
+os.remove(b(a))
+if s then
+e("removed '"..a.rel.."'\n")
 end
 end
-return ok
+return c
 end
-local metas={}
-for _,arg in ipairs(args)do
-metas[#metas+1]=createMeta(arg,arg)
+local a={}
+for b,b in ipairs(n)do
+a[#a+1]=r(b,b)
 end
-if promptLevel==3 and#metas>3 then
-pout(string.format("rm: remove %i arguments? ",#metas))
-if not confirm()then
+if h==3 and#a>3 then
+e(string.format("rm: remove %i arguments? ",#a))
+if not k()then
 return
 end
 end
-local ok=true
-for _,meta in ipairs(metas)do
-ok=remove(meta)and ok
+local b=true
+for c,c in ipairs(a)do
+b=l(c)and b
 end
-return bForce or ok
+return d or b

@@ -1,95 +1,95 @@
-local fs=require("filesystem")
-local shell=require("shell")
-local args=shell.parse(...)
-local dirs={}
-for path in string.gmatch(os.getenv("MANPATH")or"/usr/man","[^:]+")do
-dirs[#dirs+1]=path
+local a=require("filesystem")
+local c=require("shell")
+local g=c.parse(...)
+local d={}
+for b in string.gmatch(os.getenv("MANPATH")or"/usr/man","[^:]+")do
+d[#d+1]=b
 end
-local ARCHIVE="pages"
-local function openArchive(dir)
-local f=io.open(fs.concat(dir,ARCHIVE),"rb")
-if not f then return nil end
-local ok=f:read("*l")=="DWMAN1"
-local n=ok and tonumber(f:read("*l")or"")
-if not n then f:close()return nil end
-local index,order={},{}
-for i=1,n do
-local name,off,len=(f:read("*l")or""):match("^(%S+) (%d+) (%d+)$")
-if not name then f:close()return nil end
-index[name]={tonumber(off),tonumber(len)}
-order[i]=name
+local h="pages"
+local function i(e)
+local b=io.open(a.concat(e,h),"rb")
+if not b then return nil end
+local f=b:read("*l")=="DWMAN1"
+local e=f and tonumber(b:read("*l")or"")
+if not e then b:close()return nil end
+local f,j={},{}
+for k=1,e do
+local e,l,m=(b:read("*l")or""):match("^(%S+) (%d+) (%d+)$")
+if not e then b:close()return nil end
+f[e]={tonumber(l),tonumber(m)}
+j[k]=e
 end
-return f,index,order,f:seek()
+return b,f,j,b:seek()
 end
-local function fromArchive(dir,topic)
-local f,index,_,base=openArchive(dir)
-if not f then return nil end
-local entry=index[topic]
-if not entry then f:close()return nil end
-f:seek("set",base+entry[1])
-local data=f:read(entry[2])
-f:close()
-return data
+local function k(e,f)
+local b,j,l,l=i(e)
+if not b then return nil end
+local e=j[f]
+if not e then b:close()return nil end
+b:seek("set",l+e[1])
+local f=b:read(e[2])
+b:close()
+return f
 end
-if#args==0 then
-local topics,seen={},{}
-local function add(name)
-if not seen[name]then
-seen[name]=true
-topics[#topics+1]=name
-end
-end
-for _,dir in ipairs(dirs)do
-local real=shell.resolve(dir)
-if dir~="."and fs.isDirectory(real)then
-for name in fs.list(real)do
-name=name:gsub("/$","")
-if name~=ARCHIVE then add(name)end
-end
-local f,_,order=openArchive(real)
-if f then
-f:close()
-for _,name in ipairs(order)do add(name)end
+if#g==0 then
+local b,f={},{}
+local function j(e)
+if not f[e]then
+f[e]=true
+b[#b+1]=e
 end
 end
+for e,e in ipairs(d)do
+local f=c.resolve(e)
+if e~="."and a.isDirectory(f)then
+for e in a.list(f)do
+e=e:gsub("/$","")
+if e~=h then j(e)end
 end
-table.sort(topics)
+local e,h,h=i(f)
+if e then
+e:close()
+for e,e in ipairs(h)do j(e)end
+end
+end
+end
+table.sort(b)
 io.write("Usage: man <topic>\nСправка есть по темам:\n")
-local width=1
-for _,t in ipairs(topics)do width=math.max(width,#t+2)end
-local cols=math.max(1,math.floor(((require("tty").getViewport())or 80)/width))
-for i,t in ipairs(topics)do
-io.write(t,string.rep(" ",width-#t))
-if i%cols==0 then io.write("\n")end
+local e=1
+for f,f in ipairs(b)do e=math.max(e,#f+2)end
+local f=math.max(1,math.floor(((require("tty").getViewport())or 80)/e))
+for i,h in ipairs(b)do
+io.write(h,string.rep(" ",e-#h))
+if i%f==0 then io.write("\n")end
 end
-if#topics%cols~=0 then io.write("\n")end
+if#b%f~=0 then io.write("\n")end
 return 1
 end
-local topic=args[1]
-local pager=os.getenv("PAGER")or"less"
-for _,dir in ipairs(dirs)do
-local real=shell.resolve(dir)
-local path=shell.resolve(fs.concat(dir,topic),"man")
-if path and fs.exists(path)and not fs.isDirectory(path)then
-os.execute(pager.." "..path)
+local b=g[1]
+local f=os.getenv("PAGER")or"less"
+for e,g in ipairs(d)do
+local e=c.resolve(g)
+local d=c.resolve(a.concat(g,b),"man")
+if d and a.exists(d)and not a.isDirectory(d)then
+os.execute(f.." "..d)
 os.exit()
 end
-if real and fs.isDirectory(real)then
-local data=fromArchive(real,topic)
-if data then
-local tmp="/tmp/man."..topic:gsub("[^%w%._-]","_")
-local out=io.open(tmp,"wb")
-if not out then
-io.write(data)
+if e and a.isDirectory(e)then
+local c=k(e,b)
+if c then
+local d="/tmp/man."..b:gsub("[^%w%._-]","_")
+local e=io.open(d,"wb")
+if not e then
+io.write(c)
 os.exit()
 end
-out:write(data)
-out:close()
-os.execute(pager.." "..tmp)
-fs.remove(tmp)
+e:write(c)
+e:close()
+os.execute(f.." "..d)
+a.remove(d)
 os.exit()
 end
 end
 end
-io.stderr:write("No manual entry for "..topic.."\n")
+io.stderr:write("No manual entry for "..b.."\n")
 return 1

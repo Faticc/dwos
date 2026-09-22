@@ -1,18 +1,18 @@
-local uuid={}
-function uuid.next()
-local out={}
-for i=1,16 do
-local byte=math.random(0,255)
-if i==7 then
-byte=byte%16+0x40
-elseif i==9 then
-byte=byte%64+0x80
+local d={}
+function d.next()
+local b={}
+for a=1,16 do
+local c=math.random(0,255)
+if a==7 then
+c=c%16+0x40
+elseif a==9 then
+c=c%64+0x80
 end
-out[#out+1]=string.format("%02x",byte)
-if i==4 or i==6 or i==8 or i==10 then
-out[#out+1]="-"
+b[#b+1]=string.format("%02x",c)
+if a==4 or a==6 or a==8 or a==10 then
+b[#b+1]="-"
 end
 end
-return table.concat(out)
+return table.concat(b)
 end
-return uuid
+return d

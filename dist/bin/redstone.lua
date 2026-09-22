@@ -1,87 +1,87 @@
-local colors=require("colors")
-local component=require("component")
-local shell=require("shell")
-local sides=require("sides")
-if not component.isAvailable("redstone")then
+local f=require("colors")
+local b=require("component")
+local c=require("shell")
+local g=require("sides")
+if not b.isAvailable("redstone")then
 io.stderr:write("This program requires a redstone card or redstone I/O block.\n")
 return 1
 end
-local rs=component.redstone
-local args,options=shell.parse(...)
-if#args==0 and not options.w and not options.f then
+local a=b.redstone
+local b,d=c.parse(...)
+if#b==0 and not d.w and not d.f then
 io.write("Usage:\n")
 io.write("  redstone <side> [<value>]\n")
-if rs.setBundledOutput then
+if a.setBundledOutput then
 io.write("  redstone -b <side> <color> [<value>]\n")
 end
-if rs.setWirelessOutput then
+if a.setWirelessOutput then
 io.write("  redstone -w [<value>]\n")
 io.write("  redstone -f [<frequency>]\n")
 end
 return
 end
-local TRUE={["true"]=true,on=true,yes=true}
-if options.w or options.f then
-if not rs.setWirelessOutput then
+local e={["true"]=true,on=true,yes=true}
+if d.w or d.f then
+if not a.setWirelessOutput then
 io.stderr:write("wireless redstone not available\n")
 return 1
 end
-if options.w then
-if#args>0 then
-local value=args[1]
-if tonumber(value)then
-value=tonumber(value)>0
+if d.w then
+if#b>0 then
+local c=b[1]
+if tonumber(c)then
+c=tonumber(c)>0
 else
-value=TRUE[value]~=nil
+c=e[c]~=nil
 end
-rs.setWirelessOutput(value)
+a.setWirelessOutput(c)
 end
-io.write("in: "..tostring(rs.getWirelessInput()).."\n")
-io.write("out: "..tostring(rs.getWirelessOutput()).."\n")
+io.write("in: "..tostring(a.getWirelessInput()).."\n")
+io.write("out: "..tostring(a.getWirelessOutput()).."\n")
 else
-if#args>0 then
-if not tonumber(args[1])then
+if#b>0 then
+if not tonumber(b[1])then
 io.stderr:write("invalid frequency\n")
 return 1
 end
-rs.setWirelessFrequency(tonumber(args[1]))
+a.setWirelessFrequency(tonumber(b[1]))
 end
-io.write("freq: "..tostring(rs.getWirelessFrequency()).."\n")
+io.write("freq: "..tostring(a.getWirelessFrequency()).."\n")
 end
 return
 end
-local side=sides[args[1]]
-if not side then
+local c=g[b[1]]
+if not c then
 io.stderr:write("invalid side\n")
 return 1
 end
-if type(side)=="string"then
-side=sides[side]
+if type(c)=="string"then
+c=g[c]
 end
-if options.b then
-if not rs.setBundledOutput then
+if d.b then
+if not a.setBundledOutput then
 io.stderr:write("bundled redstone not available\n")
 return 1
 end
-local color=colors[args[2]]
-if not color then
+local d=f[b[2]]
+if not d then
 io.stderr:write("invalid color\n")
 return 1
 end
-if type(color)=="string"then
-color=colors[color]
+if type(d)=="string"then
+d=f[d]
 end
-if#args>2 then
-local value=tonumber(args[3])or(TRUE[args[3]]and 255 or 0)
-rs.setBundledOutput(side,color,value)
+if#b>2 then
+local f=tonumber(b[3])or(e[b[3]]and 255 or 0)
+a.setBundledOutput(c,d,f)
 end
-io.write("in: "..rs.getBundledInput(side,color).."\n")
-io.write("out: "..rs.getBundledOutput(side,color).."\n")
+io.write("in: "..a.getBundledInput(c,d).."\n")
+io.write("out: "..a.getBundledOutput(c,d).."\n")
 else
-if#args>1 then
-local value=tonumber(args[2])or(TRUE[args[2]]and 15 or 0)
-rs.setOutput(side,value)
+if#b>1 then
+local d=tonumber(b[2])or(e[b[2]]and 15 or 0)
+a.setOutput(c,d)
 end
-io.write("in: "..rs.getInput(side).."\n")
-io.write("out: "..rs.getOutput(side).."\n")
+io.write("in: "..a.getInput(c).."\n")
+io.write("out: "..a.getOutput(c).."\n")
 end

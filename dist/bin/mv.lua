@@ -1,8 +1,8 @@
-local shell=require("shell")
-local transfer=require("tools/transfer")
-local args,options=shell.parse(...)
-options.h=options.h or options.help
-if#args<2 or options.h then
+local c=require("shell")
+local d=require("tools/transfer")
+local b,a=c.parse(...)
+a.h=a.h or a.help
+if#b<2 or a.h then
 io.write([[Usage: mv [OPTIONS] <from> <to>
   -f         overwrite without prompt
   -i         prompt before overwriting
@@ -12,11 +12,11 @@ io.write([[Usage: mv [OPTIONS] <from> <to>
   --skip=P   ignore paths matching lua regex P
   -h, --help show this help
 ]])
-return not not options.h
+return not not a.h
 end
-return transfer.batch(args,{
+return d.batch(b,{
 cmd="mv",
-f=options.f,i=options.i,v=options.v,n=options.n,
-skip={options.skip},
+f=a.f,i=a.i,v=a.v,n=a.n,
+skip={a.skip},
 P=true,r=true,x=true,
 })

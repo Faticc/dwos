@@ -1,34 +1,34 @@
-local shell=require("shell")
-local args,options=shell.parse(...)
-if options.help then
+local b=require("shell")
+local c,a=b.parse(...)
+if a.help then
 print("Usage: alias: [name[=value] ... ]")
 return
 end
-local ec=0
-if not next(args)then
-for k,v in shell.aliases()do
-print(string.format("alias %s='%s'",k,v))
+local d=0
+if not next(c)then
+for a,e in b.aliases()do
+print(string.format("alias %s='%s'",a,e))
 end
-return ec
+return d
 end
-for _,arg in ipairs(args)do
-checkArg(1,arg,"string")
-local eq=arg:find("=")
-if not eq or eq==1 then
-local v=shell.getAlias(arg)
-if not v then
-io.stderr:write(string.format("alias: %s: not found\n",arg))
-ec=1
+for a,a in ipairs(c)do
+checkArg(1,a,"string")
+local c=a:find("=")
+if not c or c==1 then
+local e=b.getAlias(a)
+if not e then
+io.stderr:write(string.format("alias: %s: not found\n",a))
+d=1
 else
-io.write(string.format("alias %s='%s'\n",arg,v))
+io.write(string.format("alias %s='%s'\n",a,e))
 end
 else
-local k,v=arg:sub(1,eq-1),arg:sub(eq+1)
-if k:match("[/%$`=|&;%(%)<> \t]")then
-io.stderr:write(string.format("alias: `%s': invalid alias name\n",k))
+local e,f=a:sub(1,c-1),a:sub(c+1)
+if e:match("[/%$`=|&;%(%)<> \t]")then
+io.stderr:write(string.format("alias: `%s': invalid alias name\n",e))
 else
-shell.setAlias(k,v)
+b.setAlias(e,f)
 end
 end
 end
-return ec
+return d

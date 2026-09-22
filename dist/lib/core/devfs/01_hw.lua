@@ -1,138 +1,138 @@
-local comp=require("component")
-local text=require("text")
-local dcache,pcache={},{}
-local adapters
-local adapter_api={}
-function adapter_api.toArgsPack(input,pack)
-local split=text.split(input,{"%s"},true)
-local num=#split
-if num<pack[1]then return nil,"insufficient args"end
-local result={n=num}
-for index=1,num do
-local typename=pack[index+1]
-local token=split[index]
-if typename=="boolean"then
-if token~="true"and token~="false"then return nil,"bad boolean value"end
-token=token=="true"
-elseif typename=="number"then
-token=tonumber(token)
-if not token then return nil,"bad number value"end
+local d=require("component")
+local g=require("text")
+local c,h={},{}
+local e
+local a={}
+function a.toArgsPack(b,i)
+local j=g.split(b,{"%s"},true)
+local b=#j
+if b<i[1]then return nil,"insufficient args"end
+local k={n=b}
+for f=1,b do
+local l=i[f+1]
+local b=j[f]
+if l=="boolean"then
+if b~="true"and b~="false"then return nil,"bad boolean value"end
+b=b=="true"
+elseif l=="number"then
+b=tonumber(b)
+if not b then return nil,"bad number value"end
 end
-result[index]=token
+k[f]=b
 end
-return result
+return k
 end
-function adapter_api.createWriter(callback,...)
-local types=table.pack(...)
-return function(input)
-local args,why=adapter_api.toArgsPack(input,types)
-if not args then return why end
-return callback(table.unpack(args,1,args.n))
+function a.createWriter(f,...)
+local i=table.pack(...)
+return function(j)
+local b,k=a.toArgsPack(j,i)
+if not b then return k end
+return f(table.unpack(b,1,b.n))
 end
 end
-function adapter_api.create_toggle(read,write,switch)
+function a.create_toggle(b,f,i)
 return{
-read=read and function()return tostring(read())end,
-write=write and function(value)
-value=text.trim(tostring(value))
-local on=value=="1"or value=="true"
-local off=value=="0"or value=="false"
-if not on and not off then
+read=b and function()return tostring(b())end,
+write=f and function(b)
+b=g.trim(tostring(b))
+local g=b=="1"or b=="true"
+local j=b=="0"or b=="false"
+if not g and not j then
 return nil,"bad value"
 end
-if switch then
-(off and switch or write)()
+if i then
+(j and i or f)()
 else
-write(on)
+f(g)
 end
 end,
 }
 end
-function adapter_api.make_link(list,addr,prefix,bOmitZero)
-prefix=prefix or""
-local zero=bOmitZero and""or"0"
-local id=0
-local name
+function a.make_link(i,j,f,b)
+f=f or""
+local k=b and""or"0"
+local b=0
+local g
 repeat
-name=string.format("%s%s",prefix,id==0 and zero or tostring(id))
-id=id+1
-until not list[name]
-list[name]={link=addr}
+g=string.format("%s%s",f,b==0 and k or tostring(b))
+b=b+1
+until not i[g]
+i[g]={link=j}
 end
-local function adapter(ctype)
-if dcache[ctype]==nil then
-if not adapters then
-local loader=loadfile("/lib/core/devfs_adapters.lua","bt",_G)
-adapters=loader and loader(adapter_api)or{}
+local function m(b)
+if c[b]==nil then
+if not e then
+local f=loadfile("/lib/core/devfs_adapters.lua","bt",_G)
+e=f and f(a)or{}
 end
-local a=adapters[ctype]
-if not a then
-local loader=loadfile("/lib/core/devfs/adapters/"..ctype..".lua","bt",_G)
-a=loader and loader(adapter_api)
+local f=e[b]
+if not f then
+local e=loadfile("/lib/core/devfs/adapters/"..b..".lua","bt",_G)
+f=e and e(a)
 end
-dcache[ctype]=a or false
+c[b]=f or false
 end
-return dcache[ctype]
+return c[b]
 end
-local function first(ctype)
-return function()return comp.list(ctype)()end
+local function i(b)
+return function()return d.list(b)()end
 end
 return{
 components={
 list=function()
-local dirs,types,labels,ads={},{},{},{}
-dirs["by-type"]={list=function()return types end}
-dirs["by-label"]={list=function()return labels end}
-dirs["by-address"]={list=function()return ads end}
-local hw={}
-for addr,ctype in comp.list()do
-table.insert(hw,select(comp.isPrimary(addr)and 1 or 2,1,{ctype,addr}))
+local e,f,j,k={},{},{},{}
+e["by-type"]={list=function()return f end}
+e["by-label"]={list=function()return j end}
+e["by-address"]={list=function()return k end}
+local b={}
+for c,g in d.list()do
+table.insert(b,select(d.isPrimary(c)and 1 or 2,1,{g,c}))
 end
-for _,pair in ipairs(hw)do
-local ctype,addr=pair[1],pair[2]
-local make=adapter(ctype)
-if make then
-local proxy=pcache[addr]or comp.proxy(addr)
-pcache[addr]=proxy
-ads[addr]={
+for c,l in ipairs(b)do
+local g,c=l[1],l[2]
+local l=m(g)
+if l then
+local b=h[c]or d.proxy(c)
+h[c]=b
+k[c]={
 list=function()
-local node=make(proxy)
-node.address={proxy.address}
-node.slot={proxy.slot}
-node.type={proxy.type}
-node.device={device=proxy}
-return node
+local d=l(b)
+d.address={b.address}
+d.slot={b.slot}
+d.type={b.type}
+d.device={device=b}
+return d
 end,
 }
-local type_dir=types[ctype]or{list={}}
-adapter_api.make_link(type_dir.list,"../../by-address/"..addr)
-types[ctype]=type_dir
-local label=require("devfs").getDeviceLabel(proxy)
-if label then
-adapter_api.make_link(labels,"../by-address/"..addr,label,true)
+local d=f[g]or{list={}}
+a.make_link(d.list,"../../by-address/"..c)
+f[g]=d
+local d=require("devfs").getDeviceLabel(b)
+if d then
+a.make_link(j,"../by-address/"..c,d,true)
 end
 end
 end
-return dirs
+return e
 end,
 },
-eeprom={link="components/by-type/eeprom/0/contents",isAvailable=first("eeprom")},
-["eeprom-data"]={link="components/by-type/eeprom/0/data",isAvailable=first("eeprom")},
+eeprom={link="components/by-type/eeprom/0/contents",isAvailable=i("eeprom")},
+["eeprom-data"]={link="components/by-type/eeprom/0/data",isAvailable=i("eeprom")},
 null={
 open=function()
 return{read=function()end,write=function()end}
 end,
 },
 random={
-open=function(mode)
-if mode and not mode:match("r")then
+open=function(a)
+if a and not a:match("r")then
 return nil,"read only"
 end
 return{
-read=function(_,n)
-local chars={}
-for i=1,n do chars[i]=string.char(math.random(0,255))end
-return table.concat(chars)
+read=function(a,b)
+local a={}
+for c=1,b do a[c]=string.char(math.random(0,255))end
+return table.concat(a)
 end,
 }
 end,
@@ -140,7 +140,7 @@ end,
 zero={
 open=function()
 return{
-read=function(_,n)return("\0"):rep(n)end,
+read=function(a,a)return("\0"):rep(a)end,
 write=function()end,
 }
 end,

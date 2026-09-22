@@ -1,259 +1,259 @@
-local component=require("component")
-local unicode=require("unicode")
-local filesystem={}
-local mtab={name="",children={},links={}}
-local fstab={}
-local function segments(path)
-local parts,n={},0
-for part in path:gmatch("[^\\/]+")do
-if part==".."then
-if n>0 then parts[n]=nil n=n-1 end
-elseif part~="."then
-n=n+1
-parts[n]=part
+local n=require("component")
+local l=require("unicode")
+local a={}
+local m={name="",children={},links={}}
+local i={}
+local function e(f)
+local c,b={},0
+for d in f:gmatch("[^\\/]+")do
+if d==".."then
+if b>0 then c[b]=nil b=b-1 end
+elseif d~="."then
+b=b+1
+c[b]=d
 end
 end
-return parts
+return c
 end
-local function findNode(path,create,resolve_links)
-checkArg(1,path,"string")
-local visited={}
-local parts=segments(path)
-local ancestry={}
-local node=mtab
-local index=1
-while index<=#parts do
-local part=parts[index]
-ancestry[index]=node
-if not node.children[part]then
-local link_path=node.links[part]
-if link_path then
-if not resolve_links and#parts==index then break end
-if visited[path]then
-return nil,string.format("link cycle detected '%s'",path)
+local function d(g,p,q)
+checkArg(1,g,"string")
+local k={}
+local f=e(g)
+local o={}
+local b=m
+local c=1
+while c<=#f do
+local h=f[c]
+o[c]=b
+if not b.children[h]then
+local j=b.links[h]
+if j then
+if not q and#f==c then break end
+if k[g]then
+return nil,string.format("link cycle detected '%s'",g)
 end
-visited[path]=index
-local pst_path="/"..table.concat(parts,"/",index+1)
-local pre_path
-if link_path:match("^[^/]")then
-pre_path=table.concat(parts,"/",1,index-1).."/"
-local link_parts=segments(link_path)
-local join_parts=segments(pre_path..link_path)
-local back=(index-1+#link_parts)-#join_parts
-index=index-back
-node=ancestry[index]
+k[g]=c
+local q="/"..table.concat(f,"/",c+1)
+local k
+if j:match("^[^/]")then
+k=table.concat(f,"/",1,c-1).."/"
+local r=e(j)
+local s=e(k..j)
+local t=(c-1+#r)-#s
+c=c-t
+b=o[c]
 else
-pre_path=""
-index=1
-node=mtab
+k=""
+c=1
+b=m
 end
-path=pre_path..link_path..pst_path
-parts=segments(path)
-part=nil
-elseif create then
-node.children[part]={name=part,parent=node,children={},links={}}
+g=k..j..q
+f=e(g)
+h=nil
+elseif p then
+b.children[h]={name=h,parent=b,children={},links={}}
 else
 break
 end
 end
-if part then
-node=node.children[part]
-index=index+1
+if h then
+b=b.children[h]
+c=c+1
 end
 end
-local vnode,vrest=node,#parts>=index and table.concat(parts,"/",index)
-local rest=vrest
-while node and not node.fs do
-rest=rest and filesystem.concat(node.name,rest)or node.name
-node=node.parent
+local h,g=b,#f>=c and table.concat(f,"/",c)
+local c=g
+while b and not b.fs do
+c=c and a.concat(b.name,c)or b.name
+b=b.parent
 end
-return node,rest,vnode,vrest
+return b,c,h,g
 end
-function filesystem.canonical(path)
-local result=table.concat(segments(path),"/")
-if unicode.sub(path,1,1)=="/"then
-return"/"..result
+function a.canonical(b)
+local c=table.concat(e(b),"/")
+if l.sub(b,1,1)=="/"then
+return"/"..c
 end
-return result
+return c
 end
-function filesystem.concat(...)
-local set=table.pack(...)
-for index,value in ipairs(set)do
-checkArg(index,value,"string")
+function a.concat(...)
+local b=table.pack(...)
+for c,f in ipairs(b)do
+checkArg(c,f,"string")
 end
-return filesystem.canonical(table.concat(set,"/"))
+return a.canonical(table.concat(b,"/"))
 end
-function filesystem.get(path)
-local node=findNode(path)
-if node.fs then
-local proxy=node.fs
-path=""
-while node and node.parent do
-path=filesystem.concat(node.name,path)
-node=node.parent
+function a.get(b)
+local c=d(b)
+if c.fs then
+local f=c.fs
+b=""
+while c and c.parent do
+b=a.concat(c.name,b)
+c=c.parent
 end
-path=filesystem.canonical(path)
-if path~="/"then path="/"..path end
-return proxy,path
+b=a.canonical(b)
+if b~="/"then b="/"..b end
+return f,b
 end
 return nil,"no such file system"
 end
-function filesystem.realPath(path)
-checkArg(1,path,"string")
-local node,rest=findNode(path,false,true)
-if not node then return nil,rest end
-local parts={rest or nil}
+function a.realPath(c)
+checkArg(1,c,"string")
+local b,f=d(c,false,true)
+if not b then return nil,f end
+local c={f or nil}
 repeat
-table.insert(parts,1,node.name)
-node=node.parent
-until not node
-return table.concat(parts,"/")
+table.insert(c,1,b.name)
+b=b.parent
+until not b
+return table.concat(c,"/")
 end
-function filesystem.mount(fs,path)
-checkArg(1,fs,"string","table")
-if type(fs)=="string"then
-fs=filesystem.proxy(fs)
+function a.mount(f,c)
+checkArg(1,f,"string","table")
+if type(f)=="string"then
+f=a.proxy(f)
 end
-assert(type(fs)=="table","bad argument #1 (file system proxy or address expected)")
-checkArg(2,path,"string")
-local real
-if not mtab.fs then
-if path~="/"then return nil,"rootfs must be mounted first"end
-real=path
+assert(type(f)=="table","bad argument #1 (file system proxy or address expected)")
+checkArg(2,c,"string")
+local b
+if not m.fs then
+if c~="/"then return nil,"rootfs must be mounted first"end
+b=c
 else
-local why
-real,why=filesystem.realPath(path)
-if not real then return nil,why end
-if filesystem.exists(real)and not filesystem.isDirectory(real)then
+local g
+b,g=a.realPath(c)
+if not b then return nil,g end
+if a.exists(b)and not a.isDirectory(b)then
 return nil,"mount point is not a directory"
 end
 end
-if fstab[real]then
+if i[b]then
 return nil,"another filesystem is already mounted here"
 end
-local fsnode
-for _,node in pairs(fstab)do
-if node.fs.address==fs.address then
-fsnode=node
+local c
+for g,g in pairs(i)do
+if g.fs.address==f.address then
+c=g
 break
 end
 end
-if not fsnode then
-fsnode=select(3,findNode(real,true))
-fs.fsnode=fsnode
+if not c then
+c=select(3,d(b,true))
+f.fsnode=c
 else
-local parent=select(3,findNode(filesystem.path(real),true))
-local name=filesystem.name(real)
-fsnode=setmetatable({name=name,parent=parent},{__index=fsnode})
-parent.children[name]=fsnode
+local g=select(3,d(a.path(b),true))
+local h=a.name(b)
+c=setmetatable({name=h,parent=g},{__index=c})
+g.children[h]=c
 end
-fsnode.fs=fs
-fstab[real]=fsnode
+c.fs=f
+i[b]=c
 return true
 end
-function filesystem.path(path)
-local parts=segments(path)
-local result=table.concat(parts,"/",1,#parts-1).."/"
-if unicode.sub(path,1,1)=="/"and unicode.sub(result,1,1)~="/"then
-return"/"..result
+function a.path(c)
+local f=e(c)
+local b=table.concat(f,"/",1,#f-1).."/"
+if l.sub(c,1,1)=="/"and l.sub(b,1,1)~="/"then
+return"/"..b
 end
-return result
+return b
 end
-function filesystem.name(path)
-checkArg(1,path,"string")
-local parts=segments(path)
-return parts[#parts]
+function a.name(b)
+checkArg(1,b,"string")
+local c=e(b)
+return c[#c]
 end
-function filesystem.proxy(filter,options)
-checkArg(1,filter,"string")
-if not component.list("filesystem")[filter]or next(options or{})then
-return filesystem.internal.proxy(filter,options)
+function a.proxy(b,c)
+checkArg(1,b,"string")
+if not n.list("filesystem")[b]or next(c or{})then
+return a.internal.proxy(b,c)
 end
-return component.proxy(filter)
+return n.proxy(b)
 end
-function filesystem.exists(path)
-if not filesystem.realPath(filesystem.path(path))then
+function a.exists(c)
+if not a.realPath(a.path(c))then
 return false
 end
-local node,rest,vnode,vrest=findNode(path)
-if not vrest or vnode.links[vrest]then
+local b,g,h,f=d(c)
+if not f or h.links[f]then
 return true
-elseif node and node.fs then
-return node.fs.exists(rest)
-end
-return false
-end
-function filesystem.isDirectory(path)
-local real,reason=filesystem.realPath(path)
-if not real then return nil,reason end
-local node,rest,vnode,vrest=findNode(real)
-if not vnode.fs and not vrest then
-return true
-end
-if node.fs then
-return not rest or node.fs.isDirectory(rest)
+elseif b and b.fs then
+return b.fs.exists(g)
 end
 return false
 end
-function filesystem.list(path)
-local node,rest,vnode,vrest=findNode(path,false,true)
-local result={}
-if node then
-result=node.fs and node.fs.list(rest or"")or{}
-if not vrest then
-for k,n in pairs(vnode.children)do
-if not n.fs or fstab[filesystem.concat(path,k)]then
-result[#result+1]=k.."/"
+function a.isDirectory(c)
+local b,f=a.realPath(c)
+if not b then return nil,f end
+local c,f,g,h=d(b)
+if not g.fs and not h then
+return true
+end
+if c.fs then
+return not f or c.fs.isDirectory(f)
+end
+return false
+end
+function a.list(f)
+local c,h,g,j=d(f,false,true)
+local b={}
+if c then
+b=c.fs and c.fs.list(h or"")or{}
+if not j then
+for c,h in pairs(g.children)do
+if not h.fs or i[a.concat(f,c)]then
+b[#b+1]=c.."/"
 end
 end
-for k in pairs(vnode.links)do
-result[#result+1]=k
+for c in pairs(g.links)do
+b[#b+1]=c
 end
 end
 end
-local set={}
-for _,name in ipairs(result)do
-set[filesystem.canonical(name)]=name
+local c={}
+for f,f in ipairs(b)do
+c[a.canonical(f)]=f
 end
 return function()
-local key,value=next(set)
-set[key or false]=nil
-return value
+local b,f=next(c)
+c[b or false]=nil
+return f
 end
 end
-local MODES={r=true,rb=true,w=true,wb=true,a=true,ab=true}
-function filesystem.open(path,mode)
-checkArg(1,path,"string")
-mode=tostring(mode or"r")
-checkArg(2,mode,"string")
-assert(MODES[mode],"bad argument #2 (r[b], w[b] or a[b] expected, got "..mode..")")
-local node,rest=findNode(path,false,true)
-if not node then
-return nil,rest
+local c={r=true,rb=true,w=true,wb=true,a=true,ab=true}
+function a.open(g,b)
+checkArg(1,g,"string")
+b=tostring(b or"r")
+checkArg(2,b,"string")
+assert(c[b],"bad argument #2 (r[b], w[b] or a[b] expected, got "..b..")")
+local c,f=d(g,false,true)
+if not c then
+return nil,f
 end
-if not node.fs or not rest or((mode=="r"or mode=="rb")and not node.fs.exists(rest))then
+if not c.fs or not f or((b=="r"or b=="rb")and not c.fs.exists(f))then
 return nil,"file not found"
 end
-local handle,reason=node.fs.open(rest,mode)
-if not handle then
-return nil,reason
+local g,h=c.fs.open(f,b)
+if not g then
+return nil,h
 end
-return setmetatable({fs=node.fs,handle=handle},{__index=function(tbl,key)
-if not tbl.fs[key]then return end
-if not tbl.handle then
+return setmetatable({fs=c.fs,handle=g},{__index=function(c,b)
+if not c.fs[b]then return end
+if not c.handle then
 return nil,"file is closed"
 end
-return function(self,...)
-local h=self.handle
-if key=="close"then
-self.handle=nil
+return function(c,...)
+local f=c.handle
+if b=="close"then
+c.handle=nil
 end
-return self.fs[key](h,...)
+return c.fs[b](f,...)
 end
 end})
 end
-filesystem.findNode=findNode
-filesystem.segments=segments
-filesystem.fstab=fstab
-require("package").delay(filesystem,"/lib/core/full_filesystem.lua")
-return filesystem
+a.findNode=d
+a.segments=e
+a.fstab=i
+require("package").delay(a,"/lib/core/full_filesystem.lua")
+return a

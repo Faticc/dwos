@@ -1,313 +1,313 @@
-local filesystem=require("filesystem")
-local component=require("component")
-local shell=require("shell")
-function filesystem.makeDirectory(path)
-if filesystem.exists(path)then
+local a=require("filesystem")
+local e=require("component")
+local i=require("shell")
+function a.makeDirectory(c)
+if a.exists(c)then
 return nil,"file or directory with that name already exists"
 end
-local node,rest=filesystem.findNode(path)
-if node.fs and rest then
-local success,reason=node.fs.makeDirectory(rest)
-if not success and not reason and node.fs.isReadOnly()then
-reason="filesystem is readonly"
+local b,d=a.findNode(c)
+if b.fs and d then
+local f,c=b.fs.makeDirectory(d)
+if not f and not c and b.fs.isReadOnly()then
+c="filesystem is readonly"
 end
-return success,reason
+return f,c
 end
-if node.fs then
+if b.fs then
 return nil,"virtual directory with that name already exists"
 end
 return nil,"cannot create a directory in a virtual directory"
 end
-function filesystem.lastModified(path)
-local node,rest,vnode,vrest=filesystem.findNode(path,false,true)
-if not node or not vnode.fs and not vrest then
+function a.lastModified(d)
+local b,c,f,g=a.findNode(d,false,true)
+if not b or not f.fs and not g then
 return 0
 end
-if node.fs and rest then
-return node.fs.lastModified(rest)
+if b.fs and c then
+return b.fs.lastModified(c)
 end
 return 0
 end
-function filesystem.mounts()
-local tmp={}
-for path,node in pairs(filesystem.fstab)do
-tmp[#tmp+1]={node.fs,path}
+function a.mounts()
+local b={}
+for c,d in pairs(a.fstab)do
+b[#b+1]={d.fs,c}
 end
 return function()
-local nxt=table.remove(tmp)
-if nxt then return table.unpack(nxt)end
+local c=table.remove(b)
+if c then return table.unpack(c)end
 end
 end
-function filesystem.link(target,linkpath)
-checkArg(1,target,"string")
-checkArg(2,linkpath,"string")
-if filesystem.exists(linkpath)then
+function a.link(d,b)
+checkArg(1,d,"string")
+checkArg(2,b,"string")
+if a.exists(b)then
 return nil,"file already exists"
 end
-local parent=filesystem.path(linkpath)
-if not filesystem.exists(parent)then
+local f=a.path(b)
+if not a.exists(f)then
 return nil,"no such directory"
 end
-local real,reason=filesystem.realPath(parent)
-if not real then
-return nil,reason
+local c,g=a.realPath(f)
+if not c then
+return nil,g
 end
-if not filesystem.isDirectory(real)then
+if not a.isDirectory(c)then
 return nil,"not a directory"
 end
-local _,_,vnode=filesystem.findNode(real,true)
-vnode.links[filesystem.name(linkpath)]=target
+local f,f,f=a.findNode(c,true)
+f.links[a.name(b)]=d
 return true
 end
-function filesystem.umount(fsOrPath)
-checkArg(1,fsOrPath,"string","table")
-local real,fs,addr
-if type(fsOrPath)=="string"then
-real=filesystem.realPath(fsOrPath)
-addr=fsOrPath
+function a.umount(b)
+checkArg(1,b,"string","table")
+local c,d,f
+if type(b)=="string"then
+c=a.realPath(b)
+f=b
 else
-fs=fsOrPath
+d=b
 end
-local paths={}
-for path,node in pairs(filesystem.fstab)do
-if real==path or addr==node.fs.address or fs==node.fs then
-paths[#paths+1]=path
+local b={}
+for g,h in pairs(a.fstab)do
+if c==g or f==h.fs.address or d==h.fs then
+b[#b+1]=g
 end
 end
-for _,path in ipairs(paths)do
-local node=filesystem.fstab[path]
-filesystem.fstab[path]=nil
-node.fs=nil
-node.parent.children[node.name]=nil
+for c,d in ipairs(b)do
+local c=a.fstab[d]
+a.fstab[d]=nil
+c.fs=nil
+c.parent.children[c.name]=nil
 end
-return#paths>0
+return#b>0
 end
-function filesystem.size(path)
-local node,rest,vnode,vrest=filesystem.findNode(path,false,true)
-if not node or not vnode.fs and(not vrest or vnode.links[vrest])then
+function a.size(g)
+local b,c,d,f=a.findNode(g,false,true)
+if not b or not d.fs and(not f or d.links[f])then
 return 0
 end
-if node.fs and rest then
-return node.fs.size(rest)
+if b.fs and c then
+return b.fs.size(c)
 end
 return 0
 end
-function filesystem.isLink(path)
-local name=filesystem.name(path)
-local node,rest,vnode,vrest=filesystem.findNode(filesystem.path(path),false,true)
-if not node then return nil,rest end
-local target=vnode.links[name]
-if not vrest and target~=nil then
-return true,target
+function a.isLink(b)
+local c=a.name(b)
+local d,f,g,h=a.findNode(a.path(b),false,true)
+if not d then return nil,f end
+local b=g.links[c]
+if not h and b~=nil then
+return true,b
 end
 return false
 end
-function filesystem.copy(fromPath,toPath)
-local data=false
-local input,reason=filesystem.open(fromPath,"rb")
-if input then
-local output=filesystem.open(toPath,"wb")
-if output then
+function a.copy(f,g)
+local b=false
+local d,c=a.open(f,"rb")
+if d then
+local f=a.open(g,"wb")
+if f then
 repeat
-data,reason=input:read(2048)
-if not data then break end
-data,reason=output:write(data)
-if not data then data,reason=false,"failed to write"end
-until not data
-output:close()
+b,c=d:read(2048)
+if not b then break end
+b,c=f:write(b)
+if not b then b,c=false,"failed to write"end
+until not b
+f:close()
 end
-input:close()
+d:close()
 end
-return data==nil,reason
+return b==nil,c
 end
-local function readonly_wrap(proxy)
-checkArg(1,proxy,"table")
-if proxy.isReadOnly()then
-return proxy
+local function j(c)
+checkArg(1,c,"table")
+if c.isReadOnly()then
+return c
 end
-local function roerr()return nil,"filesystem is readonly"end
+local function b()return nil,"filesystem is readonly"end
 return setmetatable({
-rename=roerr,
-open=function(path,mode)
-checkArg(1,path,"string")
-checkArg(2,mode,"string")
-if mode:match("[wa]")then
-return roerr()
+rename=b,
+open=function(f,d)
+checkArg(1,f,"string")
+checkArg(2,d,"string")
+if d:match("[wa]")then
+return b()
 end
-return proxy.open(path,mode)
+return c.open(f,d)
 end,
 isReadOnly=function()return true end,
-write=roerr,
-setLabel=roerr,
-makeDirectory=roerr,
-remove=roerr,
-},{__index=proxy})
+write=b,
+setLabel=b,
+makeDirectory=b,
+remove=b,
+},{__index=c})
 end
-local function bind_proxy(path)
-local real,reason=filesystem.realPath(path)
-if not real then
-return nil,reason
+local function h(b)
+local d,c=a.realPath(b)
+if not d then
+return nil,c
 end
-if not filesystem.isDirectory(real)then
+if not a.isDirectory(d)then
 return nil,"must bind to a directory"
 end
-local real_fs,real_fs_path=filesystem.get(real)
-if real==real_fs_path then
-return real_fs
+local b,c=a.get(d)
+if d==c then
+return b
 end
-local rest=real:sub(#real_fs_path+1)
-local function wrap(fp)
-return function(mpath,...)
-return fp(filesystem.concat(rest,mpath),...)
+local f=d:sub(#c+1)
+local function c(g)
+return function(k,...)
+return g(a.concat(f,k),...)
 end
 end
 return{
 type="filesystem_bind",
-address=real,
-isReadOnly=real_fs.isReadOnly,
-list=wrap(real_fs.list),
-isDirectory=wrap(real_fs.isDirectory),
-size=wrap(real_fs.size),
-lastModified=wrap(real_fs.lastModified),
-exists=wrap(real_fs.exists),
-open=wrap(real_fs.open),
-remove=wrap(real_fs.remove),
-read=real_fs.read,
-write=real_fs.write,
-close=real_fs.close,
+address=d,
+isReadOnly=b.isReadOnly,
+list=c(b.list),
+isDirectory=c(b.isDirectory),
+size=c(b.size),
+lastModified=c(b.lastModified),
+exists=c(b.exists),
+open=c(b.open),
+remove=c(b.remove),
+read=b.read,
+write=b.write,
+close=b.close,
 getLabel=function()return""end,
 setLabel=function()return nil,"cannot set the label of a bind point"end,
 }
 end
-filesystem.internal={}
-function filesystem.internal.proxy(filter,options)
-checkArg(1,filter,"string")
-checkArg(2,options,"table","nil")
-options=options or{}
-local address,proxy,reason
-if options.bind then
-proxy,reason=bind_proxy(filter)
+a.internal={}
+function a.internal.proxy(c,d)
+checkArg(1,c,"string")
+checkArg(2,d,"table","nil")
+d=d or{}
+local f,b,g
+if d.bind then
+b,g=h(c)
 else
-for c in component.list("filesystem",true)do
-if component.invoke(c,"getLabel")==filter or c:sub(1,filter:len())==filter then
-address=c
+for h in e.list("filesystem",true)do
+if e.invoke(h,"getLabel")==c or h:sub(1,c:len())==c then
+f=h
 break
 end
 end
-if not address then
+if not f then
 return nil,"no such file system"
 end
-proxy,reason=component.proxy(address)
+b,g=e.proxy(f)
 end
-if not proxy then
-return proxy,reason
+if not b then
+return b,g
 end
-if options.readonly then
-proxy=readonly_wrap(proxy)
+if d.readonly then
+b=j(b)
 end
-return proxy
+return b
 end
-function filesystem.remove(path)
-local function removeVirtual()
-local _,_,vnode,vrest=filesystem.findNode(filesystem.path(path),false,true)
-if not vrest then
-local name=filesystem.name(path)
-if vnode.children[name]or vnode.links[name]then
-vnode.children[name]=nil
-vnode.links[name]=nil
-while vnode and vnode.parent and not vnode.fs and not next(vnode.children)and not next(vnode.links)do
-vnode.parent.children[vnode.name]=nil
-vnode=vnode.parent
+function a.remove(d)
+local function e()
+local b,b,b,c=a.findNode(a.path(d),false,true)
+if not c then
+local c=a.name(d)
+if b.children[c]or b.links[c]then
+b.children[c]=nil
+b.links[c]=nil
+while b and b.parent and not b.fs and not next(b.children)and not next(b.links)do
+b.parent.children[b.name]=nil
+b=b.parent
 end
 return true
 end
 end
 return false
 end
-local function removePhysical()
-local node,rest=filesystem.findNode(path)
-if node.fs and rest then
-return node.fs.remove(rest)
+local function f()
+local b,c=a.findNode(d)
+if b.fs and c then
+return b.fs.remove(c)
 end
 return false
 end
-local success=removeVirtual()
-success=removePhysical()or success
-if success then return true end
+local b=e()
+b=f()or b
+if b then return true end
 return nil,"no such file or directory"
 end
-function filesystem.rename(oldPath,newPath)
-if filesystem.isLink(oldPath)then
-local _,_,vnode=filesystem.findNode(filesystem.path(oldPath))
-local target=vnode.links[filesystem.name(oldPath)]
-local result,reason=filesystem.link(target,newPath)
-if result then
-filesystem.remove(oldPath)
+function a.rename(b,c)
+if a.isLink(b)then
+local d,d,d=a.findNode(a.path(b))
+local e=d.links[a.name(b)]
+local d,f=a.link(e,c)
+if d then
+a.remove(b)
 end
-return result,reason
+return d,f
 end
-local oldNode,oldRest=filesystem.findNode(oldPath)
-local newNode,newRest=filesystem.findNode(newPath)
-if oldNode.fs and oldRest and newNode.fs and newRest then
-if oldNode.fs.address==newNode.fs.address then
-return oldNode.fs.rename(oldRest,newRest)
+local d,e=a.findNode(b)
+local f,g=a.findNode(c)
+if d.fs and e and f.fs and g then
+if d.fs.address==f.fs.address then
+return d.fs.rename(e,g)
 end
-local result,reason=filesystem.copy(oldPath,newPath)
-if result then
-return filesystem.remove(oldPath)
+local d,e=a.copy(b,c)
+if d then
+return a.remove(b)
 end
-return nil,reason
+return nil,e
 end
 return nil,"trying to read from or write to virtual directory"
 end
-local isAutorunEnabled=nil
-local function saveConfig()
-local root=filesystem.get("/")
-if root and not root.isReadOnly()then
-local f=filesystem.open("/etc/filesystem.cfg","w")
-if f then
-f:write("autorun="..tostring(isAutorunEnabled))
-f:close()
+local b=nil
+local function d()
+local c=a.get("/")
+if c and not c.isReadOnly()then
+local c=a.open("/etc/filesystem.cfg","w")
+if c then
+c:write("autorun="..tostring(b))
+c:close()
 end
 end
 end
-function filesystem.isAutorunEnabled()
-if isAutorunEnabled==nil then
-local env={}
-local config=loadfile("/etc/filesystem.cfg",nil,env)
-if config then
-pcall(config)
-isAutorunEnabled=not not env.autorun
+function a.isAutorunEnabled()
+if b==nil then
+local c={}
+local e=loadfile("/etc/filesystem.cfg",nil,c)
+if e then
+pcall(e)
+b=not not c.autorun
 else
-isAutorunEnabled=true
+b=true
 end
-saveConfig()
+d()
 end
-return isAutorunEnabled
+return b
 end
-function filesystem.setAutorunEnabled(value)
-checkArg(1,value,"boolean")
-isAutorunEnabled=value
-saveConfig()
+function a.setAutorunEnabled(c)
+checkArg(1,c,"boolean")
+b=c
+d()
 end
-os.remove=filesystem.remove
-os.rename=filesystem.rename
-os.execute=function(command)
-if not command then
-return type(shell)=="table"
+os.remove=a.remove
+os.rename=a.rename
+os.execute=function(b)
+if not b then
+return type(i)=="table"
 end
-return shell.execute(command)
+return i.execute(b)
 end
-function os.exit(code)
-error({reason="terminated",code=code},0)
+function os.exit(b)
+error({reason="terminated",code=b},0)
 end
 function os.tmpname()
-local path=os.getenv("TMPDIR")or"/tmp"
-if filesystem.exists(path)then
-for _=1,10 do
-local name=filesystem.concat(path,tostring(math.random(1,0x7FFFFFFF)))
-if not filesystem.exists(name)then
-return name
+local b=os.getenv("TMPDIR")or"/tmp"
+if a.exists(b)then
+for c=1,10 do
+local c=a.concat(b,tostring(math.random(1,0x7FFFFFFF)))
+if not a.exists(c)then
+return c
 end
 end
 end
