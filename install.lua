@@ -247,6 +247,7 @@ print(("Готово: скачано %d файлов (%d Б), совпадало
 print("")
 print("Дальше: вставь дискету в компьютер, где её видно первой,")
 print("загрузись с неё и набери install - система переедет на HDD.")
+print("Игры и программы потом - из самой DwOS: get (get install mario).")
 io.write("Сделать эту дискету загрузочной прямо сейчас? [y/N] ")
 if (io.read() or "n"):match("^%s*[Yy]") then
   if computer.setBootAddress(target.dev.address) then

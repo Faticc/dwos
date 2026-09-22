@@ -1,445 +1,616 @@
-local m=require("component")
-local t=require("computer")
+local l=require("component")
+local v=require("computer")
 local b=require("filesystem")
 local a=require("shell")
-local s=require("unicode")
-local l=require("fetch")
-local k,d=a.parse(...)
-local p,x=d.dry and true or false,d.force and true or false
-local c=table.remove(k,1)or"list"
-local function f(a)io.stderr:write(a.."\n")os.exit(1)end
-if c=="help"or d.help then
+local t=require("unicode")
+local q=require("fetch")
+local o,e=a.parse(...)
+local w,z=e.dry and true or false,e.force and true or false
+local c=table.remove(o,1)or"list"
+local function i(a)io.stderr:write(a.."\n")os.exit(1)end
+if c=="help"or e.help then
 print([[Использование: get [команда] [ИМЯ]...
-  get                    что есть и что стоит
+  get                    что есть, что стоит, место на дисках
   get install ИМЯ...     поставить: игру, ролик, программу или весь набор
   get update [ИМЯ...]    обновить всё поставленное (или только это)
   get remove ИМЯ...      убрать
   --dry   только показать    --force   качать заново
-  --disk=ПУТЬ            куда класть новые игры и ролики (/mnt/...)]])
+  --disk=ПУТЬ            класть сюда (/mnt/...); с install - и перенести
+                         уже стоящее. Без него get раскладывает сам]])
 return 0
 end
 if c=="ls"then c="list"end
 if c=="rm"then c="remove"end
 if c~="list"and c~="install"and c~="update"and c~="remove"then
-f("get: неизвестная команда "..c.." (get help)")
+i("get: неизвестная команда "..c.." (get help)")
 end
-local n={
-{name="dwos",title="DwOS",repo="Faticc/dwos",sub="dist",system=true},
-{name="games",title="Игры и ролики",repo="Faticc/ocgames",dir="/home/games"},
-{name="dwapps",title="Программы",repo="Faticc/dwapps",dir="/home/dwapps"},
+local k="Faticc/dwos"
+local s={
+{name="dwos",title="DwOS",sub="dist",system=true},
+{name="games",title="Игры и ролики",sub="games",dir="/home/games"},
+{name="dwapps",alias="apps",title="Программы",sub="apps",dir="/home/dwapps"},
 }
+local m={["Faticc/ocgames"]=true,["Faticc/dwapps"]=true}
 do
 local a=io.open("/etc/get.cfg")
 if a then
-local e=a:read("*a")
+local d=a:read("*a")
 a:close()
-local a=load("return "..e,"=/etc/get.cfg","t",{})
-local g,e=pcall(a or error)
-if g and type(e)=="table"then
-for a,a in ipairs(e.sources or{})do
-if type(a)=="table"and a.name and a.repo then n[#n+1]=a end
+local a=load("return "..d,"=/etc/get.cfg","t",{})
+local f,d=pcall(a or error)
+if f and type(d)=="table"then
+for a,a in ipairs(d.sources or{})do
+if type(a)=="table"and a.name and a.repo then s[#s+1]=a end
 end
 end
 end
 end
-local function q(a,h)
-h=h or""
-local e=type(a)
-if e=="string"then return("%q"):format(a)end
-if e=="number"or e=="boolean"then return tostring(a)end
-if e~="table"then return"nil"end
-local i={}
-for e in pairs(a)do i[#i+1]=e end
-table.sort(i,function(e,g)return tostring(e)<tostring(g)end)
-local e,j={"{\n"},h.." "
-for g,g in ipairs(i)do
-local i=type(g)=="string"and g:match("^[%a_][%w_]*$")and g or("["..q(g).."]")
-e[#e+1]=j ..i.." = "..q(a[g],j)..",\n"
+local function x(a,g)
+g=g or""
+local d=type(a)
+if d=="string"then return("%q"):format(a)end
+if d=="number"or d=="boolean"then return tostring(a)end
+if d~="table"then return"nil"end
+local h={}
+for d in pairs(a)do h[#h+1]=d end
+table.sort(h,function(d,f)return tostring(d)<tostring(f)end)
+local d,j={"{\n"},g.." "
+for f,f in ipairs(h)do
+local h=type(f)=="string"and f:match("^[%a_][%w_]*$")and f or("["..x(f).."]")
+d[#d+1]=j ..h.." = "..x(a[f],j)..",\n"
 end
-e[#e+1]=h.."}"
-return table.concat(e)
+d[#d+1]=g.."}"
+return table.concat(d)
 end
-local function e(g)
-local a=io.open(g,"r")
+local function d(f)
+local a=io.open(f,"r")
 if not a then return nil end
-local g=a:read("*a")
+local f=a:read("*a")
 a:close()
-local h=load("return "..g,"=state","t",{})
-local g,a=pcall(h or error)
-return g and type(a)=="table"and a or nil
+local g=load("return "..f,"=state","t",{})
+local f,a=pcall(g or error)
+return f and type(a)=="table"and a or nil
 end
-for a,a in ipairs(n)do
+for a,a in ipairs(s)do
 a.dir=a.system and"/"or(a.dir or("/home/"..a.name)):gsub("/+$","")
 a.statePath=a.system and"/.dwos"or(a.dir.."/.installed")
-a.state=e(a.statePath)
+a.state=d(a.statePath)
 a.installed=a.system or a.state~=nil
-local e=a.state or{}
-a.repo=e.repo or a.repo
-a.branch=e.branch or a.branch or"main"
-a.sub=e.dir or a.sub or""
+local d=a.state or{}
+if d.repo and not m[d.repo]then
+a.repo,a.branch,a.sub=d.repo,d.branch or a.branch,d.dir or a.sub
+end
+a.repo=a.repo or k
+a.branch=a.branch or"main"
+a.sub=a.sub or""
 if a.sub~=""and a.sub:sub(-1)~="/"then a.sub=a.sub.."/"end
 end
-if not m.isAvailable("internet")then f("нужна интернет-карта")end
-local function y(i)
-local e={}
-for a,a in ipairs(i)do
-a.ref=a.branch
-local g={}
-e[#e+1]={
+if not l.isAvailable("internet")then i("нужна интернет-карта")end
+local function A(h)
+local d,f={},{}
+for a,a in ipairs(h)do
+local j=a.repo.."@"..a.branch
+if not f[j]then
+local k,g={ref=a.branch},{}
+f[j]=k
+d[#d+1]={
 url=("https://api.github.com/repos/%s/commits/%s"):format(a.repo,a.branch),
 headers={["accept"]="application/vnd.github.sha"},
-write=function(h)g[#g+1]=h end,
+write=function(a)g[#g+1]=a end,
 finish=function(j)
-local h=not j and table.concat(g):match("^%s*(%x+)%s*$")
-if h and#h==40 then a.ref=h end
+local a=not j and table.concat(g):match("^%s*(%x+)%s*$")
+if a and#a==40 then k.ref=a end
 end,
 }
 end
-l.many(e)
-e={}
-for a,a in ipairs(i)do
+end
+q.many(d)
+d={}
+for a,a in ipairs(h)do
+a.ref=f[a.repo.."@"..a.branch].ref
 a.base=("https://raw.githubusercontent.com/%s/%s/%s"):format(a.repo,a.ref,a.sub)
-local g={}
-e[#e+1]={
+local f={}
+d[#d+1]={
 url=a.base.."manifest.lua",
-write=function(h)g[#g+1]=h end,
-finish=function(h)
-if h then a.err="manifest.lua: "..h return end
-local i,j=load("return "..table.concat(g),"="..a.name,"t",{})
-local h,g=pcall(i or error,j)
-if h and type(g)=="table"and type(g.files)=="table"then a.manifest=g
-else a.err="manifest.lua не читается: "..tostring(h and"не манифест"or g)end
+write=function(g)f[#f+1]=g end,
+finish=function(g)
+if g then a.err="manifest.lua: "..g return end
+local h,j=load("return "..table.concat(f),"="..a.name,"t",{})
+local g,f=pcall(h or error,j)
+if g and type(f)=="table"and type(f.files)=="table"then a.manifest=f
+else a.err="manifest.lua не читается: "..tostring(g and"не манифест"or f)end
 end,
 }
 end
-l.many(e)
+q.many(d)
 end
-local r=b.get("/")
-local function w(e)
-local a=b.get(e)
-if not a or(r and a.address==r.address)then return"/"end
-for g,e in b.mounts()do
-if g.address==a.address and e:match("^/mnt/[^/]+$")then return e end
+local j=b.get("/")
+local n=65536
+local r=1048576
+local p=512
+local m,k={},{}
+do
+local a=l.list("filesystem")
+local g=v.tmpAddress()
+for d,h in b.mounts()do
+local f=d.address
+if a[f]and f~=g then
+local a=k[f]
+if not a then
+local l,g=pcall(d.spaceTotal)
+local u,y=pcall(d.spaceUsed)
+local B,C=pcall(d.isReadOnly)
+local D,E=pcall(d.getLabel)
+g=l and tonumber(g)or 0
+a={
+dev=d,address=f,total=g,ro=not B or C,
+free=g-(u and tonumber(y)or g),
+label=D and E or nil,
+root=j~=nil and f==j.address,
+}
+a.small=g<r
+k[f]=a
+m[#m+1]=a
 end
-return"/"
-end
-local m
-if d.disk then
-for e,a in b.mounts()do
-if a==d.disk:gsub("/+$","")or e.address:find(d.disk,1,true)==1 then
-m=a
+if a.root then a.path="/"
+elseif not a.path or(h:match("^/mnt/[^/]+$")and not a.path:match("^/mnt/[^/]+$"))then
+a.path=h
 end
 end
-if not m then f("диска "..d.disk.." не видно")end
 end
-local function i(a)
+table.sort(m,function(a,d)return a.path<d.path end)
+end
+local function h(d)
+local a=b.get(d)
+return a and k[a.address]or(j and k[j.address])
+end
+local function g(a)return a.free-(a.root and n or 0)end
+local function k(a)
 if a>=1048576 then return("%.1f МБ"):format(a/1048576)end
-return("%d КБ"):format(math.ceil(a/1024))
+return("%d КБ"):format(math.max(0,math.ceil(a/1024)))
 end
-local function z(a)
-local g=a.manifest
+local d
+if e.disk then
+local a=e.disk:gsub("/+$","")
+if a==""then a="/"end
+for f,f in ipairs(m)do
+if f.path==a or f.address:find(e.disk,1,true)==1 or f.label==e.disk then d=f end
+end
+if not d and a:sub(1,1)=="/"and b.exists(a)then d=h(a)end
+if not d then i("диска "..e.disk.." не видно")end
+if d.ro then i("на "..d.path.." писать нельзя")end
+end
+local function F(a)
+local j=a.manifest
 a.items,a.core={},{}
 if a.system then
-local d={src=a,key=a.name,title="система "..(g.version or""),files={},kind="system"}
-for e,e in ipairs(g.files)do e.lname=e[1]d.files[#d.files+1]=e end
-a.items[1]=d
+local e={src=a,key=a.name,title="система "..(j.version or""),files={},kind="system"}
+for f,f in ipairs(j.files)do f.lname=f[1]e.files[#e.files+1]=f end
+a.items[1]=e
 return
 end
-local e,h={},{}
-for d,d in ipairs(g.packages or{})do
-local j={src=a,key=d[1],title=d[2]..(d[3]and(" - "..d[3])or""),files={},kind="game"}
-e[#e+1]=j
-h[d[1]]=j
+local f,l={},{}
+for e,e in ipairs(j.packages or{})do
+local n={src=a,key=e[1],title=e[2]..(e[3]and(" - "..e[3])or""),files={},kind="game"}
+f[#f+1]=n
+l[e[1]]=n
 end
-local u,o={},{}
-local function v(d)
-d.lname=d[2]or d[1]
-if d.video then
-o[#o+1]=d
-elseif not g.packages or d.pkg=="core"or not d.pkg then
-if g.packages then a.core[#a.core+1]=d
+local u,r={},{}
+local function y(e)
+e.lname=e[2]or e[1]
+if e.video then
+r[#r+1]=e
+elseif e.pkg=="core"then
+a.core[#a.core+1]=e
+elseif not j.packages or not e.pkg then
+if not l[a.name]then
+local n={src=a,key=a.name,title=a.title,files={},kind="app"}
+f[#f+1]=n
+l[a.name]=n
+end
+local n=l[a.name]
+n.files[#n.files+1]=e
 else
-if not h[a.name]then
-local j={src=a,key=a.name,title=a.title,files={},kind="app"}
-e[#e+1]=j
-h[a.name]=j
+local n=l[e.pkg]
+if not n then
+n={src=a,key=e.pkg,title=e.pkg,files={},kind="game"}
+f[#f+1]=n
+l[e.pkg]=n
 end
-local j=h[a.name]
-if d.lname=="install.lua"then a.core[#a.core+1]=d else j.files[#j.files+1]=d end
-end
-else
-local j=h[d.pkg]
-if not j then
-j={src=a,key=d.pkg,title=d.pkg,files={},kind="game"}
-e[#e+1]=j
-h[d.pkg]=j
-end
-j.files[#j.files+1]=d
+n.files[#n.files+1]=e
 end
 end
-for d,d in ipairs(g.files)do v(d)end
-for d,d in ipairs(g.videos or{})do d.video=true v(d)end
-for d,d in ipairs(o)do
-local h=d.lname:gsub("%.[^.]*$","")
-if d.title then u[h]=d.title end
+for e,e in ipairs(j.files)do y(e)end
+for e,e in ipairs(j.videos or{})do e.video=true y(e)end
+for e,e in ipairs(r)do
+local l=e.lname:gsub("%.[^.]*$","")
+if e.title then u[l]=e.title end
 end
-for d,d in ipairs(o)do
-local j,o=d.lname:match("^(.*)%.([^.]+)$")
-local h={src=a,key=d.lname,base=j,files={d},kind="video"}
-h.title=(u[j]or j)..(o=="dfpwm"and" - звук для кассеты"or"")
-if d.secs then h.title=h.title..(" %d:%02d"):format(math.floor(d.secs/60),d.secs%60)end
-e[#e+1]=h
+for e,e in ipairs(r)do
+local n,r=e.lname:match("^(.*)%.([^.]+)$")
+local l={src=a,key=e.lname,base=n,files={e},kind="video"}
+l.title=(u[n]or n)..(r=="dfpwm"and" - звук для кассеты"or"")
+if e.secs then l.title=l.title..(" %d:%02d"):format(math.floor(e.secs/60),e.secs%60)end
+f[#f+1]=l
 end
-for d,d in ipairs(e)do
-d.aliases={}
-for h,h in ipairs(g.bin or{})do
-for g,g in ipairs(d.files)do
-if g.lname==h[2]and h[2]~="install.lua"then d.aliases[#d.aliases+1]=h[1]end
+for e,e in ipairs(f)do
+e.aliases={}
+for l,l in ipairs(j.bin or{})do
+for j,j in ipairs(e.files)do
+if j.lname==l[2]then e.aliases[#e.aliases+1]=l[1]end
 end
 end
 end
-a.items=e
+a.items=f
 end
-local function u(a)
+local function B(a)
 if not a.state then return{}end
 return a.state.files or{}
 end
-local function o(e,g)
-local d=u(e)[g.lname]
+local function r(f,j)
+local e=B(f)[j.lname]
 local a
-if d and d.path then a=d.path
-elseif e.system then a="/"..g.lname
-elseif d then a=e.dir.."/"..g.lname end
-if a and b.exists(a)and not b.isDirectory(a)then return a,d end
+if e and e.path then a=e.path
+elseif f.system then a="/"..j.lname
+elseif e then a=f.dir.."/"..j.lname end
+if a and b.exists(a)and not b.isDirectory(a)then return a,e end
 end
-local function v(a,d)
+local function y(f)
+for a,a in ipairs(f.files)do
+local e=r(f.src,a)
+if e and e:sub(-#a.lname-1)=="/"..a.lname then return e:sub(1,-#a.lname-2)end
+end
+end
+local function C(a,f)
+local e=f.src
+if f.kind=="video"then return a.path=="/"and"/home/videos"or(a.path.."/videos")end
+if a==h(e.dir)then return e.dir end
+return(a.path=="/"and"/home/"or(a.path.."/"))..e.name
+end
+local function D(a,e)
 if not a.system then return false end
-for e,e in ipairs(a.manifest.keep or{})do
-if e==d.lname and b.exists("/"..e)then return true end
+for f,f in ipairs(a.manifest.keep or{})do
+if f==e.lname and b.exists("/"..f)then return true end
 end
-return d.lname==".prop"and not b.exists("/.prop")
+return e.lname==".prop"and not b.exists("/.prop")
 end
-local function A(e,a,d)
-if e.system then return"/"..d.lname end
-if a and a.kind=="video"then
-local g=m or w(e.dir)
-return(g=="/"and"/home/videos"or(g.."/videos")).."/"..d.lname
-end
-if a and a.kind=="game"and m then return m.."/games/"..d.lname end
-return e.dir.."/"..d.lname
-end
-local function m(d)
-local a=io.open(d,"rb")
+local function u(e)
+local a=io.open(e,"rb")
 if not a then return nil end
-local d=0
+local e=0
 while true do
-local e=a:read(16384)
-if not e then break end
-d=l.crc32(d,e)
+local f=a:read(16384)
+if not f then break end
+e=q.crc32(e,f)
 end
 a:close()
-return l.hex(d)
+return q.hex(e)
 end
-local function w(g,d)
-local a,e=o(g,d)
+local function E(j,e)
+local a,f=r(j,e)
 if not a then return false end
-if x or not d.crc then return false,a end
-local g,h=b.size(a),b.lastModified(a)
-if d.size and g~=d.size then return false,a end
-local j=e and e.size==g and e.mtime==h and e.crc or m(a)
-return j==d.crc,a,{size=g,crc=j,mtime=h}
+if z or not e.crc then return false,a end
+local j,l=b.size(a),b.lastModified(a)
+if e.size and j~=e.size then return false,a end
+local n=f and f.size==j and f.mtime==l and f.crc or u(a)
+return n==e.crc,a,{size=j,crc=n,mtime=l}
 end
-local function B(a)
-for d,d in ipairs(a.files)do if o(a.src,d)then return true end end
+local function G(a)
+for e,e in ipairs(a.files)do if r(a.src,e)then return true end end
 return false
 end
-local d={}
-for a,a in ipairs(n)do
-if c=="list"or c=="install"or a.installed then d[#d+1]=a end
+local f={}
+for a,a in ipairs(s)do
+if c=="list"or c=="install"or a.installed then f[#f+1]=a end
 end
-y(d)
-for a,a in ipairs(d)do
-if a.manifest then z(a)else io.stderr:write(("%s: %s\n"):format(a.name,tostring(a.err)))end
+A(f)
+for a,a in ipairs(f)do
+if a.manifest then F(a)else io.stderr:write(("%s: %s\n"):format(a.name,tostring(a.err)))end
 end
-local function n(a)
-local h,e=a:match("^([^/]+)/(.+)$")
+local function u(a)
+local l,e=a:match("^([^/]+)/(.+)$")
 e=(e or a):lower()
 local a={}
-for g,g in ipairs(d)do
-if g.items and(not h or g.name==h)then
-if not h and e==g.name then
-for h,h in ipairs(g.items)do
-if h.kind~="video"then a[#a+1]=h end
+for j,j in ipairs(f)do
+local n=not l or j.name==l or j.alias==l
+if j.items and n then
+if not l and(e==j.name or e==j.alias)then
+for l,l in ipairs(j.items)do
+if l.kind~="video"then a[#a+1]=l end
 end
 if#a>0 then return a end
 end
-for h,h in ipairs(g.items)do
-local g=h.key:lower()==e or(h.base and h.base:lower()==e)
-for j,j in ipairs(h.aliases or{})do if j:lower()==e then g=true end end
-if g then a[#a+1]=h end
+for l,l in ipairs(j.items)do
+local j=l.key:lower()==e or(l.base and l.base:lower()==e)
+for n,n in ipairs(l.aliases or{})do if n:lower()==e then j=true end end
+if j then a[#a+1]=l end
 end
 end
 if#a>0 then return a end
 end
 return a
 end
-local function g(a,e)
-local h=s.wlen(a)
-if h>e then
-return s.wtrunc(a,e).." "
+local function l(a,e)
+local j=t.wlen(a)
+if j>=e then
+return t.wtrunc(a,e).." "
 end
-return a..(" "):rep(e-h)
+return a..(" "):rep(e-j)
 end
 if c=="list"then
-local y=math.min(80,(require("term").getViewport()))
-for a,e in ipairs(d)do
-if e.items then
-print(("%s  %s@%s"):format(e.title,e.repo,e.branch))
-for a,a in ipairs(e.items)do
-local h,j,s=0,false,false
-for m,m in ipairs(a.files)do
-h=h+(m.size or 0)
-if not v(e,m)then
-local z,x=w(e,m)
-if x then j=true end
-if x and not z then s=true end
+local A=math.min(80,(require("term").getViewport()))
+for a,a in ipairs(f)do
+if a.items then
+print(("%s  %s@%s/%s"):format(a.title,a.repo,a.branch,a.sub:gsub("/$","")))
+for e,e in ipairs(a.items)do
+local n,j,t=0,false,false
+for s,s in ipairs(e.files)do
+n=n+(s.size or 0)
+if not D(a,s)then
+local F,z=E(a,s)
+if z then j=true end
+if z and not F then t=true end
 end
 end
-if a.kind=="system"then j=true end
-local e=j and(s and"обновить"or"стоит")or""
-local j=a.key..(#(a.aliases or{})>0 and a.aliases[1]~=a.key and("  "..table.concat(a.aliases,","))or"")
-print("  "..g(j,20)..g(a.title or"",y-44)..g(i(h),10)..e)
+if e.kind=="system"then j=true end
+local s=j and(t and"обновить"or"стоит")or""
+local t=j and not a.system and y(e)
+local j=t and h(t)
+if j and j~=h(a.dir)then s=s.." "..j.path end
+local a=e.key..(#(e.aliases or{})>0 and e.aliases[1]~=e.key and("  "..table.concat(e.aliases,","))or"")
+print("  "..l(a,20)..l(e.title or"",A-44)..l(k(n),10)..s)
 end
 end
 end
+local e={}
+for a,a in ipairs(m)do
+if not a.ro then
+e[#e+1]=("%s %s%s"):format(a.path,k(math.max(0,a.free)),a.small and" (дискета)"or"")
+end
+end
+print("Свободно: "..table.concat(e,", "))
 print("get install ИМЯ - поставить, get update - обновить всё, get help")
 return 0
 end
-local m={}
-local function e(a)
-m[a]=m[a]or{want={},gone={}}
-return m[a]
+local s={}
+local function j(a)
+s[a]=s[a]or{want={},gone={}}
+return s[a]
 end
 if c=="install"or c=="remove"then
-if#k==0 then f("get "..c..": что именно? (get - список)")end
-for a,a in ipairs(k)do
-local g=n(a)
-if#g==0 then f("не знаю, что такое "..a.." (get - список)")end
-for a,a in ipairs(g)do
-local g=e(a.src)
-if c=="install"then g.want[a]=true else g.gone[a]=true end
+if#o==0 then i("get "..c..": что именно? (get - список)")end
+for a,a in ipairs(o)do
+local e=u(a)
+if#e==0 then i("не знаю, что такое "..a.." (get - список)")end
+for a,a in ipairs(e)do
+local e=j(a.src)
+if c=="install"then e.want[a]=true else e.gone[a]=true end
 end
 end
 end
 if c=="update"then
 local a
-if#k>0 then
+if#o>0 then
 a={}
-for g,g in ipairs(k)do
-local h=n(g)
-if#h==0 then f("не знаю, что такое "..g)end
-for g,g in ipairs(h)do a[g]=true end
+for e,e in ipairs(o)do
+local l=u(e)
+if#l==0 then i("не знаю, что такое "..e)end
+for e,e in ipairs(l)do a[e]=true end
 end
 end
-for g,g in ipairs(d)do
-for d,d in ipairs(g.items or{})do
-if(not a or a[d])and(d.kind=="system"or B(d))then e(g).want[d]=true end
+for e,l in ipairs(f)do
+for e,e in ipairs(l.items or{})do
+if(not a or a[e])and(e.kind=="system"or G(e))then j(l).want[e]=true end
 end
 end
 end
-local g,j={},{}
-local d={same=0,get=0,bytes=0,gone=0}
-local s={}
-for a,x in pairs(m)do
-local e=a.state or{}
-local h={
+local l={}
+local e={same=0,get=0,bytes=0,gone=0}
+local z={}
+local A={}
+for a,o in pairs(s)do
+local f=a.state or{}
+local t={
 repo=a.repo,branch=a.branch,
 dir=(a.sub~=""and a.sub:gsub("/+$",""))or nil,
-files={},bin={},seen=e.seen,
+files={},bin={},
 }
-if a.system then h.version=a.manifest.version end
-s[a]=h
-local k,y={},false
-for e in pairs(x.want)do
-y=true
-for n,n in ipairs(e.files)do k[n]=e end
+if a.system then t.version=a.manifest.version end
+z[a]=t
+local j,f={},false
+for n in pairs(o.want)do
+f=true
+for u,u in ipairs(n.files)do j[u]=n end
 end
-if not a.system then
-h.seen=h.seen or{}
-for e,e in ipairs(a.items)do h.seen[e.key]=true end
+local G={src=a,key=a.name,title=a.title,files=a.core,kind="core"}
+local n,F={},{}
+for u,u in ipairs(a.core)do
+n[#n+1]=u
+if f then j[u]=G end
 end
-local n,z={},{}
-for e,e in ipairs(a.core)do
-n[#n+1]=e
-if y then k[e]=k[e]or false end
-end
-for e,y in ipairs(a.items)do
-for e,e in ipairs(y.files)do
-n[#n+1]=e
-if x.gone[y]then k[e]=nil e.gone=true end
+for f,u in ipairs(a.items)do
+for f,f in ipairs(u.files)do
+n[#n+1]=f
+if o.gone[u]then j[f]=nil f.gone=true end
 end
 end
-for e,e in ipairs(n)do
-z[e.lname]=true
-local n,x=o(a,e)
-if e.gone then
-if n then j[#j+1]={path=n,name=e.lname}end
-elseif k[e]==nil or v(a,e)then
-if x and n then h.files[e.lname]=x end
+local u={}
+for f,f in ipairs(n)do
+F[f.lname]=true
+local n,o=r(a,f)
+if f.gone then
+if n then l[#l+1]={path=n,name=f.lname}end
+elseif j[f]==nil or D(a,f)then
+local D=o and o.path and o.path:match("^(/mnt/[^/]+)/")
+if o and(n or(D and not b.exists(D)))then t.files[f.lname]=o end
 else
-local v,o,o=w(a,e)
-if v then
-d.same=d.same+1
-if not a.system then o.path=n end
-h.files[e.lname]=o
-else
-e.src=a
-e.to=n or A(a,k[e]or nil,e)
-g[#g+1]=e
+local o=j[f]
+local j,D,D=E(a,f)
+f.src,f.cur,f.fresh=a,n,j
+if j then
+e.same=e.same+1
+if not a.system then D.path=n end
+t.files[f.lname]=D
 end
+if not u[o]then
+u[o]={it=o,s=a,need={}}
+A[#A+1]=u[o]
+end
+if not j then table.insert(u[o].need,f)end
 end
 end
 if c~="remove"then
-for c,h in pairs(u(a))do
-if not z[c]then
-local e=h.path or(a.system and("/"..c)or(a.dir.."/"..c))
-if b.exists(e)and not c:match("%.bin$")and not c:match("%.dfpwm$")then
-j[#j+1]={path=e,name=c,stale=true}
+for f,n in pairs(B(a))do
+if not F[f]then
+local j=n.path or(a.system and("/"..f)or(a.dir.."/"..f))
+if b.exists(j)and not f:match("%.bin$")and not f:match("%.dfpwm$")then
+l[#l+1]={path=j,name=f,stale=true}
 end
 end
 end
 end
 end
-do
-local c={}
-for a,a in ipairs(g)do
-local e=b.get(a.to:match("^(.*)/[^/]*$")~=""and a.to or"/")or r
-local h=b.exists(a.to)and b.size(a.to)or 0
-c[e]=(c[e]or 0)+(a.size or 0)-h+512
+local function D(a,f)
+local j=b.exists(f)and not b.isDirectory(f)and b.size(f)or nil
+if j and(a.size or 0)<=65536 then return(a.size or 0)-j end
+return(a.size or 0)+p
 end
-for a,e in pairs(c)do
-local c=(a.spaceTotal()or 0)-(a.spaceUsed()or 0)
-if e>c then
-f(("на диске %s не хватит места: нужно %s, свободно %s (--disk=/mnt/...)")
-:format(a.getLabel()or a.address:sub(1,8),i(e),i(c)))
-end
-end
-end
+local function E(j,n)
 local a=0
-for c,c in ipairs(g)do a=a+(c.gzsize or c.size or 0)end
-if#g>0 then
-print(("%s %d файлов, %s%s"):format(p and"Скачалось бы"or"Качаю",#g,i(a),
-p and""or" - по четыре разом, сжатыми"))
+for f,f in ipairs(j)do a=a+D(f,n.."/"..f.lname)end
+return a
 end
-if p then
-for a,a in ipairs(g)do print(("  %-24s -> %s"):format(a.lname,a.to))end
-for a,a in ipairs(j)do print(("  %-24s удалится: %s"):format(a.name,a.path))end
+local function F(j,a)
+if d then return g(d)>=j and d or nil end
+if a and not a.ro and g(a)>=j then return a end
+local f
+for a,a in ipairs(m)do
+if not a.ro and not a.small and g(a)>=j and(not f or g(a)>g(f))then f=a end
+end
+return f
+end
+local f,B,n={},{},{}
+local o={}
+for a,a in ipairs(A)do
+local u,t=a.it,a.s
+if u.kind=="system"or u.kind=="core"then
+for j,j in ipairs(a.need)do
+j.to=j.cur or(t.system and("/"..j.lname)or(t.dir.."/"..j.lname))
+local t=h(j.to)
+t.free=t.free-D(j,j.to)
+if t.free<0 then n[#n+1]=("%s: на %s не хватает места"):format(j.lname,t.path)end
+f[#f+1]=j
+end
+else
+local t=y(u)
+local j=t and h(t)
+local u=c=="install"and d and j and j~=d
+if t and not u then
+local c=E(a.need,t)
+if c<=0 or c<=g(j)then
+j.free=j.free-c
+for c,c in ipairs(a.need)do c.to=c.cur or(t.."/"..c.lname)f[#f+1]=c end
+else
+o[#o+1]=a
+a.from=j
+end
+elseif#a.need>0 or u then
+o[#o+1]=a
+a.from=u and j or nil
+end
+end
+end
+local j,t={},{}
+for a,a in ipairs(o)do
+a.size=p
+for c,c in ipairs(a.it.files)do a.size=a.size+(c.size or 0)+p end
+local o=a.it.kind=="video"and(a.s.name.."/"..a.it.base)
+local c=o and t[o]
+if not c then
+c={jobs={},size=0,it=a.it}
+j[#j+1]=c
+if o then t[o]=c end
+end
+c.jobs[#c.jobs+1]=a
+c.size=c.size+a.size
+c.from=c.from or a.from
+end
+table.sort(j,function(a,c)return a.size>c.size end)
+for a,a in ipairs(j)do
+local j=a.it
+local t=h(C(h(j.src.dir),j))
+local c
+if j.kind=="video"then
+local A,u={},{}
+for o,o in ipairs(a.jobs)do A[o.it]=true end
+for o,o in ipairs(j.src.items)do
+local D=o.kind=="video"and o.base==j.base and not A[o]and y(o)
+if D then c=D u[#u+1]=o end
+end
+local j=c and h(c)
+if j and g(j)>=a.size and(not d or d==j)then
+t=j
+elseif j then
+c=nil
+for o,o in ipairs(u)do
+local u={it=o,s=o.src,need={},from=j,size=p}
+for y,y in ipairs(o.files)do y.src=o.src u.size=u.size+(y.size or 0)+p end
+a.jobs[#a.jobs+1]=u
+a.size=a.size+u.size
+a.from=a.from or j
+end
+end
+end
+local j=F(a.size,a.from==nil and t or(t~=a.from and t or nil))
+local o={}
+for p,p in ipairs(a.jobs)do o[#o+1]=p.it.key end
+o=table.concat(o,", ")
+if not j then
+local p
+for u,u in ipairs(m)do
+if not u.ro and not u.small and(not p or g(u)>g(p))then p=u end
+end
+n[#n+1]=("%s (%s) не влезает%s"):format(o,k(a.size),
+d and(" на "..d.path..", там свободно "..k(g(d)))
+or p and(": свободнее всего на "..p.path.." - "..k(g(p)))or"")
+else
+j.free=j.free-a.size
+for g,g in ipairs(a.jobs)do
+local m=(c and j==h(c))and c or C(j,g.it)
+for c,c in ipairs(g.from and g.it.files or g.need)do
+c.to=m.."/"..c.lname
+f[#f+1]=c
+if c.fresh then e.same=e.same-1 end
+local h=c.cur or r(g.s,c)
+if h and h~=c.to then l[#l+1]={path=h,name=c.lname,unless=c}end
+end
+end
+if j~=t or a.from then
+B[#B+1]=("  %s -> %s%s"):format(o,j.path,
+a.from and(" (с "..a.from.path..")")or d and""or" (на своём диске не влезает)")
+end
+end
+end
+if#n>0 then
+for a,a in ipairs(n)do io.stderr:write("  "..a.."\n")end
+i("места не хватит - освободи диск, вставь ещё один или get remove ...")
+end
+for a,a in ipairs(B)do print(a)end
+local a=0
+for c,c in ipairs(f)do a=a+(c.gzsize or c.size or 0)end
+if#f>0 then
+print(("%s %d файлов, %s%s"):format(w and"Скачалось бы"or"Качаю",#f,k(a),
+w and""or" - по четыре разом, сжатыми"))
+end
+if w then
+for a,a in ipairs(f)do print(("  %-24s -> %s"):format(a.lname,a.to))end
+for a,a in ipairs(l)do print(("  %-24s удалится: %s"):format(a.name,a.path))end
 return 0
 end
-local e={}
-local function n(c,a)
+local g={}
+local function d(c,a)
 if#c==0 then return end
-local h,k=l.files{
+local h,j=q.files{
 need=c,
 url=function(c,h)return c.src.base..h end,
 path=function(c)return c.to end,
@@ -451,95 +622,102 @@ end
 end,
 done=function(a,c)
 if not c then return end
-d.get,d.bytes=d.get+1,d.bytes+c
-local l=s[a.src]
+a.got=true
+e.get,e.bytes=e.get+1,e.bytes+c
+local m=z[a.src]
 local h={size=c,crc=a.crc,mtime=b.lastModified(a.to)}
 if not a.src.system then h.path=a.to end
-l.files[a.lname]=h
-io.write(("\r  %-24s %s\n"):format(a.lname,i(c)))
+m.files[a.lname]=h
+io.write(("\r  %-24s %s\n"):format(a.lname,k(c)))
 end,
 }
-for a,a in ipairs(k)do
-if not(a.entry.opt and a.code==404)then e[#e+1]=a end
+for a,a in ipairs(j)do
+if not(a.entry.opt and a.code==404)then g[#g+1]=a end
 end
 end
 local h,a={},{}
-for c,c in ipairs(g)do
+for c,c in ipairs(f)do
 if c.src.system then h[#h+1]=c else a[#a+1]=c end
 end
-local r=t.uptime()
-local k
-for c in pairs(m)do if c.system then k=c end end
-n(h,k)
-n(a,nil)
-for a,a in ipairs(j)do
+local q=v.uptime()
+local j
+for c in pairs(s)do if c.system then j=c end end
+d(h,j)
+d(a,nil)
+for a,a in ipairs(l)do
+if not a.unless or a.unless.got then
 b.remove(a.path)
-d.gone=d.gone+1
+e.gone=e.gone+1
+if not a.unless then
 print(("  %-24s удалён%s"):format(a.name,a.stale and" - его больше нет в репозитории"or""))
 end
+local c=a.path:match("^(/mnt/[^/]+/.+)/[^/]+$")
+while c do
+local a=b.list(c)
+if not a or a()~=nil then break end
+b.remove(c)
+c=c:match("^(/mnt/[^/]+/.+)/[^/]+$")
+end
+end
+end
 local l="-- ярлык на "
-local function o(c)
+local function n(c)
 local a=io.open(c,"rb")
 if not a then return false end
 local c=a:read(#l)
 a:close()
 return c==l
 end
-for a,g in pairs(s)do
+for a,f in pairs(z)do
 if not a.system then
-local j=a.manifest
-local m
-if j.lib then
-local c=j.lib:gsub("^/+",""):gsub("/+$","")
-if c~=""then m=a.dir.."/"..c end
-end
-local p={}
-for c,c in ipairs(j.bin or{})do
-local n=g.files[c[2]]
-local j=n and(n.path or(a.dir.."/"..c[2]))
-if j and b.exists(j)then
-p[c[1]]=true
-g.bin[#g.bin+1]=c[1]
-local n=""
-if c[2]=="install.lua"then
-n=("table.insert(a, 1, %q)\n"):format("--to="..a.dir)
-elseif m then
-n=("package.path = %q .. package.path\n"):format(m.."/?.lua;")
+local d=a.manifest
+local m=d.lib and d.lib:gsub("^/+",""):gsub("/+$","")
+local o={}
+for c,c in ipairs(d.bin or{})do
+local p=f.files[c[2]]
+local d=p and(p.path or(a.dir.."/"..c[2]))
+if d and b.exists(d)then
+o[c[1]]=true
+f.bin[#f.bin+1]=c[1]
+local p=""
+if m and m~=""and d:sub(-#c[2]-1)=="/"..c[2]then
+local r=d:sub(1,-#c[2]-2).."/"..m
+p=("package.path = %q .. package.path\n"):format(r.."/?.lua;")
 end
 local m=("%s%s\nlocal a = { ... }\n%sreturn assert(loadfile(%q))(table.unpack(a))\n")
-:format(l,j,n,j)
-local j="/bin/"..c[1]..".lua"
+:format(l,d,p,d)
+local d="/bin/"..c[1]..".lua"
 local c
-local l=io.open(j,"r")
+local l=io.open(d,"r")
 if l then c=l:read("*a")l:close()end
-if c~=m and(c==nil or o(j))then
-local c=io.open(j,"w")
+if c~=m and(c==nil or n(d))then
+local c=io.open(d,"w")
 if c then c:write(m)c:close()end
 end
 end
 end
-for c,j in ipairs((a.state or{}).bin or{})do
-local c="/bin/"..j..".lua"
-if not p[j]and b.exists(c)and o(c)then b.remove(c)end
+for c,d in ipairs((a.state or{}).bin or{})do
+local c="/bin/"..d..".lua"
+if not o[d]and b.exists(c)and n(c)then b.remove(c)end
 end
 end
-if not a.system and next(g.files)==nil then
+if not a.system and next(f.files)==nil then
 b.remove(a.statePath)
 else
 if not b.exists(a.dir)then b.makeDirectory(a.dir)end
 local b=io.open(a.statePath,"w")
-if b then b:write(q(g),"\n")b:close()end
+if b then b:write(x(f),"\n")b:close()end
 end
 end
-if#e>0 then
-for a,a in ipairs(e)do io.stderr:write(("  %s: %s\n"):format(a.entry.lname,tostring(a.err)))end
-f(("не скачалось файлов: %d"):format(#e))
+if#g>0 then
+for a,a in ipairs(g)do io.stderr:write(("  %s: %s\n"):format(a.entry.lname,tostring(a.err)))end
+i(("не скачалось файлов: %d"):format(#g))
 end
-if d.get==0 and d.gone==0 then
-print(("Всё свежее, файлов: %d."):format(d.same))
+if e.get==0 and e.gone==0 then
+print(("Всё свежее, файлов: %d."):format(e.same))
 else
 print(("Готово за %.1f с: скачано %d (%s), без изменений %d, удалено %d.")
-:format(t.uptime()-r,d.get,i(d.bytes),d.same,d.gone))
-if k and#h>0 then print("Система обновилась - перезагрузись: reboot")end
+:format(v.uptime()-q,e.get,k(e.bytes),e.same,e.gone))
+if j and#h>0 then print("Система обновилась - перезагрузись: reboot")end
 end
 return 0

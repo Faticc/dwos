@@ -1,18 +1,29 @@
--- get: система, игры и программы из репозиториев - одной командой.
+-- get: система, игры и программы из репозитория DwOS - одной командой.
 --
---   get                    что есть и что стоит
+--   get                    что есть, что стоит и сколько места на дисках
 --   get install ИМЯ...     поставить (игру, ролик, программу или весь набор)
 --   get update [ИМЯ...]    обновить всё поставленное (или только это)
 --   get remove ИМЯ...      убрать
---   --dry  только показать   --force  качать заново   --disk=ПУТЬ  куда класть новое
+--   --dry  только показать   --force  качать заново   --disk=ПУТЬ  класть сюда
 --
--- Источники: сама DwOS (Faticc/dwos), игры (Faticc/ocgames) и программы
--- (Faticc/dwapps); свои дописываются в /etc/get.cfg. Состояние и ярлыки -
--- те же, что пишут их установщики (<каталог>/.installed, /.dwos, "-- ярлык
--- на" в /bin), так что games-update и dwapps-update видят поставленное
--- через get, и наоборот.
+-- Всё лежит в одном репозитории Faticc/dwos: система - в dist/, игры и
+-- ролики - в games/, программы - в apps/. Веб-установщик ставит только
+-- систему, остальное - get. Свои источники дописываются в /etc/get.cfg.
+-- Состояние - в <каталог>/.installed (у системы - /.dwos), ярлыки - в /bin
+-- с пометкой "-- ярлык на". Поставленное когда-то из прежних отдельных
+-- репозиториев (Faticc/ocgames, Faticc/dwapps) get подхватывает сам, а их
+-- установщики и ярлыки games-update/dwapps-update убирает.
 --
--- Всё, что можно, делается разом: хэши коммитов и манифесты всех
+-- Раскладка по дискам: позиция (игра, ролик, набор программ) лежит целиком
+-- на одном диске - игры читают свои файлы из своего каталога. Новая
+-- позиция ложится на диск своего каталога (/home/games, /home/videos, ...),
+-- а не влезает - на тот, где свободнее, в /mnt/xxx/games, /mnt/xxx/videos
+-- и так далее. Сначала раскладываются самые крупные. Дискеты get сам не
+-- занимает (вынул - и игры нет), на системном диске оставляет запас.
+-- Обновление, которому не хватает места на своём диске, переезжает целиком
+-- на другой; --disk переносит уже стоящее туда.
+--
+-- Всё, что можно, делается разом: хэш коммита и манифесты всех
 -- источников - одним заходом, файлы - по четыре запроса сжатыми (lib/fetch),
 -- ролики - сжатыми двойниками (.gz), систему целиком - одним пакетом.
 -- Интернет-карта берёт тик за каждый запрос и по два тика за каждые 2 КБ,
@@ -33,12 +44,13 @@ local function die(s) io.stderr:write(s .. "\n") os.exit(1) end
 
 if cmd == "help" or opts.help then
   print([[Использование: get [команда] [ИМЯ]...
-  get                    что есть и что стоит
+  get                    что есть, что стоит, место на дисках
   get install ИМЯ...     поставить: игру, ролик, программу или весь набор
   get update [ИМЯ...]    обновить всё поставленное (или только это)
   get remove ИМЯ...      убрать
   --dry   только показать    --force   качать заново
-  --disk=ПУТЬ            куда класть новые игры и ролики (/mnt/...)]])
+  --disk=ПУТЬ            класть сюда (/mnt/...); с install - и перенести
+                         уже стоящее. Без него get раскладывает сам]])
   return 0
 end
 if cmd == "ls" then cmd = "list" end
@@ -49,11 +61,14 @@ end
 
 ------------------------------------------------------------------ источники
 
+local REPO = "Faticc/dwos"
 local SOURCES = {
-  { name = "dwos", title = "DwOS", repo = "Faticc/dwos", sub = "dist", system = true },
-  { name = "games", title = "Игры и ролики", repo = "Faticc/ocgames", dir = "/home/games" },
-  { name = "dwapps", title = "Программы", repo = "Faticc/dwapps", dir = "/home/dwapps" },
+  { name = "dwos", title = "DwOS", sub = "dist", system = true },
+  { name = "games", title = "Игры и ролики", sub = "games", dir = "/home/games" },
+  { name = "dwapps", alias = "apps", title = "Программы", sub = "apps", dir = "/home/dwapps" },
 }
+-- прежние отдельные репозитории: поставленное оттуда переезжает сюда
+local MOVED = { ["Faticc/ocgames"] = true, ["Faticc/dwapps"] = true }
 do
   local f = io.open("/etc/get.cfg")
   if f then
@@ -103,9 +118,13 @@ for _, s in ipairs(SOURCES) do
   s.state = readState(s.statePath)
   s.installed = s.system or s.state ~= nil
   local st = s.state or {}
-  s.repo = st.repo or s.repo
-  s.branch = st.branch or s.branch or "main"
-  s.sub = st.dir or s.sub or ""
+  -- своё (форк, другая ветка) - как записано; прежние репозитории - сюда
+  if st.repo and not MOVED[st.repo] then
+    s.repo, s.branch, s.sub = st.repo, st.branch or s.branch, st.dir or s.sub
+  end
+  s.repo = s.repo or REPO
+  s.branch = s.branch or "main"
+  s.sub = s.sub or ""
   if s.sub ~= "" and s.sub:sub(-1) ~= "/" then s.sub = s.sub .. "/" end
 end
 
@@ -114,25 +133,30 @@ end
 if not component.isAvailable("internet") then die("нужна интернет-карта") end
 
 --- Одним заходом для всех источников: сначала ветки в хэши коммитов (по
---- хэшу raw.githubusercontent не отдаёт устаревшее из кэша), потом манифесты.
+--- хэшу raw.githubusercontent не отдаёт устаревшее из кэша; у источников
+--- из одного репозитория запрос один), потом манифесты.
 local function prefetch(list)
-  local jobs = {}
+  local jobs, refs = {}, {}
   for _, s in ipairs(list) do
-    s.ref = s.branch
-    local parts = {}
-    jobs[#jobs + 1] = {
-      url = ("https://api.github.com/repos/%s/commits/%s"):format(s.repo, s.branch),
-      headers = { ["accept"] = "application/vnd.github.sha" },
-      write = function(x) parts[#parts + 1] = x end,
-      finish = function(err)
-        local sha = not err and table.concat(parts):match("^%s*(%x+)%s*$")
-        if sha and #sha == 40 then s.ref = sha end
-      end,
-    }
+    local key = s.repo .. "@" .. s.branch
+    if not refs[key] then
+      local r, parts = { ref = s.branch }, {}
+      refs[key] = r
+      jobs[#jobs + 1] = {
+        url = ("https://api.github.com/repos/%s/commits/%s"):format(s.repo, s.branch),
+        headers = { ["accept"] = "application/vnd.github.sha" },
+        write = function(x) parts[#parts + 1] = x end,
+        finish = function(err)
+          local sha = not err and table.concat(parts):match("^%s*(%x+)%s*$")
+          if sha and #sha == 40 then r.ref = sha end
+        end,
+      }
+    end
   end
   fetch.many(jobs)
   jobs = {}
   for _, s in ipairs(list) do
+    s.ref = refs[s.repo .. "@" .. s.branch].ref
     s.base = ("https://raw.githubusercontent.com/%s/%s/%s"):format(s.repo, s.ref, s.sub)
     local parts = {}
     jobs[#jobs + 1] = {
@@ -153,37 +177,75 @@ end
 ------------------------------------------------------------------ диски
 
 local root = fs.get("/")
+local RESERVE = 65536   -- системному диску: журналы, настройки, свои файлы
+local SMALL = 1048576   -- меньше - дискета: сам get её не занимает
+local COST = 512        -- столько сверх размера весит каждый файл и каталог
 
---- Каталог, куда смонтирован диск пути: "/" или "/mnt/xxx".
-local function mountOf(path)
-  local dev = fs.get(path)
-  if not dev or (root and dev.address == root.address) then return "/" end
-  for d, p in fs.mounts() do
-    if d.address == dev.address and p:match("^/mnt/[^/]+$") then return p end
+-- Диски, куда можно писать: адрес -> { dev, path = "/" или /mnt/xxx, free }
+local disks, diskAt = {}, {}
+do
+  local comps = component.list("filesystem")
+  local tmp = computer.tmpAddress()
+  for dev, path in fs.mounts() do
+    local a = dev.address
+    if comps[a] and a ~= tmp then
+      local d = diskAt[a]
+      if not d then
+        local okT, total = pcall(dev.spaceTotal)
+        local okU, used = pcall(dev.spaceUsed)
+        local okR, ro = pcall(dev.isReadOnly)
+        local okL, label = pcall(dev.getLabel)
+        total = okT and tonumber(total) or 0
+        d = {
+          dev = dev, address = a, total = total, ro = not okR or ro,
+          free = total - (okU and tonumber(used) or total),
+          label = okL and label or nil,
+          root = root ~= nil and a == root.address,
+        }
+        d.small = total < SMALL
+        diskAt[a] = d
+        disks[#disks + 1] = d
+      end
+      if d.root then d.path = "/"
+      elseif not d.path or (path:match("^/mnt/[^/]+$") and not d.path:match("^/mnt/[^/]+$")) then
+        d.path = path
+      end
+    end
   end
-  return "/"
+  table.sort(disks, function(x, y) return x.path < y.path end)
+end
+
+--- Диск, на который попадает путь.
+local function diskOf(path)
+  local dev = fs.get(path)
+  return dev and diskAt[dev.address] or (root and diskAt[root.address])
+end
+
+--- Сколько можно занять: на системном диске - с запасом.
+local function room(d) return d.free - (d.root and RESERVE or 0) end
+
+local function mb(n)
+  if n >= 1048576 then return ("%.1f МБ"):format(n / 1048576) end
+  return ("%d КБ"):format(math.max(0, math.ceil(n / 1024)))
 end
 
 local DISK
 if opts.disk then
-  for d, p in fs.mounts() do
-    if p == opts.disk:gsub("/+$", "") or d.address:find(opts.disk, 1, true) == 1 then
-      DISK = p
-    end
+  local want = opts.disk:gsub("/+$", "")
+  if want == "" then want = "/" end
+  for _, d in ipairs(disks) do
+    if d.path == want or d.address:find(opts.disk, 1, true) == 1 or d.label == opts.disk then DISK = d end
   end
+  if not DISK and want:sub(1, 1) == "/" and fs.exists(want) then DISK = diskOf(want) end
   if not DISK then die("диска " .. opts.disk .. " не видно") end
-end
-
-local function mb(n)
-  if n >= 1048576 then return ("%.1f МБ"):format(n / 1048576) end
-  return ("%d КБ"):format(math.ceil(n / 1024))
+  if DISK.ro then die("на " .. DISK.path .. " писать нельзя") end
 end
 
 ------------------------------------------------------------------ позиции
 
 -- Позиция - то, что ставится и убирается целиком: игра (файлы одной pkg),
 -- ролик или звук к нему, набор программ без частей, сама система. Общие
--- файлы источника (установщик, pkg = "core") ставятся с любой позицией.
+-- файлы источника (pkg = "core") ставятся с любой позицией.
 local function itemsOf(s)
   local m = s.manifest
   s.items, s.core = {}, {}
@@ -204,18 +266,17 @@ local function itemsOf(s)
     e.lname = e[2] or e[1]
     if e.video then
       vids[#vids + 1] = e
-    elseif not m.packages or e.pkg == "core" or not e.pkg then
-      if m.packages then s.core[#s.core + 1] = e
-      else
-        if not byPkg[s.name] then
-          local it = { src = s, key = s.name, title = s.title, files = {}, kind = "app" }
-          order[#order + 1] = it
-          byPkg[s.name] = it
-        end
-        local it = byPkg[s.name]
-        -- установщик набора - общий файл, остальное - сам набор
-        if e.lname == "install.lua" then s.core[#s.core + 1] = e else it.files[#it.files + 1] = e end
+    elseif e.pkg == "core" then
+      s.core[#s.core + 1] = e
+    elseif not m.packages or not e.pkg then
+      -- набор без частей: всё - одна позиция
+      if not byPkg[s.name] then
+        local it = { src = s, key = s.name, title = s.title, files = {}, kind = "app" }
+        order[#order + 1] = it
+        byPkg[s.name] = it
       end
+      local it = byPkg[s.name]
+      it.files[#it.files + 1] = e
     else
       local it = byPkg[e.pkg]
       if not it then
@@ -244,7 +305,7 @@ local function itemsOf(s)
     it.aliases = {}
     for _, b in ipairs(m.bin or {}) do
       for _, e in ipairs(it.files) do
-        if e.lname == b[2] and b[2] ~= "install.lua" then it.aliases[#it.aliases + 1] = b[1] end
+        if e.lname == b[2] then it.aliases[#it.aliases + 1] = b[1] end
       end
     end
   end
@@ -256,9 +317,9 @@ local function stateFiles(s)
   return s.state.files or {}
 end
 
---- Где файл стоит сейчас, или nil. Путь - из записи состояния; у
---- программ и старых установщиков его там нет - тогда рядом с состоянием.
---- Файлы системы стоят на своих местах и без записи.
+--- Где файл стоит сейчас, или nil. Путь - из записи состояния; у старых
+--- установщиков его там нет - тогда рядом с состоянием. Файлы системы
+--- стоят на своих местах и без записи.
 local function placed(s, e)
   local rec = stateFiles(s)[e.lname]
   local path
@@ -266,6 +327,23 @@ local function placed(s, e)
   elseif s.system then path = "/" .. e.lname
   elseif rec then path = s.dir .. "/" .. e.lname end
   if path and fs.exists(path) and not fs.isDirectory(path) then return path, rec end
+end
+
+--- Каталог, где позиция стоит сейчас (файл lib/x.lua в /a/lib/x.lua -
+--- это /a), или nil, если не стоит ни один её файл.
+local function baseOf(it)
+  for _, e in ipairs(it.files) do
+    local path = placed(it.src, e)
+    if path and path:sub(-#e.lname - 1) == "/" .. e.lname then return path:sub(1, -#e.lname - 2) end
+  end
+end
+
+--- Куда класть позицию на диске d.
+local function baseOn(d, it)
+  local s = it.src
+  if it.kind == "video" then return d.path == "/" and "/home/videos" or (d.path .. "/videos") end
+  if d == diskOf(s.dir) then return s.dir end
+  return (d.path == "/" and "/home/" or (d.path .. "/")) .. s.name
 end
 
 --- Файлы, которые не обновляются: свои правки пользователя (keep в
@@ -276,17 +354,6 @@ local function skipped(s, e)
     if k == e.lname and fs.exists("/" .. k) then return true end
   end
   return e.lname == ".prop" and not fs.exists("/.prop")
-end
-
---- Куда класть файл, которого ещё нет.
-local function home(s, it, e)
-  if s.system then return "/" .. e.lname end
-  if it and it.kind == "video" then
-    local m = DISK or mountOf(s.dir)
-    return (m == "/" and "/home/videos" or (m .. "/videos")) .. "/" .. e.lname
-  end
-  if it and it.kind == "game" and DISK then return DISK .. "/games/" .. e.lname end
-  return s.dir .. "/" .. e.lname
 end
 
 --- Совпадает ли стоящий файл с записью манифеста. Записанному хэшу верим,
@@ -338,8 +405,9 @@ local function resolve(name)
   key = (key or name):lower()
   local found = {}
   for _, s in ipairs(active) do
-    if s.items and (not srcName or s.name == srcName) then
-      if not srcName and key == s.name then
+    local mine = not srcName or s.name == srcName or s.alias == srcName
+    if s.items and mine then
+      if not srcName and (key == s.name or key == s.alias) then
         for _, it in ipairs(s.items) do
           -- весь набор: игры и программы, ролики - только поштучно
           if it.kind ~= "video" then found[#found + 1] = it end
@@ -359,7 +427,7 @@ end
 
 local function pad(str, n)
   local w = unicode.wlen(str)
-  if w > n then
+  if w >= n then
     return unicode.wtrunc(str, n) .. " "
   end
   return str .. (" "):rep(n - w)
@@ -369,7 +437,7 @@ if cmd == "list" then
   local W = math.min(80, (require("term").getViewport()))
   for _, s in ipairs(active) do
     if s.items then
-      print(("%s  %s@%s"):format(s.title, s.repo, s.branch))
+      print(("%s  %s@%s/%s"):format(s.title, s.repo, s.branch, s.sub:gsub("/$", "")))
       for _, it in ipairs(s.items) do
         local size, stood, old = 0, false, false
         for _, e in ipairs(it.files) do
@@ -382,18 +450,28 @@ if cmd == "list" then
         end
         if it.kind == "system" then stood = true end
         local mark = stood and (old and "обновить" or "стоит") or ""
+        -- не на своём диске - где именно
+        local base = stood and not s.system and baseOf(it)
+        local d = base and diskOf(base)
+        if d and d ~= diskOf(s.dir) then mark = mark .. " " .. d.path end
         local name = it.key .. (#(it.aliases or {}) > 0 and it.aliases[1] ~= it.key and ("  " .. table.concat(it.aliases, ",")) or "")
         print("  " .. pad(name, 20) .. pad(it.title or "", W - 44) .. pad(mb(size), 10) .. mark)
       end
     end
   end
+  local line = {}
+  for _, d in ipairs(disks) do
+    if not d.ro then
+      line[#line + 1] = ("%s %s%s"):format(d.path, mb(math.max(0, d.free)), d.small and " (дискета)" or "")
+    end
+  end
+  print("Свободно: " .. table.concat(line, ", "))
   print("get install ИМЯ - поставить, get update - обновить всё, get help")
   return 0
 end
 
--- Собрать план: что качать (need), что стереть (drop), какие позиции
--- в каком источнике будут стоять после.
-local plan = {}         -- источник -> { want = {позиция = true}, gone = {} }
+-- Собрать план: какие позиции в каком источнике ставить (want) и убрать (gone).
+local plan = {}
 local function planOf(s)
   plan[s] = plan[s] or { want = {}, gone = {} }
   return plan[s]
@@ -426,18 +504,20 @@ if cmd == "update" then
     end
   end
 end
+
 ------------------------------------------------------------------ сверка
 
-local need, drops = {}, {}
+local drops = {}
 local stats = { same = 0, get = 0, bytes = 0, gone = 0 }
 local newState = {}
+local jobs = {}          -- что качать: { it, s, need = {файлы}, all = {все файлы позиции} }
 
 for s, p in pairs(plan) do
   local st = s.state or {}
   local ns = {
     repo = s.repo, branch = s.branch,
     dir = (s.sub ~= "" and s.sub:gsub("/+$", "")) or nil,
-    files = {}, bin = {}, seen = st.seen,
+    files = {}, bin = {},
   }
   if s.system then ns.version = s.manifest.version end
   newState[s] = ns
@@ -447,17 +527,11 @@ for s, p in pairs(plan) do
     anyWanted = true
     for _, e in ipairs(it.files) do want[e] = it end
   end
-  -- seen у установщика игр - "уже предлагали": чего там нет, games-update
-  -- считает новым и ставит сам. get показывает весь список, так что
-  -- предложено всё, что есть в манифесте
-  if not s.system then
-    ns.seen = ns.seen or {}
-    for _, it in ipairs(s.items) do ns.seen[it.key] = true end
-  end
+  local core = { src = s, key = s.name, title = s.title, files = s.core, kind = "core" }
   local all, known = {}, {}
   for _, e in ipairs(s.core) do
     all[#all + 1] = e
-    if anyWanted then want[e] = want[e] or false end
+    if anyWanted then want[e] = core end
   end
   for _, it in ipairs(s.items) do
     for _, e in ipairs(it.files) do
@@ -466,24 +540,30 @@ for s, p in pairs(plan) do
     end
   end
 
+  local job = {}
   for _, e in ipairs(all) do
     known[e.lname] = true
     local path, rec = placed(s, e)
     if e.gone then
       if path then drops[#drops + 1] = { path = path, name = e.lname } end
     elseif want[e] == nil or skipped(s, e) then
-      if rec and path then ns.files[e.lname] = rec end   -- не трогаем
+      -- не трогаем; стоит на вынутом диске - помним, где
+      local away = rec and rec.path and rec.path:match("^(/mnt/[^/]+)/")
+      if rec and (path or (away and not fs.exists(away))) then ns.files[e.lname] = rec end
     else
+      local it = want[e]
       local ok, _, now = fresh(s, e)
+      e.src, e.cur, e.fresh = s, path, ok
       if ok then
         stats.same = stats.same + 1
         if not s.system then now.path = path end
         ns.files[e.lname] = now
-      else
-        e.src = s
-        e.to = path or home(s, want[e] or nil, e)
-        need[#need + 1] = e
       end
+      if not job[it] then
+        job[it] = { it = it, s = s, need = {} }
+        jobs[#jobs + 1] = job[it]
+      end
+      if not ok then table.insert(job[it].need, e) end
     end
   end
 
@@ -500,25 +580,153 @@ for s, p in pairs(plan) do
   end
 end
 
--- места хватит? считаем по дискам
-do
-  local byDisk = {}
-  for _, e in ipairs(need) do
-    local dev = fs.get(e.to:match("^(.*)/[^/]*$") ~= "" and e.to or "/") or root
-    local cur = fs.exists(e.to) and fs.size(e.to) or 0
-    byDisk[dev] = (byDisk[dev] or 0) + (e.size or 0) - cur + 512
+------------------------------------------------------------------ раскладка
+
+--- Сколько займёт на диске: большой файл качается в .part рядом со
+--- старым, поэтому место под него нужно целиком; малый пишется сразу.
+local function cost(e, to)
+  local cur = fs.exists(to) and not fs.isDirectory(to) and fs.size(to) or nil
+  if cur and (e.size or 0) <= 65536 then return (e.size or 0) - cur end
+  return (e.size or 0) + COST
+end
+
+local function bytes(list, base)
+  local n = 0
+  for _, e in ipairs(list) do n = n + cost(e, base .. "/" .. e.lname) end
+  return n
+end
+
+--- Диск для позиции в n байт: свой, если влезает, иначе где свободнее.
+local function pick(n, home)
+  if DISK then return room(DISK) >= n and DISK or nil end
+  if home and not home.ro and room(home) >= n then return home end
+  local best
+  for _, d in ipairs(disks) do
+    if not d.ro and not d.small and room(d) >= n and (not best or room(d) > room(best)) then best = d end
   end
-  for dev, n in pairs(byDisk) do
-    local free = (dev.spaceTotal() or 0) - (dev.spaceUsed() or 0)
-    if n > free then
-      die(("на диске %s не хватит места: нужно %s, свободно %s (--disk=/mnt/...)")
-        :format(dev.getLabel() or dev.address:sub(1, 8), mb(n), mb(free)))
+  return best
+end
+
+local need, moved, homeless = {}, {}, {}
+local placing = {}
+for _, j in ipairs(jobs) do
+  local it, s = j.it, j.s
+  if it.kind == "system" or it.kind == "core" then
+    -- система - на своих местах, общие файлы - в каталоге источника
+    for _, e in ipairs(j.need) do
+      e.to = e.cur or (s.system and ("/" .. e.lname) or (s.dir .. "/" .. e.lname))
+      local d = diskOf(e.to)
+      d.free = d.free - cost(e, e.to)
+      if d.free < 0 then homeless[#homeless + 1] = ("%s: на %s не хватает места"):format(e.lname, d.path) end
+      need[#need + 1] = e
+    end
+  else
+    local base = baseOf(it)
+    local d = base and diskOf(base)
+    local move = cmd == "install" and DISK and d and d ~= DISK
+    if base and not move then
+      -- стоит: докачать на место, если влезает
+      local n = bytes(j.need, base)
+      if n <= 0 or n <= room(d) then
+        d.free = d.free - n
+        for _, e in ipairs(j.need) do e.to = e.cur or (base .. "/" .. e.lname) need[#need + 1] = e end
+      else
+        placing[#placing + 1] = j
+        j.from = d
+      end
+    elseif #j.need > 0 or move then
+      placing[#placing + 1] = j
+      j.from = move and d or nil
     end
   end
 end
 
+-- Новое и переезжающее - группами: позиция, а ролик вместе со звуком к
+-- нему (плеер ищет .dfpwm рядом с .bin). Каждой группе - один диск,
+-- крупные раскладываются первыми.
+local groups, byBase = {}, {}
+for _, j in ipairs(placing) do
+  j.size = COST
+  for _, e in ipairs(j.it.files) do j.size = j.size + (e.size or 0) + COST end
+  local key = j.it.kind == "video" and (j.s.name .. "/" .. j.it.base)
+  local g = key and byBase[key]
+  if not g then
+    g = { jobs = {}, size = 0, it = j.it }
+    groups[#groups + 1] = g
+    if key then byBase[key] = g end
+  end
+  g.jobs[#g.jobs + 1] = j
+  g.size = g.size + j.size
+  g.from = g.from or j.from
+end
+table.sort(groups, function(a, b) return a.size > b.size end)
+
+for _, g in ipairs(groups) do
+  local it = g.it
+  local home = diskOf(baseOn(diskOf(it.src.dir), it))
+  -- звук к стоящему ролику (и наоборот) - к нему в каталог; там не
+  -- влезает или просят другой диск - стоящий переезжает вместе с новым
+  local mate
+  if it.kind == "video" then
+    local inGroup, mates = {}, {}
+    for _, j in ipairs(g.jobs) do inGroup[j.it] = true end
+    for _, x in ipairs(it.src.items) do
+      local at = x.kind == "video" and x.base == it.base and not inGroup[x] and baseOf(x)
+      if at then mate = at mates[#mates + 1] = x end
+    end
+    local md = mate and diskOf(mate)
+    if md and room(md) >= g.size and (not DISK or DISK == md) then
+      home = md
+    elseif md then
+      mate = nil
+      for _, x in ipairs(mates) do
+        local j = { it = x, s = x.src, need = {}, from = md, size = COST }
+        for _, e in ipairs(x.files) do e.src = x.src j.size = j.size + (e.size or 0) + COST end
+        g.jobs[#g.jobs + 1] = j
+        g.size = g.size + j.size
+        g.from = g.from or md
+      end
+    end
+  end
+  local d = pick(g.size, g.from == nil and home or (home ~= g.from and home or nil))
+  local names = {}
+  for _, j in ipairs(g.jobs) do names[#names + 1] = j.it.key end
+  names = table.concat(names, ", ")
+  if not d then
+    local best
+    for _, x in ipairs(disks) do
+      if not x.ro and not x.small and (not best or room(x) > room(best)) then best = x end
+    end
+    homeless[#homeless + 1] = ("%s (%s) не влезает%s"):format(names, mb(g.size),
+      DISK and (" на " .. DISK.path .. ", там свободно " .. mb(room(DISK)))
+      or best and (": свободнее всего на " .. best.path .. " - " .. mb(room(best))) or "")
+  else
+    d.free = d.free - g.size
+    for _, j in ipairs(g.jobs) do
+      local base = (mate and d == diskOf(mate)) and mate or baseOn(d, j.it)
+      for _, e in ipairs(j.from and j.it.files or j.need) do
+        e.to = base .. "/" .. e.lname
+        need[#need + 1] = e
+        if e.fresh then stats.same = stats.same - 1 end
+        local old = e.cur or placed(j.s, e)
+        if old and old ~= e.to then drops[#drops + 1] = { path = old, name = e.lname, unless = e } end
+      end
+    end
+    if d ~= home or g.from then
+      moved[#moved + 1] = ("  %s -> %s%s"):format(names, d.path,
+        g.from and (" (с " .. g.from.path .. ")") or DISK and "" or " (на своём диске не влезает)")
+    end
+  end
+end
+
+if #homeless > 0 then
+  for _, h in ipairs(homeless) do io.stderr:write("  " .. h .. "\n") end
+  die("места не хватит - освободи диск, вставь ещё один или get remove ...")
+end
+
 ------------------------------------------------------------------ загрузка
 
+for _, m in ipairs(moved) do print(m) end
 local total = 0
 for _, e in ipairs(need) do total = total + (e.gzsize or e.size or 0) end
 if #need > 0 then
@@ -547,6 +755,7 @@ local function run(list, s)
     end,
     done = function(e, n)
       if not n then return end
+      e.got = true
       stats.get, stats.bytes = stats.get + 1, stats.bytes + n
       local ns = newState[e.src]
       local rec = { size = n, crc = e.crc, mtime = fs.lastModified(e.to) }
@@ -572,9 +781,22 @@ run(sys, sysSrc)
 run(rest, nil)
 
 for _, d in ipairs(drops) do
-  fs.remove(d.path)
-  stats.gone = stats.gone + 1
-  print(("  %-24s удалён%s"):format(d.name, d.stale and " - его больше нет в репозитории" or ""))
+  -- переезд: старое убираем, только если новое пришло
+  if not d.unless or d.unless.got then
+    fs.remove(d.path)
+    stats.gone = stats.gone + 1
+    if not d.unless then
+      print(("  %-24s удалён%s"):format(d.name, d.stale and " - его больше нет в репозитории" or ""))
+    end
+    -- опустевшие каталоги позиции на другом диске не оставляем
+    local dir = d.path:match("^(/mnt/[^/]+/.+)/[^/]+$")
+    while dir do
+      local list = fs.list(dir)
+      if not list or list() ~= nil then break end
+      fs.remove(dir)
+      dir = dir:match("^(/mnt/[^/]+/.+)/[^/]+$")
+    end
+  end
 end
 
 ------------------------------------------------------------------ ярлыки и состояние
@@ -591,11 +813,7 @@ end
 for s, ns in pairs(newState) do
   if not s.system then
     local m = s.manifest
-    local lib
-    if m.lib then
-      local sub = m.lib:gsub("^/+", ""):gsub("/+$", "")
-      if sub ~= "" then lib = s.dir .. "/" .. sub end
-    end
+    local sub = m.lib and m.lib:gsub("^/+", ""):gsub("/+$", "")
     local wanted = {}
     for _, b in ipairs(m.bin or {}) do
       local rec = ns.files[b[2]]
@@ -604,9 +822,9 @@ for s, ns in pairs(newState) do
         wanted[b[1]] = true
         ns.bin[#ns.bin + 1] = b[1]
         local pre = ""
-        if b[2] == "install.lua" then
-          pre = ("table.insert(a, 1, %q)\n"):format("--to=" .. s.dir)
-        elseif lib then
+        if sub and sub ~= "" and target:sub(-#b[2] - 1) == "/" .. b[2] then
+          -- библиотеки - рядом с программой, на том же диске
+          local lib = target:sub(1, -#b[2] - 2) .. "/" .. sub
           pre = ("package.path = %q .. package.path\n"):format(lib .. "/?.lua;")
         end
         local body = ("%s%s\nlocal a = { ... }\n%sreturn assert(loadfile(%q))(table.unpack(a))\n")
